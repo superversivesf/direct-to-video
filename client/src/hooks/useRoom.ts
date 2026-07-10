@@ -13,7 +13,7 @@ export function useRoom() {
       setRoomState(state);
     });
 
-    socket.on("player_joined", (players) => {
+    socket.on("player_list_updated", (players) => {
       setRoomState((prev) => prev ? { ...prev, players } : prev);
     });
 
@@ -26,6 +26,10 @@ export function useRoom() {
 
     socket.on("timer_started", (secondsRemaining: number) => {
       setRoomState((prev) => prev ? { ...prev, timer: { ...prev.timer, running: true, secondsRemaining } } : prev);
+    });
+
+    socket.on("timer_tick", (secondsRemaining: number) => {
+      setRoomState((prev) => prev ? { ...prev, timer: { ...prev.timer, secondsRemaining } } : prev);
     });
 
     socket.on("timer_paused", (remainingSeconds: number) => {
@@ -71,9 +75,10 @@ export function useRoom() {
 
     return () => {
       socket.off("room_joined");
-      socket.off("player_joined");
+      socket.off("player_list_updated");
       socket.off("movie_revealed");
       socket.off("timer_started");
+      socket.off("timer_tick");
       socket.off("timer_paused");
       socket.off("timer_expired");
       socket.off("note_played");
@@ -150,6 +155,10 @@ export function useAudience() {
       setAudienceState((prev) => prev ? { ...prev, timer: { ...prev.timer, running: true, secondsRemaining } } : prev);
     });
 
+    socket.on("timer_tick", (secondsRemaining: number) => {
+      setAudienceState((prev) => prev ? { ...prev, timer: { ...prev.timer, secondsRemaining } } : prev);
+    });
+
     socket.on("timer_paused", (remainingSeconds: number) => {
       setAudienceState((prev) => prev ? { ...prev, timer: { running: false, secondsRemaining: remainingSeconds, pausedAt: Date.now() } } : prev);
     });
@@ -174,6 +183,7 @@ export function useAudience() {
       socket.off("audience_update");
       socket.off("movie_revealed");
       socket.off("timer_started");
+      socket.off("timer_tick");
       socket.off("timer_paused");
       socket.off("timer_expired");
       socket.off("note_played");

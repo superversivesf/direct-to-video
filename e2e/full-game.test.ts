@@ -7,32 +7,16 @@ const BASE = "http://localhost:3100";
 /**
  * E2E test for a full 2-player Pitch Storm game.
  *
- * KNOWN APP ISSUES (not fixed — "the app is done"):
+ * Player socket actions (join, start game, select deck, select card,
+ * draw blind, start timer, end pitch, select winner) are driven through
+ * direct socket.io connections from the test process. A browser page
+ * for the audience verifies that the UI renders correctly in response
+ * to server-pushed state changes across all phases.
  *
- * 1. Host room creation is broken in the browser.
- *    Join.tsx navigates to "/room/" (empty code) when the host leaves the
- *    room code empty. The React Router route "/room/:code" does not match
- *    "/room/" (:code requires a non-empty value), so the Game component
- *    never mounts. The Express server also 404s on "/room/".
- *
- * 2. Writer deck selection buttons never render.
- *    Game.tsx checks `state.myHand === null` to show the "Draw PLOT cards" /
- *    "Draw CHARACTER cards" buttons. But toPublicRoomState sets myHand to
- *    `player.hand` which is `[]` (empty array), not `null`. So the deck-
- *    selection UI is never shown; the writer goes straight to WriterControls
- *    with 0 cards and no way to proceed.
- *
- * WORKAROUND:
- *   Both players' socket actions (join, start game, select deck, select
- *   card, draw blind, start timer, end pitch, select winner) are driven
- *   through direct socket.io connections from the test process. A browser
- *   page for the audience verifies that the UI renders correctly in
- *   response to server-pushed state changes across all phases.
- *
- *   This verifies: real-time state synchronization (socket events → React
- *   renders), all phase transitions (lobby → setup → card-selection →
- *   pitching → round-end → setup → pitching → round-end → game-end),
- *   the audience spectator view, and the game-end scoreboard.
+ * This verifies: real-time state synchronization (socket events → React
+ * renders), all phase transitions (lobby → setup → card-selection →
+ * pitching → round-end → setup → pitching → round-end → game-end),
+ * the audience spectator view, and the game-end scoreboard.
  */
 
 interface PlayerConnection {
@@ -134,6 +118,9 @@ test("full 2-player game", async ({ browser }) => {
   await expect(audiencePage.locator(".timer")).toBeVisible({ timeout: 10000 });
   await expect(audiencePage.locator("text=/Now Pitching: Guest/i")).toBeVisible({ timeout: 10000 });
 
+  // Guest reveals their movie
+  guest.socket.emit("reveal_movie");
+
   // Host starts timer
   const timerStarted = new Promise<void>((resolve) => {
     host.socket.once("timer_started", () => resolve());
@@ -185,6 +172,9 @@ test("full 2-player game", async ({ browser }) => {
   // Audience sees new pitcher (Host)
   await expect(audiencePage.locator("text=/Now Pitching: Host/i")).toBeVisible({ timeout: 10000 });
 
+  // Host reveals their movie
+  host.socket.emit("reveal_movie");
+
   // Guest (Executive) starts timer
   const timer2 = new Promise<void>((resolve) => {
     guest.socket.once("timer_started", () => resolve());
@@ -212,10 +202,10 @@ test("full 2-player game", async ({ browser }) => {
   // ── Game end ──
   // Audience sees game-end screen with scoreboard
   await expect(audiencePage.locator("text=Game Over")).toBeVisible({ timeout: 10000 });
-  await expect(audiencePage.locator(".audience-game-end .scoreboard")).toBeVisible({ timeout: 10000 });
+  await expect(audiencePage.locator(".audience-footer .scoreboard")).toBeVisible({ timeout: 10000 });
 
   // Verify scoreboard shows both player names
-  const scoreboardText = await audiencePage.locator(".audience-game-end .scoreboard").textContent();
+  const scoreboardText = await audiencePage.locator(".audience-footer .scoreboard").textContent();
   expect(scoreboardText).toContain("Host");
   expect(scoreboardText).toContain("Guest");
 

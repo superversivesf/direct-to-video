@@ -10,6 +10,8 @@ export interface DbHandle {
   loadRoom: (code: string) => Room | null;
   getAllRooms: () => Room[];
   getCardDeck: (db: DB, type: CardType) => Card[];
+  deleteRoom: (code: string) => void;
+  loadRoomMeta: (code: string) => { updated_at: string } | null;
 }
 
 export function getCardDeck(db: DB, type: CardType): Card[] {
@@ -45,6 +47,10 @@ export function initDb(path: string = ":memory:"): DbHandle {
 
   const allRooms = db.prepare(`SELECT state FROM rooms`);
 
+  const deleteRoom = db.prepare(`DELETE FROM rooms WHERE code = ?`);
+
+  const loadRoomMeta = db.prepare(`SELECT updated_at FROM rooms WHERE code = ?`);
+
   function saveRoomFn(code: string, room: Room) {
     saveRoom.run(code, JSON.stringify(room));
   }
@@ -60,7 +66,16 @@ export function initDb(path: string = ":memory:"): DbHandle {
     return rows.map((row) => JSON.parse(row.state) as Room);
   }
 
-  return { db, saveRoom: saveRoomFn, loadRoom: loadRoomFn, getAllRooms: getAllRoomsFn, getCardDeck };
+  function deleteRoomFn(code: string): void {
+    deleteRoom.run(code);
+  }
+
+  function loadRoomMetaFn(code: string): { updated_at: string } | null {
+    const row = loadRoomMeta.get(code) as { updated_at: string } | undefined;
+    return row ?? null;
+  }
+
+  return { db, saveRoom: saveRoomFn, loadRoom: loadRoomFn, getAllRooms: getAllRoomsFn, getCardDeck, deleteRoom: deleteRoomFn, loadRoomMeta: loadRoomMetaFn };
 }
 
 export function seedCards(db: DB) {

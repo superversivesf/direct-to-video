@@ -90,7 +90,6 @@ export function Game() {
           hand={state.myHand || []}
           hasSelectedCard={!!myMovie?.chosenCard}
           hasDrawnBlind={!!myMovie?.randomCard}
-          onSelectDeckType={room.selectDeckType}
           onSelectCard={room.selectCard}
           onDrawBlind={room.drawRandomCard}
           onReady={room.revealMovie}
@@ -115,7 +114,6 @@ export function Game() {
           <ExecutiveControls
             notes={state.myExecutiveNotes || []}
             timerRunning={state.timer.running}
-            timerSeconds={state.timer.secondsRemaining}
             onStartTimer={room.startTimer}
             onPauseTimer={room.pauseTimer}
             onPlayNote={room.playNote}

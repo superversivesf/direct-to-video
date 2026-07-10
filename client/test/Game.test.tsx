@@ -140,6 +140,7 @@ describe("Game", () => {
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
         randomCard: null as unknown as { id: string; type: "plot"; text: string },
         notesPlayed: [],
+        revealed: false,
       }],
     });
     renderGame();
@@ -171,6 +172,7 @@ describe("Game", () => {
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
         randomCard: { id: "r1", type: "character", text: "Char A" },
         notesPlayed: [],
+        revealed: true,
       }],
     });
     renderGame();
@@ -196,6 +198,7 @@ describe("Game", () => {
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
         randomCard: { id: "r1", type: "character", text: "Char A" },
         notesPlayed: [],
+        revealed: true,
       }],
     });
     renderGame();
@@ -219,6 +222,7 @@ describe("Game", () => {
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
         randomCard: { id: "r1", type: "character", text: "Char A" },
         notesPlayed: [],
+        revealed: true,
       }],
       myExecutiveNotes: [{ id: "n1", type: "note", text: "Note A" }],
     });
@@ -245,6 +249,7 @@ describe("Game", () => {
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
         randomCard: { id: "r1", type: "character", text: "Char A" },
         notesPlayed: [],
+        revealed: true,
       }],
       myExecutiveNotes: [{ id: "n1", type: "note", text: "Note A" }],
     });
@@ -268,6 +273,7 @@ describe("Game", () => {
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
         randomCard: { id: "r1", type: "character", text: "Char A" },
         notesPlayed: [],
+        revealed: true,
       }],
     });
     renderGame();
@@ -290,6 +296,7 @@ describe("Game", () => {
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
         randomCard: { id: "r1", type: "character", text: "Char A" },
         notesPlayed: [],
+        revealed: true,
       }],
     });
     renderGame();

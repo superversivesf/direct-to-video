@@ -35,14 +35,21 @@ export function Audience() {
       {state.phase === "lobby" && (
         <div className="audience-lobby">
           <h2>Waiting for game to start...</h2>
-          <Scoreboard players={state.players} large={true} />
+          <div className="audience-player-list">
+            {state.players.map((p) => (
+              <div key={p.id} className="audience-player">
+                {p.isHost && "👑 "}
+                {p.name}
+                {p.isDisconnected && " (disconnected)"}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {state.phase === "setup" && (
         <div className="audience-setup">
           <h2>Writers are choosing their cards...</h2>
-          <Scoreboard players={state.players} />
         </div>
       )}
 
@@ -72,12 +79,11 @@ export function Audience() {
       {state.phase === "game-end" && (
         <div className="audience-game-end">
           <h1>🏆 Game Over!</h1>
-          <Scoreboard players={state.players} large={true} />
         </div>
       )}
 
       <footer className="audience-footer">
-        <Scoreboard players={state.players} />
+        <Scoreboard players={state.players} large={state.phase === "game-end"} />
       </footer>
     </div>
   );

@@ -32,7 +32,7 @@ function toPublicRoomState(room: Room, playerId: string | null): PublicRoomState
     currentPitcherId: room.currentPitcherId,
     timer: room.timer,
     round: room.round,
-    movies: room.movies,
+    movies: room.movies.filter((m) => m.revealed),
     myPlayerId: playerId,
     myHand: player ? player.hand : null,
     myExecutiveNotes: isExec ? room.executiveNotes : null,
@@ -55,7 +55,7 @@ function toAudienceRoomState(room: Room): AudienceRoomState {
     currentPitcherId: room.currentPitcherId,
     timer: room.timer,
     round: room.round,
-    movies: room.movies,
+    movies: room.movies.filter((m) => m.revealed),
     scoreboard: room.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score })),
   };
 }
@@ -73,7 +73,7 @@ function broadcastPlayerList(io: Server, room: Room): void {
     score: p.score,
     isDisconnected: p.isDisconnected,
   }));
-  io.to(`room:${room.code}`).emit("player_joined", players);
+  io.to(`room:${room.code}`).emit("player_list_updated", players);
   io.to(`audience:${room.code}`).emit("audience_update", toAudienceRoomState(room));
 }
 
@@ -85,7 +85,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       if (room.timer.running) {
         const ticked = tickTimer(room.timer);
         store.saveRoom({ ...room, timer: ticked });
-        io.to(`room:${room.code}`).emit("timer_started", ticked.secondsRemaining);
+        io.to(`room:${room.code}`).emit("timer_tick", ticked.secondsRemaining);
         io.to(`audience:${room.code}`).emit("audience_update", toAudienceRoomState(store.getRoom(room.code)!));
         if (isTimerExpired(ticked)) {
           io.to(`room:${room.code}`).emit("timer_expired");
@@ -98,6 +98,10 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
             if (updated.currentPitcherId) {
               io.to(`room:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
               io.to(`audience:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
+            }
+            if (updated.phase === "setup" && updated.round.current > 1) {
+              io.to(`room:${updated.code}`).emit("round_started", updated.round.current);
+              io.to(`audience:${updated.code}`).emit("round_started", updated.round.current);
             }
             broadcastAllStates(io, updated);
           }
@@ -142,7 +146,12 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("join_audience", (code: string) => {
-      const room = store.getRoom(code.toUpperCase());
+      const normalizedCode = code.toUpperCase();
+      if (!/^[A-Z]{4}$/.test(normalizedCode)) {
+        socket.emit("error", "Invalid room code");
+        return;
+      }
+      const room = store.getRoom(normalizedCode);
       if (!room) {
         socket.emit("error", "Room not found");
         return;
@@ -217,7 +226,20 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
       try {
-        const updated = { ...ctx.room, timer: startTimer(ctx.room.timer) };
+        let room = ctx.room;
+        if (room.currentPitcherId) {
+          const movie = room.movies.find((m) => m.playerId === room.currentPitcherId);
+          if (movie && !movie.revealed) {
+            revealMovie(store, room, room.currentPitcherId);
+            room = store.getRoom(room.code)!;
+            const revealedMovie = room.movies.find((m) => m.playerId === room.currentPitcherId);
+            if (revealedMovie) {
+              io.to(`room:${room.code}`).emit("movie_revealed", revealedMovie);
+              io.to(`audience:${room.code}`).emit("movie_revealed", revealedMovie);
+            }
+          }
+        }
+        const updated = { ...(room as Room), timer: startTimer((room as Room).timer) };
         store.saveRoom(updated);
         io.to(`room:${updated.code}`).emit("timer_started", updated.timer.secondsRemaining);
         io.to(`audience:${updated.code}`).emit("timer_started", updated.timer.secondsRemaining);
@@ -245,11 +267,13 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
       try {
-        playNote(store, ctx.room, noteCardId, ctx.room.currentPitcherId!);
-        const updated = store.getRoom(ctx.room.code)!;
         const noteCard = ctx.room.executiveNotes.find((c) => c.id === noteCardId);
-        io.to(`room:${updated.code}`).emit("note_played", noteCard, ctx.room.currentPitcherId!);
-        io.to(`audience:${updated.code}`).emit("note_played", noteCard, ctx.room.currentPitcherId!);
+        if (!noteCard) throw new Error("Note card not in Executive's hand");
+        const pitcherId = ctx.room.currentPitcherId!;
+        playNote(store, ctx.room, noteCardId, pitcherId);
+        const updated = store.getRoom(ctx.room.code)!;
+        io.to(`room:${updated.code}`).emit("note_played", noteCard, pitcherId);
+        io.to(`audience:${updated.code}`).emit("note_played", noteCard, pitcherId);
         broadcastAllStates(io, updated);
       } catch (err) {
         socket.emit("error", (err as Error).message);
@@ -289,6 +313,9 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
           const scoreboard = updated.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score }));
           io.to(`room:${updated.code}`).emit("game_ended", scoreboard);
           io.to(`audience:${updated.code}`).emit("game_ended", scoreboard);
+        } else if (updated.phase === "setup" && updated.round.current > ctx.room.round.current) {
+          io.to(`room:${updated.code}`).emit("round_started", updated.round.current);
+          io.to(`audience:${updated.code}`).emit("round_started", updated.round.current);
         }
         broadcastAllStates(io, updated);
       } catch (err) {

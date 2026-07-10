@@ -27,6 +27,7 @@ export interface Movie {
   chosenCard: Card;
   randomCard: Card;
   notesPlayed: Card[];
+  revealed: boolean;
 }
 
 export interface TimerState {
@@ -103,22 +104,17 @@ export interface ClientToServerEvents {
   play_note: (noteCardId: string) => void;
   end_pitch: () => void;
   select_winner: (playerId: string) => void;
-  next_pitcher: () => void;
   start_game: () => void;
-  next_round: () => void;
   play_again: () => void;
   join_audience: (code: string) => void;
 }
 
 export interface ServerToClientEvents {
   room_joined: (state: PublicRoomState) => void;
-  player_joined: (players: PublicPlayer[]) => void;
-  player_left: (players: PublicPlayer[]) => void;
-  deck_selected: (playerId: string, deckType: DeckType) => void;
-  card_selected: (playerId: string) => void;
-  card_drawn: (playerId: string) => void;
+  player_list_updated: (players: PublicPlayer[]) => void;
   movie_revealed: (movie: Movie) => void;
   timer_started: (secondsRemaining: number) => void;
+  timer_tick: (secondsRemaining: number) => void;
   timer_paused: (remainingSeconds: number) => void;
   timer_expired: () => void;
   note_played: (noteCard: Card, playerId: string) => void;

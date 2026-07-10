@@ -105,6 +105,7 @@ export function drawBlindCard(store: RoomStore, room: Room, playerId: string, de
     chosenCard: player.chosenCard,
     randomCard: blindCard,
     notesPlayed: [] as Card[],
+    revealed: false,
   };
   const updated: Room = {
     ...room,
@@ -154,19 +155,26 @@ export function startPitching(store: RoomStore, room: Room): void {
 export function revealMovie(store: RoomStore, room: Room, playerId: string): void {
   const movie = room.movies.find((m) => m.playerId === playerId);
   if (!movie) throw new Error("No movie found for player");
-  store.saveRoom(room);
+  store.saveRoom({
+    ...room,
+    movies: room.movies.map((m) =>
+      m.playerId === playerId ? { ...m, revealed: true } : m
+    ),
+  });
 }
 
 export function endPitch(store: RoomStore, room: Room, playerId: string): void {
   const nextIndex = room.currentPitchIndex + 1;
+  const allRevealed = room.movies.map((m) => ({ ...m, revealed: true }));
   if (nextIndex >= room.pitchOrder.length) {
-    store.saveRoom({ ...room, phase: "round-end", currentPitcherId: null, timer: createTimer(45) });
+    store.saveRoom({ ...room, phase: "round-end", currentPitcherId: null, timer: createTimer(45), movies: allRevealed });
   } else {
     store.saveRoom({
       ...room,
       currentPitchIndex: nextIndex,
       currentPitcherId: room.pitchOrder[nextIndex],
       timer: createTimer(45),
+      movies: allRevealed,
     });
   }
 }

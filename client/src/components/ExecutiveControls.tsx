@@ -4,14 +4,13 @@ import { Card } from "./Card.js";
 interface ExecutiveControlsProps {
   notes: CardType[];
   timerRunning: boolean;
-  timerSeconds: number;
   onStartTimer: () => void;
   onPauseTimer: () => void;
   onPlayNote: (noteCardId: string) => void;
   onEndPitch: () => void;
 }
 
-export function ExecutiveControls({ notes, timerRunning, timerSeconds, onStartTimer, onPauseTimer, onPlayNote, onEndPitch }: ExecutiveControlsProps) {
+export function ExecutiveControls({ notes, timerRunning, onStartTimer, onPauseTimer, onPlayNote, onEndPitch }: ExecutiveControlsProps) {
   return (
     <div className="executive-controls">
       <h3>Your NOTE Cards</h3>
