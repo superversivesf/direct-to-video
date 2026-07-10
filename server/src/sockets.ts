@@ -90,6 +90,17 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         if (isTimerExpired(ticked)) {
           io.to(`room:${room.code}`).emit("timer_expired");
           io.to(`audience:${room.code}`).emit("audience_update", toAudienceRoomState(store.getRoom(room.code)!));
+          if (room.currentPitcherId) {
+            endPitch(store, store.getRoom(room.code)!, room.currentPitcherId);
+            const updated = store.getRoom(room.code)!;
+            io.to(`room:${updated.code}`).emit("pitch_ended", room.currentPitcherId);
+            io.to(`audience:${updated.code}`).emit("pitch_ended", room.currentPitcherId);
+            if (updated.currentPitcherId) {
+              io.to(`room:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
+              io.to(`audience:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
+            }
+            broadcastAllStates(io, updated);
+          }
         }
       }
     }

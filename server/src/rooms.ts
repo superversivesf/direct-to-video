@@ -61,6 +61,15 @@ export function createRoom(store: RoomStore, hostName: string): { room: Room; pl
 export function joinRoom(store: RoomStore, code: string, name: string): { room: Room; playerId: string } {
   const room = store.getRoom(code);
   if (!room) throw new Error("Room not found");
+
+  const existingDisconnected = room.players.find(
+    (p) => p.isDisconnected && p.name.toLowerCase() === name.toLowerCase()
+  );
+  if (existingDisconnected) {
+    store.saveRoom(room);
+    return { room, playerId: existingDisconnected.id };
+  }
+
   if (room.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
     throw new Error("Name already taken");
   }

@@ -30,6 +30,11 @@ export function WriterControls({ hand, hasSelectedCard, hasDrawnBlind, onSelectD
           <button onClick={() => onDrawBlind("character")}>Character Deck</button>
         </div>
       )}
+      {hasSelectedCard && hasDrawnBlind && (
+        <button className="ready-to-pitch" onClick={onReady}>
+          Ready to Pitch
+        </button>
+      )}
     </div>
   );
 }
