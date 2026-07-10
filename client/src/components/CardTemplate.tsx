@@ -4,9 +4,10 @@ interface CardTemplateProps {
   type: "plot" | "character" | "note" | "face-down";
   children: ReactNode;
   large?: boolean;
+  onClick?: () => void;
 }
 
-export function CardTemplate({ type, children, large = false }: CardTemplateProps) {
+export function CardTemplate({ type, children, large = false, onClick }: CardTemplateProps) {
   const className = `card-template card--${type}${large ? " card-large" : ""}`;
-  return <div className={className}>{children}</div>;
+  return <div className={className} onClick={onClick}>{children}</div>;
 }

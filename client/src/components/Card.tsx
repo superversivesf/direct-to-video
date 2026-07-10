@@ -11,14 +11,14 @@ interface CardProps {
 export function Card({ card, faceDown = false, large = false, onClick }: CardProps) {
   if (faceDown) {
     return (
-      <CardTemplate type="face-down" large={large}>
-        <div className="card-back-label">PITCH STORM</div>
-      </CardTemplate>
+    <CardTemplate type="face-down" large={large} onClick={onClick}>
+      <div className="card-back-label">PITCH STORM</div>
+    </CardTemplate>
     );
   }
 
   return (
-    <CardTemplate type={card.type} large={large}>
+    <CardTemplate type={card.type} large={large} onClick={onClick}>
       <div className="card-type-label">{card.type.toUpperCase()}</div>
       <div className="card-text">{card.text}</div>
     </CardTemplate>
