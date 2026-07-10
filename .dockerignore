@@ -1,0 +1,9 @@
+node_modules
+dist
+data
+*.db
+.git
+docs
+e2e
+*.md
+PitchStorm-*.jpg
