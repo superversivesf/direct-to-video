@@ -205,20 +205,28 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
-      const updated = { ...ctx.room, timer: startTimer(ctx.room.timer) };
-      store.saveRoom(updated);
-      io.to(`room:${updated.code}`).emit("timer_started", updated.timer.secondsRemaining);
-      io.to(`audience:${updated.code}`).emit("timer_started", updated.timer.secondsRemaining);
+      try {
+        const updated = { ...ctx.room, timer: startTimer(ctx.room.timer) };
+        store.saveRoom(updated);
+        io.to(`room:${updated.code}`).emit("timer_started", updated.timer.secondsRemaining);
+        io.to(`audience:${updated.code}`).emit("timer_started", updated.timer.secondsRemaining);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
     });
 
     socket.on("pause_timer", () => {
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
-      const updated = { ...ctx.room, timer: pauseTimer(ctx.room.timer) };
-      store.saveRoom(updated);
-      io.to(`room:${updated.code}`).emit("timer_paused", updated.timer.secondsRemaining);
-      io.to(`audience:${updated.code}`).emit("timer_paused", updated.timer.secondsRemaining);
+      try {
+        const updated = { ...ctx.room, timer: pauseTimer(ctx.room.timer) };
+        store.saveRoom(updated);
+        io.to(`room:${updated.code}`).emit("timer_paused", updated.timer.secondsRemaining);
+        io.to(`audience:${updated.code}`).emit("timer_paused", updated.timer.secondsRemaining);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
     });
 
     socket.on("play_note", (noteCardId: string) => {
@@ -241,15 +249,19 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
-      endPitch(store, ctx.room, ctx.room.currentPitcherId!);
-      const updated = store.getRoom(ctx.room.code)!;
-      io.to(`room:${updated.code}`).emit("pitch_ended", ctx.room.currentPitcherId!);
-      io.to(`audience:${updated.code}`).emit("pitch_ended", ctx.room.currentPitcherId!);
-      if (updated.currentPitcherId) {
-        io.to(`room:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
-        io.to(`audience:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
+      try {
+        endPitch(store, ctx.room, ctx.room.currentPitcherId!);
+        const updated = store.getRoom(ctx.room.code)!;
+        io.to(`room:${updated.code}`).emit("pitch_ended", ctx.room.currentPitcherId!);
+        io.to(`audience:${updated.code}`).emit("pitch_ended", ctx.room.currentPitcherId!);
+        if (updated.currentPitcherId) {
+          io.to(`room:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
+          io.to(`audience:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
+        }
+        broadcastAllStates(io, updated);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
       }
-      broadcastAllStates(io, updated);
     });
 
     socket.on("select_winner", (playerId: string) => {
@@ -278,8 +290,12 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       if (!ctx) return;
       const player = ctx.room.players.find((p) => p.id === ctx.playerId);
       if (!player?.isHost) return;
-      playAgain(store, ctx.room);
-      broadcastAllStates(io, store.getRoom(ctx.room.code)!);
+      try {
+        playAgain(store, ctx.room);
+        broadcastAllStates(io, store.getRoom(ctx.room.code)!);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
     });
 
     socket.on("disconnect", () => {
