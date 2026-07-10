@@ -44,6 +44,7 @@ function createPlayer(name: string, isHost: boolean): Player {
     isHost,
     score: 0,
     hand: [],
+    chosenCard: null,
     isDisconnected: false,
   };
 }

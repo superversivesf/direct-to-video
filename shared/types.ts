@@ -18,6 +18,7 @@ export interface Player {
   isHost: boolean;
   score: number;
   hand: Card[];
+  chosenCard: Card | null;
   isDisconnected: boolean;
 }
 

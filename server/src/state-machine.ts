@@ -2,8 +2,6 @@ import type { Room, Player, Card, DeckType } from "@pitch-storm/shared";
 import type { RoomStore } from "./rooms.js";
 import { createTimer } from "./timer.js";
 
-const PLACEHOLDER_CARD: Card = { id: "", type: "plot", text: "" };
-
 function shuffle<T>(array: T[]): T[] {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -88,17 +86,10 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
   store.saveRoom({
     ...room,
     players: room.players.map((p) =>
-      p.id === playerId ? { ...p, hand: p.hand.filter((c) => c.id !== cardId) } : p
+      p.id === playerId
+        ? { ...p, hand: p.hand.filter((c) => c.id !== cardId), chosenCard: card }
+        : p
     ),
-    movies: [
-      ...room.movies.filter((m) => m.playerId !== playerId),
-      {
-        playerId,
-        chosenCard: card,
-        randomCard: PLACEHOLDER_CARD,
-        notesPlayed: [],
-      },
-    ],
   });
 }
 
@@ -106,39 +97,35 @@ export function drawBlindCard(store: RoomStore, room: Room, playerId: string, de
   if (room.phase !== "card-selection" && room.phase !== "setup") throw new Error("Cannot draw blind card outside card-selection phase");
   const player = room.players.find((p) => p.id === playerId);
   if (!player) throw new Error("Player not found");
+  if (!player.chosenCard) throw new Error("Must select a card before drawing blind");
   const { drawn, remaining } = drawCards(room.deck[deckType], 1);
   const blindCard = drawn[0];
-  const existingMovie = room.movies.find((m) => m.playerId === playerId);
-
-  if (existingMovie) {
-    const updatedMovies = room.movies.map((m) =>
-      m.playerId === playerId ? { ...m, randomCard: blindCard } : m
-    );
-    const updated: Room = {
-      ...room,
-      deck: { ...room.deck, [deckType]: remaining },
-      movies: updatedMovies,
-    };
-    checkAllMoviesReady(store, updated);
-  } else {
-    const newMovie = {
-      playerId,
-      chosenCard: PLACEHOLDER_CARD,
-      randomCard: blindCard,
-      notesPlayed: [] as Card[],
-    };
-    store.saveRoom({
-      ...room,
-      deck: { ...room.deck, [deckType]: remaining },
-      movies: [...room.movies, newMovie],
-    });
-  }
+  const newMovie = {
+    playerId,
+    chosenCard: player.chosenCard,
+    randomCard: blindCard,
+    notesPlayed: [] as Card[],
+  };
+  const updated: Room = {
+    ...room,
+    deck: { ...room.deck, [deckType]: remaining },
+    movies: [
+      ...room.movies.filter((m) => m.playerId !== playerId),
+      newMovie,
+    ],
+  };
+  checkAllMoviesReady(store, updated);
 }
 
 function checkAllMoviesReady(store: RoomStore, room: Room): void {
   const writers = getWriterPlayers(room);
   const readyWriters = writers.filter((w) =>
-    room.movies.some((m) => m.playerId === w.id && m.randomCard && m.chosenCard)
+    room.movies.some(
+      (m) =>
+        m.playerId === w.id &&
+        m.chosenCard.id !== "" &&
+        m.randomCard.id !== ""
+    )
   );
   if (readyWriters.length === writers.length) {
     startPitching(store, room);
@@ -207,13 +194,19 @@ export function selectWinner(store: RoomStore, room: Room, playerId: string): vo
   if (room.phase !== "round-end") throw new Error("Can only select winner during round-end");
   const movie = room.movies.find((m) => m.playerId === playerId);
   if (!movie) throw new Error("No movie found for player");
+  const noteGiven = movie.notesPlayed.length > 0 ? movie.notesPlayed[movie.notesPlayed.length - 1] : null;
 
-  const updated: Room = {
+  let updated: Room = {
     ...room,
     players: room.players.map((p) =>
       p.id === playerId ? { ...p, score: p.score + 1 } : p
     ),
   };
+
+  if (!noteGiven && updated.deck.note.length > 0) {
+    const { remaining } = drawCards(updated.deck.note, 1);
+    updated = { ...updated, deck: { ...updated.deck, note: remaining } };
+  }
 
   if (updated.round.current >= updated.round.total) {
     store.saveRoom({ ...updated, phase: "game-end" });
@@ -235,6 +228,7 @@ export function nextRound(store: RoomStore, room: Room): void {
       ...p,
       isExecutive: p.id === nextExecId,
       hand: [],
+      chosenCard: null,
     })),
     executiveNotes: [],
     movies: [],
@@ -254,6 +248,7 @@ export function playAgain(store: RoomStore, room: Room): void {
       isExecutive: false,
       score: 0,
       hand: [],
+      chosenCard: null,
       isDisconnected: false,
     })),
     executiveId: null,
