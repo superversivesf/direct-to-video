@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import type { Room, Player } from "@pitch-storm/shared";
+import type { Room, Player, Card, CardType } from "@pitch-storm/shared";
 import type { DbHandle } from "./db.js";
 
 const VALID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -104,5 +104,9 @@ export class RoomStore {
 
   getAllCachedRooms(): Room[] {
     return Array.from(this.cache.values());
+  }
+
+  getCardsByType(type: CardType): Card[] {
+    return this.dbHandle.getCardDeck(this.dbHandle.db, type);
   }
 }
