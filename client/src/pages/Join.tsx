@@ -18,8 +18,12 @@ export function Join() {
   function handleJoinAsPlayer() {
     if (!name.trim()) return;
     setCookie("playerName", name);
-    const roomCode = code.trim().toUpperCase() || "";
-    navigate(`/room/${roomCode}`);
+    const roomCode = code.trim().toUpperCase();
+    if (roomCode) {
+      navigate(`/room/${roomCode}`);
+    } else {
+      navigate(`/room/_create`);
+    }
   }
 
   function handleJoinAsAudience() {

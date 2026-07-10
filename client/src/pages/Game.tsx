@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useRoom } from "../hooks/useRoom.js";
 import { PlayerList } from "../components/PlayerList.js";
 import { Timer } from "../components/Timer.js";
@@ -12,14 +12,27 @@ import type { DeckType } from "@pitch-storm/shared";
 
 export function Game() {
   const { code } = useParams<{ code: string }>();
+  const navigate = useNavigate();
   const room = useRoom();
+  const joinedRef = useRef(false);
 
   useEffect(() => {
     const name = getCookie("playerName") || "";
     if (name && code) {
-      room.joinRoom(code, name);
+      const emitCode = code === "_create" ? "" : code;
+      room.joinRoom(emitCode, name);
     }
   }, [code]);
+
+  useEffect(() => {
+    if (room.roomState && code === "_create") {
+      const realCode = room.roomState.code;
+      if (realCode && !joinedRef.current) {
+        joinedRef.current = true;
+        navigate(`/room/${realCode}`, { replace: true });
+      }
+    }
+  }, [room.roomState, code, navigate]);
 
   function getCookie(key: string): string | undefined {
     const match = document.cookie.match(new RegExp(`(^| )${key}=([^;]+)`));
@@ -47,7 +60,7 @@ export function Game() {
   }
 
   // SETUP (choose deck type)
-  if (state.phase === "setup" && !isExecutive && state.myHand === null) {
+  if (state.phase === "setup" && !isExecutive && (!state.myHand || state.myHand.length === 0)) {
     return (
       <div className="game-view">
         <h2>Round {state.round.current} of {state.round.total}</h2>
