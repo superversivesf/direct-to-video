@@ -47,4 +47,17 @@ describe("database", () => {
     expect(loaded!.code).toBe("ABCD");
     expect(loaded!.phase).toBe("lobby");
   });
+
+  it("getAllRooms returns all saved rooms", () => {
+    const handle = initDb(":memory:");
+    handle.saveRoom("AAAA", { code: "AAAA", phase: "lobby", players: [] });
+    handle.saveRoom("BBBB", { code: "BBBB", phase: "pitching", players: [] });
+    handle.saveRoom("CCCC", { code: "CCCC", phase: "voting", players: [] });
+    const rooms = handle.getAllRooms();
+    expect(rooms).toHaveLength(3);
+    const codes = rooms.map((r) => r.code);
+    expect(codes).toContain("AAAA");
+    expect(codes).toContain("BBBB");
+    expect(codes).toContain("CCCC");
+  });
 });

@@ -8,6 +8,7 @@ export interface DbHandle {
   db: DB;
   saveRoom: (code: string, room: Room) => void;
   loadRoom: (code: string) => Room | null;
+  getAllRooms: () => Room[];
   getCardDeck: (db: DB, type: CardType) => Card[];
 }
 
@@ -42,6 +43,8 @@ export function initDb(path: string = ":memory:"): DbHandle {
 
   const loadRoom = db.prepare(`SELECT state FROM rooms WHERE code = ?`);
 
+  const allRooms = db.prepare(`SELECT state FROM rooms`);
+
   function saveRoomFn(code: string, room: Room) {
     saveRoom.run(code, JSON.stringify(room));
   }
@@ -52,7 +55,12 @@ export function initDb(path: string = ":memory:"): DbHandle {
     return JSON.parse(row.state) as Room;
   }
 
-  return { db, saveRoom: saveRoomFn, loadRoom: loadRoomFn, getCardDeck };
+  function getAllRoomsFn(): Room[] {
+    const rows = allRooms.all() as { state: string }[];
+    return rows.map((row) => JSON.parse(row.state) as Room);
+  }
+
+  return { db, saveRoom: saveRoomFn, loadRoom: loadRoomFn, getAllRooms: getAllRoomsFn, getCardDeck };
 }
 
 export function seedCards(db: DB) {
