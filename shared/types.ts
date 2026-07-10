@@ -78,6 +78,7 @@ export interface PublicRoomState {
   movies: Movie[];
   myPlayerId: string | null;
   myHand: Card[] | null;
+  myChosenCard: Card | null;
   myExecutiveNotes: Card[] | null;
 }
 

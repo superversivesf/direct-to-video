@@ -35,6 +35,7 @@ function toPublicRoomState(room: Room, playerId: string | null): PublicRoomState
     movies: room.movies.filter((m) => m.revealed),
     myPlayerId: playerId,
     myHand: player ? player.hand : null,
+    myChosenCard: player ? player.chosenCard : null,
     myExecutiveNotes: isExec ? room.executiveNotes : null,
   };
 }

@@ -83,13 +83,16 @@ export function Game() {
       );
     }
     const myMovie = state.movies.find((m) => m.playerId === state.myPlayerId);
+    const hasSelectedCard = !!state.myChosenCard;
+    const hasDrawnBlind = !!myMovie?.randomCard;
     return (
       <div className="game-view">
         <h2>Round {state.round.current} of {state.round.total}</h2>
         <WriterControls
           hand={state.myHand || []}
-          hasSelectedCard={!!myMovie?.chosenCard}
-          hasDrawnBlind={!!myMovie?.randomCard}
+          selectedCard={state.myChosenCard}
+          hasSelectedCard={hasSelectedCard}
+          hasDrawnBlind={hasDrawnBlind}
           onSelectCard={room.selectCard}
           onDrawBlind={room.drawRandomCard}
           onReady={room.revealMovie}

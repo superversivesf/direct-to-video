@@ -34,6 +34,7 @@ const baseState: PublicRoomState = {
   movies: [],
   myPlayerId: "1",
   myHand: null,
+  myChosenCard: null,
   myExecutiveNotes: null,
 };
 
@@ -106,9 +107,9 @@ describe("Game", () => {
       ],
     });
     renderGame();
-    expect(screen.getByText("Your Hand")).toBeTruthy();
+    expect(screen.getByText(/your hand/i)).toBeTruthy();
     expect(screen.getByText("Plot A")).toBeTruthy();
-    expect(screen.getByText("Select a card from your hand to play.")).toBeTruthy();
+    expect(screen.getByText(/click a card to play it/i)).toBeTruthy();
   });
 
   it("calls selectCard when a hand card is clicked", () => {
@@ -135,16 +136,10 @@ describe("Game", () => {
       executiveId: "9",
       myPlayerId: "1",
       myHand: [{ id: "c1", type: "plot", text: "Plot A" }],
-      movies: [{
-        playerId: "1",
-        chosenCard: { id: "c1", type: "plot", text: "Plot A" },
-        randomCard: null as unknown as { id: string; type: "plot"; text: string },
-        notesPlayed: [],
-        revealed: false,
-      }],
+      myChosenCard: { id: "c2", type: "plot", text: "Plot B" },
     });
     renderGame();
-    expect(screen.getByText(/draw a blind card from/i)).toBeTruthy();
+    expect(screen.getByText(/draw a blind card/i)).toBeTruthy();
     expect(screen.getByText("Plot Deck")).toBeTruthy();
   });
 

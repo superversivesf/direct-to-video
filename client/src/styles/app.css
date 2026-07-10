@@ -1,0 +1,531 @@
+ Pitch Storm — global app styles
+
+/* ── Reset & base ───────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+/* ── Join screen ────────────────────────────────────── */
+.join-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 20px;
+}
+
+.join-screen h1 {
+  font-size: 48px;
+  letter-spacing: 6px;
+  background: linear-gradient(135deg, #e94560, #0f3460);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 320px;
+}
+
+.join-input {
+  padding: 14px 16px;
+  font-size: 18px;
+  border: 2px solid #333;
+  border-radius: 8px;
+  background: #16213e;
+  color: #eee;
+  text-align: center;
+}
+
+.join-input:focus {
+  outline: none;
+  border-color: #e94560;
+}
+
+.join-input::placeholder {
+  color: #555;
+}
+
+.join-btn {
+  padding: 14px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.join-btn-player {
+  background: linear-gradient(135deg, #e94560, #c23152);
+  color: white;
+}
+
+.join-btn-player:hover {
+  background: linear-gradient(135deg, #f0506e, #d03960);
+}
+
+.join-btn-audience {
+  background: linear-gradient(135deg, #0f3460, #16213e);
+  color: #eee;
+  border: 2px solid #0f3460;
+}
+
+.join-btn-audience:hover {
+  background: linear-gradient(135deg, #1a4a7a, #1e2848);
+}
+
+/* ── Game view ──────────────────────────────────────── */
+.game-view {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+}
+
+.game-view h1 {
+  font-size: 28px;
+  color: #e94560;
+}
+
+.game-view h2 {
+  font-size: 22px;
+  color: #eee;
+}
+
+.game-view p {
+  font-size: 18px;
+  color: #aaa;
+}
+
+.game-view button {
+  background: #e94560;
+  color: white;
+  font-size: 18px;
+  padding: 12px 32px;
+}
+
+.game-view button:hover {
+  background: #f0506e;
+}
+
+.game-end-screen {
+  text-align: center;
+}
+
+.game-end-screen h1 {
+  font-size: 36px;
+}
+
+/* ── Player list ────────────────────────────────────── */
+.player-list {
+  width: 100%;
+  max-width: 400px;
+}
+
+.player-list h3 {
+  font-size: 16px;
+  color: #aaa;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.player-list ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-list li {
+  padding: 10px 16px;
+  background: #16213e;
+  border-radius: 8px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-disconnected {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* ── Card row ───────────────────────────────────────── */
+.card-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+/* ── Writer controls ────────────────────────────────── */
+.writer-controls {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.writer-controls h3 {
+  font-size: 18px;
+  color: #eee;
+}
+
+.blind-draw-controls {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.blind-draw-controls p {
+  font-size: 16px;
+}
+
+.btn-draw {
+  background: #0f3460;
+  color: white;
+  font-size: 18px;
+  padding: 12px 32px;
+}
+
+.btn-draw:hover {
+  background: #1a4a7a;
+}
+
+.ready-section {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.btn-ready {
+  background: #2e7d32;
+  color: white;
+  font-size: 20px;
+  padding: 16px 40px;
+  font-weight: 700;
+}
+
+.btn-ready:hover {
+  background: #388e3c;
+}
+
+/* ── Executive controls ─────────────────────────────── */
+.executive-controls {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.executive-controls h3 {
+  font-size: 18px;
+  color: #eee;
+}
+
+.timer-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.timer-controls button {
+  background: #e94560;
+  color: white;
+}
+
+.timer-controls button:nth-child(2) {
+  background: #f57c00;
+}
+
+.timer-controls button:nth-child(3) {
+  background: #d32f2f;
+}
+
+/* ── Timer ──────────────────────────────────────────── */
+.timer {
+  font-size: 32px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 24px;
+  border-radius: 12px;
+  background: #16213e;
+}
+
+.timer--running {
+  color: #4caf50;
+}
+
+.timer--paused {
+  color: #ff9800;
+}
+
+.timer-large {
+  font-size: 72px;
+  padding: 16px 48px;
+}
+
+/* ── Movie reveal ───────────────────────────────────── */
+.movie-reveal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.movie-cards {
+  display: flex;
+  gap: 20px;
+}
+
+.movie-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.movie-notes h4 {
+  color: #4caf50;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+/* ── Scoreboard ─────────────────────────────────────── */
+.scoreboard {
+  padding: 16px;
+  background: #16213e;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.scoreboard h3 {
+  font-size: 14px;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.scoreboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scoreboard-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #0f3460;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+.scoreboard-rank {
+  font-weight: bold;
+  color: #e94560;
+  width: 24px;
+}
+
+.scoreboard-name {
+  flex-grow: 1;
+}
+
+.scoreboard-score {
+  font-weight: bold;
+  font-size: 20px;
+  color: #4caf50;
+}
+
+.scoreboard-large {
+  max-width: 600px;
+}
+
+.scoreboard-large .scoreboard-row {
+  font-size: 20px;
+  padding: 10px 16px;
+}
+
+/* ── Round summary ──────────────────────────────────── */
+.round-summary {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+}
+
+.round-summary h2 {
+  font-size: 24px;
+  color: #e94560;
+}
+
+.round-summary-movie {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  padding: 20px;
+  background: #16213e;
+  border-radius: 12px;
+}
+
+.round-summary-movie h3 {
+  font-size: 18px;
+}
+
+.round-summary-movie button {
+  background: #2e7d32;
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 12px 32px;
+}
+
+.round-summary-movie button:hover {
+  background: #388e3c;
+}
+
+/* ── Audience view ──────────────────────────────────── */
+.audience-view {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.audience-header {
+  text-align: center;
+  padding: 20px;
+  background: #0f3460;
+}
+
+.audience-header h1 {
+  font-size: 36px;
+  letter-spacing: 6px;
+  color: white;
+}
+
+.audience-meta {
+  font-size: 18px;
+  color: #aaa;
+  margin-top: 8px;
+}
+
+.audience-lobby,
+.audience-setup,
+.audience-pitching,
+.audience-round-end,
+.audience-game-end {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 40px;
+}
+
+.audience-lobby h2,
+.audience-setup h2,
+.audience-round-end h2 {
+  font-size: 28px;
+  color: #eee;
+}
+
+.audience-game-end h1 {
+  font-size: 48px;
+}
+
+.audience-pitcher-name {
+  font-size: 32px;
+  color: #e94560;
+}
+
+.audience-player-list {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.audience-player {
+  font-size: 20px;
+  padding: 8px 20px;
+  background: #16213e;
+  border-radius: 8px;
+}
+
+.audience-footer {
+  padding: 16px;
+  background: #0a0a1a;
+  border-top: 2px solid #1a1a2e;
+}
+
+.audience-footer .scoreboard {
+  max-width: 800px;
+  margin: 0 auto;
+  background: transparent;
+}
+
+/* ── Loading ────────────────────────────────────────── */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 20px;
+  color: #aaa;
+}
+
+.audience-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 20px;
+  color: #aaa;
+}
