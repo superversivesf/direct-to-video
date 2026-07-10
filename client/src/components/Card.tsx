@@ -1,0 +1,26 @@
+import type { Card as CardType } from "@pitch-storm/shared";
+import { CardTemplate } from "./CardTemplate.js";
+
+interface CardProps {
+  card: CardType;
+  faceDown?: boolean;
+  large?: boolean;
+  onClick?: () => void;
+}
+
+export function Card({ card, faceDown = false, large = false, onClick }: CardProps) {
+  if (faceDown) {
+    return (
+      <CardTemplate type="face-down" large={large}>
+        <div className="card-back-label">PITCH STORM</div>
+      </CardTemplate>
+    );
+  }
+
+  return (
+    <CardTemplate type={card.type} large={large}>
+      <div className="card-type-label">{card.type.toUpperCase()}</div>
+      <div className="card-text">{card.text}</div>
+    </CardTemplate>
+  );
+}
