@@ -62,17 +62,14 @@ export function joinRoom(store: RoomStore, code: string, name: string): { room: 
   const room = store.getRoom(code);
   if (!room) throw new Error("Room not found");
 
-  const existingDisconnected = room.players.find(
-    (p) => p.isDisconnected && p.name.toLowerCase() === name.toLowerCase()
+  const existing = room.players.find(
+    (p) => p.name.toLowerCase() === name.toLowerCase()
   );
-  if (existingDisconnected) {
+  if (existing) {
     store.saveRoom(room);
-    return { room, playerId: existingDisconnected.id };
+    return { room, playerId: existing.id };
   }
 
-  if (room.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-    throw new Error("Name already taken");
-  }
   const player = createPlayer(name, false);
   room.players.push(player);
   store.saveRoom(room);

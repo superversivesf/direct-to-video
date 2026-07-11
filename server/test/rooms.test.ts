@@ -51,9 +51,11 @@ describe("rooms", () => {
     expect(() => joinRoom(store, "ZZZZ", "Sarah")).toThrow("Room not found");
   });
 
-  it("prevents duplicate names in the same room", () => {
+  it("restores player identity when same name rejoins", () => {
     const created = createRoom(store, "Jason");
-    expect(() => joinRoom(store, created.room.code, "Jason")).toThrow("Name already taken");
+    const rejoined = joinRoom(store, created.room.code, "Jason");
+    expect(rejoined.playerId).toBe(created.playerId);
+    expect(rejoined.room.players).toHaveLength(1);
   });
 
   it("persists room state to SQLite", () => {
