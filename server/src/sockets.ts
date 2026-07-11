@@ -17,6 +17,7 @@ import { startTimer, pauseTimer, pauseForNote, tickTimer, isTimerExpired, should
 function toPublicRoomState(room: Room, playerId: string | null): PublicRoomState {
   const player = playerId ? room.players.find((p) => p.id === playerId) : null;
   const isExec = player?.id === room.executiveId;
+  const myMovie = playerId ? room.movies.find((m) => m.playerId === playerId) : null;
   return {
     code: room.code,
     phase: room.phase,
@@ -36,6 +37,9 @@ function toPublicRoomState(room: Room, playerId: string | null): PublicRoomState
     myPlayerId: playerId,
     myHand: player ? player.hand : null,
     myChosenCard: player ? player.chosenCard : null,
+    myMovieReady: !!myMovie,
+    myMovieRevealed: myMovie ? myMovie.revealed : false,
+    myBlindCard: myMovie && myMovie.revealed ? myMovie.randomCard : null,
     myExecutiveNotes: isExec ? room.executiveNotes : null,
   };
 }

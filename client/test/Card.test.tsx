@@ -23,7 +23,7 @@ describe("Card", () => {
   it("renders face-down card when faceDown is true", () => {
     render(<Card card={card} faceDown={true} />);
     expect(screen.queryByText(card.text)).toBeNull();
-    expect(screen.getByText("PITCH STORM")).toBeTruthy();
+    expect(screen.getByText("PLOT")).toBeTruthy();
   });
 
   it("applies correct CSS class for card type", () => {

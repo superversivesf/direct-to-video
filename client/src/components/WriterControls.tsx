@@ -6,12 +6,14 @@ interface WriterControlsProps {
   selectedCard: CardType | null;
   hasSelectedCard: boolean;
   hasDrawnBlind: boolean;
+  blindCard: CardType | null;
+  blindRevealed: boolean;
   onSelectCard: (cardId: string) => void;
   onDrawBlind: (dt: DeckType) => void;
   onReady: () => void;
 }
 
-export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBlind, onSelectCard, onDrawBlind, onReady }: WriterControlsProps) {
+export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBlind, blindCard, blindRevealed, onSelectCard, onDrawBlind, onReady }: WriterControlsProps) {
   const blindDeckType: DeckType = selectedCard?.type === "plot" ? "character" : "plot";
   const blindDeckLabel = blindDeckType === "plot" ? "Plot" : "Character";
 
@@ -39,13 +41,47 @@ export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBl
           </div>
         </>
       )}
-      {hasSelectedCard && hasDrawnBlind && (
-        <div className="ready-section">
-          <p>Your movie is ready! Click when you're ready to pitch.</p>
+      {hasSelectedCard && selectedCard && hasDrawnBlind && !blindRevealed && (
+        <>
+          <h3>Your Movie</h3>
+          <div className="movie-cards">
+            {selectedCard.type === "character" ? (
+              <>
+                <Card card={selectedCard} />
+                <Card card={blindCard || { id: "blank", type: blindDeckType, text: "" }} faceDown={true} />
+              </>
+            ) : (
+              <>
+                <Card card={blindCard || { id: "blank", type: blindDeckType, text: "" }} faceDown={true} />
+                <Card card={selectedCard} />
+              </>
+            )}
+          </div>
+          <div className="blind-draw-controls">
+            <p>Your blind card will be revealed when you start pitching!</p>
+          </div>
           <button className="btn-ready" onClick={onReady}>
             Ready to Pitch
           </button>
-        </div>
+        </>
+      )}
+      {hasSelectedCard && selectedCard && hasDrawnBlind && blindRevealed && (
+        <>
+          <h3>Your Movie</h3>
+          <div className="movie-cards">
+            {selectedCard.type === "character" ? (
+              <>
+                <Card card={selectedCard} />
+                {blindCard && <Card card={blindCard} />}
+              </>
+            ) : (
+              <>
+                {blindCard && <Card card={blindCard} />}
+                <Card card={selectedCard} />
+              </>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

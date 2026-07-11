@@ -35,6 +35,9 @@ const baseState: PublicRoomState = {
   myPlayerId: "1",
   myHand: null,
   myChosenCard: null,
+  myMovieReady: false,
+  myMovieRevealed: false,
+  myBlindCard: null,
   myExecutiveNotes: null,
 };
 

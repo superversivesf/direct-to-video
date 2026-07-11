@@ -605,17 +605,17 @@ button:active {
 
   .card-template {
     width: 200px;
-    height: 140px;
-    padding: 12px 14px;
+    height: 119px;
+    padding: 10px 12px;
   }
 
   .card-text {
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .card-large {
     width: 240px;
-    height: 170px;
+    height: 144px;
   }
 
   .card-large .card-text {

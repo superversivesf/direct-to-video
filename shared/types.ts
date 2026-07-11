@@ -81,6 +81,9 @@ export interface PublicRoomState {
   myPlayerId: string | null;
   myHand: Card[] | null;
   myChosenCard: Card | null;
+  myMovieReady: boolean;
+  myMovieRevealed: boolean;
+  myBlindCard: Card | null;
   myExecutiveNotes: Card[] | null;
 }
 
