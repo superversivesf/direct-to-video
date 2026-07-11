@@ -44,12 +44,18 @@
 }
 
 .card--face-down {
-  background: #455a64;
-  color: #cfd8dc;
+  background: #fafafa;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 20px,
+    #e0e0e0 20px,
+    #e0e0e0 21px
+  );
+  color: #999;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid #ddd;
 }
 
 .card-type-label {
@@ -79,7 +85,7 @@
   font-weight: bold;
   letter-spacing: 4px;
   font-family: "Segoe UI", system-ui, sans-serif;
-  opacity: 0.6;
+  opacity: 0.35;
 }
 
 .card-large {
