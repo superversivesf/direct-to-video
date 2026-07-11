@@ -109,7 +109,7 @@ export function Game() {
 
     return (
       <div className="game-view">
-        <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} />
+        <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} pausedForNote={state.timer.pausedForNote} />
         {isMyPitch && <p>YOUR TURN TO PITCH!</p>}
         {!isMyPitch && <p>{pitcher?.name} is pitching...</p>}
         {currentMovie && <MovieReveal movie={currentMovie} large={true} />}

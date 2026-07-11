@@ -34,6 +34,8 @@ export interface TimerState {
   running: boolean;
   secondsRemaining: number;
   pausedAt: number | null;
+  pausedForNote: boolean;
+  noteResumeAt: number | null;
 }
 
 export interface Room {

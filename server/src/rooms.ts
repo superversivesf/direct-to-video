@@ -28,7 +28,7 @@ function createEmptyRoom(code: string): Room {
     deck: { plot: [], character: [], note: [] },
     executiveNotes: [],
     movies: [],
-    timer: { running: false, secondsRemaining: 45, pausedAt: null },
+    timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
     round: { current: 0, total: 0 },
     pitchOrder: [],
     currentPitchIndex: 0,

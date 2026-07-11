@@ -29,7 +29,7 @@ const baseState: PublicRoomState = {
   players: [{ id: "1", name: "Jason", isExecutive: false, isHost: true, score: 0, isDisconnected: false }],
   executiveId: null,
   currentPitcherId: null,
-  timer: { running: false, secondsRemaining: 45, pausedAt: null },
+  timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
   round: { current: 0, total: 0 },
   movies: [],
   myPlayerId: "1",
@@ -161,7 +161,7 @@ describe("Game", () => {
       executiveId: "9",
       myPlayerId: "1",
       currentPitcherId: "1",
-      timer: { running: true, secondsRemaining: 45, pausedAt: null },
+      timer: { running: true, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
       movies: [{
         playerId: "1",
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
@@ -187,7 +187,7 @@ describe("Game", () => {
         { id: "2", name: "Bob", isExecutive: false, isHost: false, score: 0, isDisconnected: false },
         { id: "9", name: "Exec", isExecutive: true, isHost: false, score: 0, isDisconnected: false },
       ],
-      timer: { running: true, secondsRemaining: 45, pausedAt: null },
+      timer: { running: true, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
       movies: [{
         playerId: "1",
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
@@ -211,7 +211,7 @@ describe("Game", () => {
         { id: "1", name: "Exec", isExecutive: true, isHost: false, score: 0, isDisconnected: false },
         { id: "2", name: "Writer", isExecutive: false, isHost: true, score: 0, isDisconnected: false },
       ],
-      timer: { running: false, secondsRemaining: 45, pausedAt: null },
+      timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
       movies: [{
         playerId: "2",
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },
@@ -222,7 +222,7 @@ describe("Game", () => {
       myExecutiveNotes: [{ id: "n1", type: "note", text: "Note A" }],
     });
     renderGame();
-    expect(screen.getByText("Your NOTE Cards")).toBeTruthy();
+    expect(screen.getByText(/Your NOTE Cards/i)).toBeTruthy();
     expect(screen.getByText("Start Timer")).toBeTruthy();
     expect(screen.getByText("End Pitch")).toBeTruthy();
   });
@@ -238,7 +238,7 @@ describe("Game", () => {
         { id: "1", name: "Exec", isExecutive: true, isHost: false, score: 0, isDisconnected: false },
         { id: "2", name: "Writer", isExecutive: false, isHost: true, score: 0, isDisconnected: false },
       ],
-      timer: { running: false, secondsRemaining: 45, pausedAt: null },
+      timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
       movies: [{
         playerId: "2",
         chosenCard: { id: "c1", type: "plot", text: "Plot A" },

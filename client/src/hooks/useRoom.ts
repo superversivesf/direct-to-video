@@ -33,11 +33,11 @@ export function useRoom() {
     });
 
     socket.on("timer_paused", (remainingSeconds: number) => {
-      setRoomState((prev) => prev ? { ...prev, timer: { running: false, secondsRemaining: remainingSeconds, pausedAt: Date.now() } } : prev);
+      setRoomState((prev) => prev ? { ...prev, timer: { ...prev.timer, running: false, secondsRemaining: remainingSeconds, pausedAt: Date.now(), pausedForNote: false, noteResumeAt: null } } : prev);
     });
 
     socket.on("timer_expired", () => {
-      setRoomState((prev) => prev ? { ...prev, timer: { running: false, secondsRemaining: 0, pausedAt: null } } : prev);
+      setRoomState((prev) => prev ? { ...prev, timer: { running: false, secondsRemaining: 0, pausedAt: null, pausedForNote: false, noteResumeAt: null } } : prev);
     });
 
     socket.on("note_played", (noteCard: Card, playerId: string) => {
@@ -160,11 +160,11 @@ export function useAudience() {
     });
 
     socket.on("timer_paused", (remainingSeconds: number) => {
-      setAudienceState((prev) => prev ? { ...prev, timer: { running: false, secondsRemaining: remainingSeconds, pausedAt: Date.now() } } : prev);
+      setAudienceState((prev) => prev ? { ...prev, timer: { ...prev.timer, running: false, secondsRemaining: remainingSeconds, pausedAt: Date.now(), pausedForNote: false, noteResumeAt: null } } : prev);
     });
 
     socket.on("timer_expired", () => {
-      setAudienceState((prev) => prev ? { ...prev, timer: { running: false, secondsRemaining: 0, pausedAt: null } } : prev);
+      setAudienceState((prev) => prev ? { ...prev, timer: { running: false, secondsRemaining: 0, pausedAt: null, pausedForNote: false, noteResumeAt: null } } : prev);
     });
 
     socket.on("note_played", (noteCard: Card, playerId: string) => {

@@ -55,7 +55,7 @@ export function Audience() {
 
       {(state.phase === "card-selection" || state.phase === "pitching") && (
         <div className="audience-pitching">
-          <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} />
+          <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} pausedForNote={state.timer.pausedForNote} />
           {pitcher && <h2 className="audience-pitcher-name">Now Pitching: {pitcher.name}</h2>}
           {currentMovie && <MovieReveal movie={currentMovie} large={true} />}
         </div>

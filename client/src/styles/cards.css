@@ -1,35 +1,33 @@
 .card-template {
-  width: 200px;
-  height: 280px;
-  border-radius: 12px;
+  width: 280px;
+  height: 200px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 16px;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  padding: 20px 24px;
+  font-family: "Courier New", "Courier", monospace;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transition: transform 0.2s;
   position: relative;
   overflow: hidden;
+  border: 1px solid #ccc;
 }
 
 .card-template:hover {
   transform: translateY(-4px);
 }
 
-.card--plot {
-  background: linear-gradient(135deg, #1a237e, #3949ab);
-  color: white;
-}
-
+.card--plot,
 .card--character {
-  background: linear-gradient(135deg, #b71c1c, #d32f2f);
-  color: white;
+  background: #fafafa;
+  color: #222;
 }
 
 .card--note {
-  background: linear-gradient(135deg, #1b5e20, #2e7d32);
-  color: white;
+  background: #fff9c4;
+  color: #333;
+  border-color: #e6dc8a;
 }
 
 .card--face-down {
@@ -40,6 +38,7 @@
   justify-content: center;
   font-weight: bold;
   font-size: 18px;
+  border: none;
 }
 
 .card-type-label {
@@ -47,12 +46,12 @@
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 2px;
-  opacity: 0.8;
+  opacity: 0.5;
 }
 
 .card-text {
-  font-size: 16px;
-  line-height: 1.4;
+  font-size: 15px;
+  line-height: 1.5;
   flex-grow: 1;
   display: flex;
   align-items: center;
@@ -63,13 +62,15 @@
   font-size: 24px;
   font-weight: bold;
   letter-spacing: 3px;
+  font-family: "Segoe UI", system-ui, sans-serif;
 }
 
 .card-large {
-  width: 300px;
-  height: 420px;
+  width: 380px;
+  height: 260px;
 }
 
 .card-large .card-text {
-  font-size: 22px;
+  font-size: 20px;
+  line-height: 1.5;
 }

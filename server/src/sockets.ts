@@ -12,7 +12,7 @@ import {
   selectWinner,
   playAgain,
 } from "./state-machine.js";
-import { startTimer, pauseTimer, tickTimer, isTimerExpired } from "./timer.js";
+import { startTimer, pauseTimer, pauseForNote, tickTimer, isTimerExpired, shouldResumeFromNote } from "./timer.js";
 
 function toPublicRoomState(room: Room, playerId: string | null): PublicRoomState {
   const player = playerId ? room.players.find((p) => p.id === playerId) : null;
@@ -107,6 +107,11 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
             broadcastAllStates(io, updated);
           }
         }
+      } else if (shouldResumeFromNote(room.timer)) {
+        const resumed = startTimer(room.timer);
+        store.saveRoom({ ...room, timer: resumed });
+        io.to(`room:${room.code}`).emit("timer_started", resumed.secondsRemaining);
+        io.to(`audience:${room.code}`).emit("timer_started", resumed.secondsRemaining);
       }
     }
   }, 1000);
@@ -272,7 +277,14 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         if (!noteCard) throw new Error("Note card not in Executive's hand");
         const pitcherId = ctx.room.currentPitcherId!;
         playNote(store, ctx.room, noteCardId, pitcherId);
-        const updated = store.getRoom(ctx.room.code)!;
+        let updated = store.getRoom(ctx.room.code)!;
+        if (updated.timer.running) {
+          const paused = pauseForNote(updated.timer, 5);
+          store.saveRoom({ ...updated, timer: paused });
+          updated = store.getRoom(ctx.room.code)!;
+          io.to(`room:${updated.code}`).emit("timer_paused", updated.timer.secondsRemaining);
+          io.to(`audience:${updated.code}`).emit("timer_paused", updated.timer.secondsRemaining);
+        }
         io.to(`room:${updated.code}`).emit("note_played", noteCard, pitcherId);
         io.to(`audience:${updated.code}`).emit("note_played", noteCard, pitcherId);
         broadcastAllStates(io, updated);
