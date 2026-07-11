@@ -48,6 +48,15 @@ export function Game() {
   const isExecutive = state.myPlayerId === state.executiveId;
   const isHost = myPlayer?.isHost ?? false;
 
+  if (room.error) {
+    return (
+      <div className="game-view">
+        <div className="error-banner">{room.error}</div>
+        <button onClick={() => window.location.reload()}>Reload</button>
+      </div>
+    );
+  }
+
   // LOBBY
   if (state.phase === "lobby") {
     return (

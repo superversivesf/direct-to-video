@@ -546,6 +546,16 @@ button:active {
   color: #aaa;
 }
 
+.error-banner {
+  background: #d32f2f;
+  color: white;
+  padding: 16px 24px;
+  border-radius: 8px;
+  font-size: 18px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
 .audience-loading {
   display: flex;
   align-items: center;
