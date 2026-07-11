@@ -1,17 +1,17 @@
 .card-template {
-  width: 280px;
-  height: 200px;
-  border-radius: 8px;
+  width: 220px;
+  height: 155px;
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 20px 24px;
+  padding: 14px 18px;
   font-family: "Courier New", "Courier", monospace;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   transition: transform 0.2s;
   position: relative;
   overflow: hidden;
-  border: 1px solid #ccc;
+  border: 1px solid #ddd;
 }
 
 .card-template:hover {
@@ -21,13 +21,26 @@
 .card--plot,
 .card--character {
   background: #fafafa;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 23px,
+    #e0e0e0 23px,
+    #e0e0e0 24px
+  );
   color: #222;
 }
 
 .card--note {
   background: #fff9c4;
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 23px,
+    #e6dc8a 23px,
+    #e6dc8a 24px
+  );
   color: #333;
   border-color: #e6dc8a;
+  font-family: "Segoe Script", "Comic Sans MS", "Bradley Hand", cursive;
 }
 
 .card--face-down {
@@ -42,19 +55,24 @@
 }
 
 .card-type-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 2px;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .card-text {
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.5;
   flex-grow: 1;
   display: flex;
   align-items: center;
+}
+
+.card--note .card-text {
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .card-back-label {
@@ -66,11 +84,14 @@
 }
 
 .card-large {
-  width: 380px;
-  height: 260px;
+  width: 340px;
+  height: 240px;
 }
 
 .card-large .card-text {
+  font-size: 18px;
+}
+
+.card--note.card-large .card-text {
   font-size: 20px;
-  line-height: 1.5;
 }

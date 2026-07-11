@@ -340,7 +340,8 @@ button:active {
 
 .movie-cards {
   display: flex;
-  gap: 20px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .movie-notes {
@@ -603,22 +604,22 @@ button:active {
   }
 
   .card-template {
-    width: 260px;
-    height: 180px;
-    padding: 16px 20px;
+    width: 200px;
+    height: 140px;
+    padding: 12px 14px;
   }
 
   .card-text {
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .card-large {
-    width: 280px;
-    height: 195px;
+    width: 240px;
+    height: 170px;
   }
 
   .card-large .card-text {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .timer {

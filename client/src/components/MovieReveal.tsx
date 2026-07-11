@@ -7,11 +7,19 @@ interface MovieRevealProps {
 }
 
 export function MovieReveal({ movie, large = false }: MovieRevealProps) {
+  const cards = [movie.chosenCard, movie.randomCard];
+  const characterFirst = [...cards].sort((a, b) => {
+    if (a.type === "character" && b.type !== "character") return -1;
+    if (b.type === "character" && a.type !== "character") return 1;
+    return 0;
+  });
+
   return (
     <div className="movie-reveal">
       <div className="movie-cards">
-        <Card card={movie.chosenCard} large={large} />
-        <Card card={movie.randomCard} large={large} />
+        {characterFirst.map((card, i) => (
+          <Card key={card.id + i} card={card} large={large} />
+        ))}
       </div>
       {movie.notesPlayed.length > 0 && (
         <div className="movie-notes">
