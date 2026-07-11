@@ -12,6 +12,9 @@ interface WriterControlsProps {
 }
 
 export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBlind, onSelectCard, onDrawBlind, onReady }: WriterControlsProps) {
+  const blindDeckType: DeckType = selectedCard?.type === "plot" ? "character" : "plot";
+  const blindDeckLabel = blindDeckType === "plot" ? "Plot" : "Character";
+
   return (
     <div className="writer-controls">
       {!hasSelectedCard && (
@@ -31,9 +34,8 @@ export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBl
             <Card card={selectedCard} />
           </div>
           <div className="blind-draw-controls">
-            <p>Now draw a blind card from either deck:</p>
-            <button className="btn-draw" onClick={() => onDrawBlind("plot")}>Plot Deck</button>
-            <button className="btn-draw" onClick={() => onDrawBlind("character")}>Character Deck</button>
+            <p>Draw a blind card from the {blindDeckLabel} deck:</p>
+            <button className="btn-draw" onClick={() => onDrawBlind(blindDeckType)}>{blindDeckLabel} Deck</button>
           </div>
         </>
       )}

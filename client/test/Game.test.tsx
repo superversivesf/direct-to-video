@@ -140,7 +140,7 @@ describe("Game", () => {
     });
     renderGame();
     expect(screen.getByText(/draw a blind card/i)).toBeTruthy();
-    expect(screen.getByText("Plot Deck")).toBeTruthy();
+    expect(screen.getByText("Character Deck")).toBeTruthy();
   });
 
   it("renders executive waiting view during setup when player is executive", () => {

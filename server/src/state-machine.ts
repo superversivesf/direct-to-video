@@ -98,6 +98,8 @@ export function drawBlindCard(store: RoomStore, room: Room, playerId: string, de
   const player = room.players.find((p) => p.id === playerId);
   if (!player) throw new Error("Player not found");
   if (!player.chosenCard) throw new Error("Must select a card before drawing blind");
+  const handDeckType = player.chosenCard.type;
+  if (deckType === handDeckType) throw new Error(`Blind draw must be from the ${handDeckType === "plot" ? "character" : "plot"} deck, not the ${handDeckType} deck`);
   const { drawn, remaining } = drawCards(room.deck[deckType], 1);
   const blindCard = drawn[0];
   const newMovie = {
