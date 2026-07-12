@@ -1,6 +1,7 @@
 import type { Server, Socket } from "socket.io";
 import type { Room, PublicRoomState, AudienceRoomState, DeckType } from "@pitch-storm/shared";
 import { RoomStore, createRoom, joinRoom } from "./rooms.js";
+import { logger } from "./logger.js";
 import {
   startGame,
   selectDeckType,
@@ -125,14 +126,19 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
   });
 
   io.on("connection", (socket: Socket) => {
+    const clientIp = socket.handshake.address;
+    logger.connect(clientIp, socket.id);
+
     socket.on("join_room", (code: string, name: string) => {
       try {
         let room: Room;
         let playerId: string;
+        let isHost = false;
         if (!code) {
           const result = createRoom(store, name);
           room = result.room;
           playerId = result.playerId;
+          isHost = true;
         } else {
           const result = joinRoom(store, code.toUpperCase(), name);
           room = result.room;
@@ -148,9 +154,11 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
           ),
         };
         store.saveRoom(room);
+        logger.joinRoom(clientIp, room.code, name, isHost);
         emitPlayerState(io, socket, room, playerId);
         broadcastPlayerList(io, room);
       } catch (err) {
+        logger.error(clientIp, socket.id, (err as Error).message);
         socket.emit("error", (err as Error).message);
       }
     });
@@ -167,6 +175,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         return;
       }
       socket.join(`audience:${room.code}`);
+      logger.joinAudience(clientIp, room.code);
       socket.emit("audience_joined", toAudienceRoomState(room));
     });
 
@@ -176,6 +185,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       try {
         startGame(store, ctx.room);
         const updated = store.getRoom(ctx.room.code)!;
+        logger.startGame(updated.code, updated.players.length);
         broadcastAllStates(io, updated);
       } catch (err) {
         socket.emit("error", (err as Error).message);
@@ -324,15 +334,18 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         selectWinner(store, ctx.room, playerId);
         const updated = store.getRoom(ctx.room.code)!;
         const winnerNote = updated.movies.find((m) => m.playerId === playerId)?.notesPlayed.slice(-1)[0] || null;
+        const winnerPlayer = updated.players.find((p) => p.id === playerId);
         io.to(`room:${updated.code}`).emit("winner_selected", playerId, winnerNote);
         io.to(`audience:${updated.code}`).emit("winner_selected", playerId, winnerNote);
         if (updated.phase === "game-end") {
           const scoreboard = updated.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score }));
           io.to(`room:${updated.code}`).emit("game_ended", scoreboard);
           io.to(`audience:${updated.code}`).emit("game_ended", scoreboard);
+          logger.endGame(updated.code, scoreboard);
         } else if (updated.phase === "setup" && updated.round.current > ctx.room.round.current) {
           io.to(`room:${updated.code}`).emit("round_started", updated.round.current);
           io.to(`audience:${updated.code}`).emit("round_started", updated.round.current);
+          logger.roundEnd(updated.code, updated.round.current, updated.round.total, winnerPlayer?.name || "unknown");
         }
         broadcastAllStates(io, updated);
       } catch (err) {
@@ -354,6 +367,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("disconnect", () => {
+      logger.disconnect(clientIp, socket.id);
       for (const [playerId, info] of playerSockets) {
         if (info.socketId === socket.id) {
           const room = store.getRoom(info.roomCode);

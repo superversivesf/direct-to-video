@@ -14,29 +14,38 @@ describe("database", () => {
     db.close();
   });
 
-  it("seeds 10 plot cards", () => {
+  it("seeds plot cards", () => {
     const cards = getCardDeck(db, "plot");
-    expect(cards).toHaveLength(10);
+    expect(cards.length).toBeGreaterThan(100);
     expect(cards[0].type).toBe("plot");
     expect(cards[0].text).toBeTruthy();
+    expect(cards[0].id).toBeTruthy();
   });
 
-  it("seeds 10 character cards", () => {
+  it("seeds character cards", () => {
     const cards = getCardDeck(db, "character");
-    expect(cards).toHaveLength(10);
+    expect(cards.length).toBeGreaterThan(0);
     expect(cards[0].type).toBe("character");
   });
 
-  it("seeds 10 note cards", () => {
+  it("seeds note cards", () => {
     const cards = getCardDeck(db, "note");
-    expect(cards).toHaveLength(10);
+    expect(cards.length).toBeGreaterThan(0);
     expect(cards[0].type).toBe("note");
   });
 
   it("does not re-seed if cards already exist", () => {
+    const before = getCardDeck(db, "plot").length;
     seedCards(db);
+    const after = getCardDeck(db, "plot").length;
+    expect(after).toBe(before);
+  });
+
+  it("stores and retrieves card with structured fields", () => {
     const cards = getCardDeck(db, "plot");
-    expect(cards).toHaveLength(10);
+    const drawCard = cards.find((c) => c.draws);
+    expect(drawCard).toBeDefined();
+    expect(drawCard!.draws![0].deck).toBe("character");
   });
 
   it("saves and loads a room", () => {

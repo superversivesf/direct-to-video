@@ -5,6 +5,7 @@ import { resolve } from "path";
 import { initDb, seedCards } from "./db.js";
 import { RoomStore } from "./rooms.js";
 import { setupSocketHandlers } from "./sockets.js";
+import { logger } from "./logger.js";
 import type { DbHandle } from "./db.js";
 
 const PORT = process.env.PORT || 3000;
@@ -22,6 +23,10 @@ const httpServer = createServer(app);
 const io = new Server(httpServer);
 
 app.use(express.json());
+app.use((req, _res, next) => {
+  logger.http(req.method, req.path, req.ip || "unknown");
+  next();
+});
 app.use(express.static(CLIENT_DIST));
 
 app.get("*", (req, res) => {
@@ -49,7 +54,7 @@ function cleanupStaleRooms(): void {
 setInterval(cleanupStaleRooms, CLEANUP_INTERVAL_MS);
 
 httpServer.listen(PORT, () => {
-  console.log(`Pitch Storm server running on port ${PORT}`);
+  logger.info(`Pitch Storm server running on port ${PORT}`);
 });
 
 export { app, io, httpServer };

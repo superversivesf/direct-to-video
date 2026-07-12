@@ -15,8 +15,8 @@ export interface DbHandle {
 }
 
 export function getCardDeck(db: DB, type: CardType): Card[] {
-  const rows = db.prepare(`SELECT * FROM cards WHERE type = ?`).all(type) as Card[];
-  return rows;
+  const rows = db.prepare(`SELECT data FROM cards WHERE type = ?`).all(type) as { data: string }[];
+  return rows.map((row) => JSON.parse(row.data) as Card);
 }
 
 export function initDb(path: string = ":memory:"): DbHandle {
@@ -34,7 +34,7 @@ export function initDb(path: string = ":memory:"): DbHandle {
     CREATE TABLE IF NOT EXISTS cards (
       id TEXT PRIMARY KEY,
       type TEXT NOT NULL,
-      text TEXT NOT NULL
+      data TEXT NOT NULL
     );
   `);
 
@@ -82,18 +82,18 @@ export function seedCards(db: DB) {
   const existing = db.prepare(`SELECT COUNT(*) as count FROM cards`).get() as { count: number };
   if (existing.count > 0) return;
 
-  const insert = db.prepare(`INSERT INTO cards (id, type, text) VALUES (?, ?, ?)`);
+  const insert = db.prepare(`INSERT INTO cards (id, type, data) VALUES (?, ?, ?)`);
   const seeds = getSeedCards();
 
-  const typeMap: Record<CardType, string[]> = {
+  const typeMap: Record<CardType, Card[]> = {
     plot: seeds.plot,
     character: seeds.character,
     note: seeds.note,
   };
 
-  for (const [type, texts] of Object.entries(typeMap)) {
-    for (const text of texts) {
-      insert.run(nanoid(12), type, text);
+  for (const [type, cards] of Object.entries(typeMap)) {
+    for (const card of cards) {
+      insert.run(card.id, type, JSON.stringify(card));
     }
   }
 }
