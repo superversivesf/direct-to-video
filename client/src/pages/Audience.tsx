@@ -7,11 +7,20 @@ import { MovieReveal } from "../components/MovieReveal.js";
 
 export function Audience() {
   const { code } = useParams<{ code: string }>();
-  const { audienceState, join } = useAudience();
+  const { audienceState, error, join } = useAudience();
 
   useEffect(() => {
     if (code) join(code.toUpperCase());
   }, [code]);
+
+  if (error) {
+    return (
+      <div className="audience-loading">
+        <div className="error-banner">{error}</div>
+        <a href="/" className="rules-back-btn">← Back to Join</a>
+      </div>
+    );
+  }
 
   if (!audienceState) {
     return <div className="audience-loading">Connecting to room {code}...</div>;

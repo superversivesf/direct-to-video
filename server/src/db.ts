@@ -30,13 +30,32 @@ export function initDb(path: string = ":memory:"): DbHandle {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
-
-    CREATE TABLE IF NOT EXISTS cards (
-      id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      data TEXT NOT NULL
-    );
   `);
+
+  // Migrate cards table from old schema (text column) to new schema (data column)
+  const cardsCols = db.prepare(`PRAGMA table_info(cards)`).all() as { name: string }[];
+  if (cardsCols.length === 0) {
+    db.exec(`
+      CREATE TABLE cards (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        data TEXT NOT NULL
+      );
+    `);
+  } else if (!cardsCols.some((c) => c.name === "data")) {
+    db.exec(`ALTER TABLE cards RENAME TO cards_old;`);
+    db.exec(`
+      CREATE TABLE cards (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        data TEXT NOT NULL
+      );
+    `);
+    db.exec(`INSERT INTO cards (id, type, data) SELECT id, type, json_object('id', id, 'type', type, 'text', text) FROM cards_old;`);
+    db.exec(`DROP TABLE cards_old;`);
+    // Old card IDs were nanoid random strings, need to re-seed with proper structured cards
+    db.exec(`DELETE FROM cards;`);
+  }
 
   const saveRoom = db.prepare(
     `INSERT INTO rooms (code, state) VALUES (?, ?)

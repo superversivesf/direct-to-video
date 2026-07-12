@@ -132,6 +132,7 @@ export function useRoom() {
 
 export function useAudience() {
   const [audienceState, setAudienceState] = useState<AudienceRoomState | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!socket.connected) socket.connect();
@@ -142,6 +143,10 @@ export function useAudience() {
 
     socket.on("audience_update", (state: AudienceRoomState) => {
       setAudienceState(state);
+    });
+
+    socket.on("error", (msg: string) => {
+      setError(msg);
     });
 
     socket.on("movie_revealed", (movie: Movie) => {
@@ -181,16 +186,11 @@ export function useAudience() {
     return () => {
       socket.off("audience_joined");
       socket.off("audience_update");
-      socket.off("movie_revealed");
-      socket.off("timer_started");
-      socket.off("timer_tick");
-      socket.off("timer_paused");
-      socket.off("timer_expired");
-      socket.off("note_played");
+      socket.off("error");
     };
   }, []);
 
   const join = useCallback((code: string) => { socket.emit("join_audience", code); }, []);
 
-  return { audienceState, join };
+  return { audienceState, error, join };
 }
