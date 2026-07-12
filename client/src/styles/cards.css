@@ -41,7 +41,10 @@
   );
   color: #333;
   border-color: #e6dc8a;
-  font-family: "Segoe Script", "Comic Sans MS", "Bradley Hand", cursive;
+  font-family: "Arial Narrow", "Arial", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: bold;
 }
 
 .card--note::before {

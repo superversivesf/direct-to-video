@@ -310,7 +310,9 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     socket.on("end_pitch", () => {
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
-      if (ctx.playerId !== ctx.room.executiveId) return;
+      const isExecutive = ctx.playerId === ctx.room.executiveId;
+      const isCurrentPitcher = ctx.playerId === ctx.room.currentPitcherId;
+      if (!isExecutive && !isCurrentPitcher) return;
       try {
         endPitch(store, ctx.room, ctx.room.currentPitcherId!);
         const updated = store.getRoom(ctx.room.code)!;

@@ -12,7 +12,12 @@ interface RoundSummaryProps {
 export function RoundSummary({ movies, players, isExecutive, onSelectWinner }: RoundSummaryProps) {
   return (
     <div className="round-summary">
-      <h2>Select the Best Movie!</h2>
+      {isExecutive ? (
+        <h2>Select the Best Movie!</h2>
+      ) : (
+        <h2>The Executive is choosing the winner...</h2>
+      )}
+      {movies.length === 0 && <p>Waiting for movies to be revealed...</p>}
       {movies.map((movie) => {
         const player = players.find((p) => p.id === movie.playerId);
         return (
