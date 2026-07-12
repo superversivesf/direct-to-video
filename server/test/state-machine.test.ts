@@ -275,4 +275,116 @@ describe("state machine", () => {
       expect(after.players.every((p) => p.hand.length === 0)).toBe(true);
     });
   });
+
+  describe("blind card deck validation", () => {
+    it("rejects blind draw from same deck as chosen card", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      expect(() => drawBlindCard(store, updated, playerIds[1], "plot")).toThrow(/Blind draw must be from the character deck/);
+    });
+
+    it("allows blind draw from opposite deck (character after plot)", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      drawBlindCard(store, updated, playerIds[1], "character");
+      updated = store.getRoom(room.code)!;
+      const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
+      expect(movie).toBeDefined();
+      expect(movie!.randomCard.type).toBe("character");
+    });
+
+    it("allows blind draw from opposite deck (plot after character)", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "character");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      drawBlindCard(store, updated, playerIds[1], "plot");
+      updated = store.getRoom(room.code)!;
+      const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
+      expect(movie).toBeDefined();
+      expect(movie!.randomCard.type).toBe("plot");
+    });
+  });
+
+  describe("revealMovie", () => {
+    it("sets revealed to true on the movie", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      drawBlindCard(store, updated, playerIds[1], "character");
+      updated = store.getRoom(room.code)!;
+      expect(updated.movies[0].revealed).toBe(false);
+      revealMovie(store, updated, playerIds[1]);
+      updated = store.getRoom(room.code)!;
+      expect(updated.movies[0].revealed).toBe(true);
+    });
+
+    it("throws if no movie exists for player", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      const updated = store.getRoom(room.code)!;
+      expect(() => revealMovie(store, updated, playerIds[1])).toThrow("No movie found for player");
+    });
+  });
+
+  describe("endPitch reveals all movies", () => {
+    it("sets all movies to revealed when last pitcher ends", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      drawBlindCard(store, updated, playerIds[1], "character");
+      updated = store.getRoom(room.code)!;
+      startPitching(store, updated);
+      updated = store.getRoom(room.code)!;
+      revealMovie(store, updated, updated.pitchOrder[0]);
+      updated = store.getRoom(room.code)!;
+      endPitch(store, updated, updated.pitchOrder[0]);
+      const after = store.getRoom(room.code)!;
+      expect(after.phase).toBe("round-end");
+      expect(after.movies.every((m) => m.revealed)).toBe(true);
+    });
+  });
+
+  describe("playAgain resets chosenCard", () => {
+    it("clears chosenCard on all players", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      expect(updated.players.find((p) => p.id === playerIds[1])!.chosenCard).not.toBeNull();
+      playAgain(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.players.every((p) => p.chosenCard === null)).toBe(true);
+    });
+  });
 });

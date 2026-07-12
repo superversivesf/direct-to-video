@@ -64,6 +64,7 @@ export function Join() {
           Share the 4-letter room code with your friends.<br />
           Audience can join to watch on a shared screen.
         </div>
+        <a href="/rules" className="rules-link">How to Play →</a>
       </div>
     </div>
   );

@@ -823,6 +823,93 @@ button:disabled {
 }
 
 /* ── Mobile responsive ─────────────────────────────── */
+
+/* ── Rules page ─────────────────────────────────────── */
+.rules-page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  line-height: 1.7;
+}
+
+.rules-page h1 {
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  background: linear-gradient(135deg, #e94560 0%, #f57c00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.rules-page h2 {
+  font-size: 24px;
+  color: #e94560;
+  margin-top: 32px;
+  margin-bottom: 12px;
+}
+
+.rules-page h3 {
+  font-size: 18px;
+  color: #f57c00;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+.rules-page p {
+  color: #ccc;
+  margin-bottom: 12px;
+}
+
+.rules-page ul,
+.rules-page ol {
+  color: #ccc;
+  padding-left: 24px;
+  margin-bottom: 16px;
+}
+
+.rules-page li {
+  margin-bottom: 6px;
+}
+
+.rules-page strong {
+  color: #eee;
+}
+
+.rules-back-btn {
+  display: inline-block;
+  margin-top: 40px;
+  color: #e94560;
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 12px 24px;
+  border: 1px solid #e94560;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.rules-back-btn:hover {
+  background: rgba(233,69,96,0.1);
+}
+
+.rules-link {
+  color: #888;
+  text-decoration: none;
+  font-size: 14px;
+  text-align: center;
+  display: block;
+  margin-top: 8px;
+  transition: color 0.2s;
+}
+
+.rules-link:hover {
+  color: #e94560;
+}
+
+/* ── Mobile responsive ─────────────────────────────── */
 @media (max-width: 640px) {
   .join-screen h1 {
     font-size: 36px;
