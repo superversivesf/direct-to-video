@@ -313,7 +313,7 @@ describe("Game", () => {
       ],
     });
     renderGame();
-    expect(screen.getByText(/game over/i)).toBeTruthy();
+    expect(screen.getByText(/wins/i)).toBeTruthy();
     expect(screen.getByText("Scoreboard")).toBeTruthy();
     expect(screen.getByText(/play again/i)).toBeTruthy();
   });

@@ -34,7 +34,9 @@ export function Join() {
 
   return (
     <div className="join-screen">
+      <div className="clapperboard">🎬</div>
       <h1>PITCH STORM</h1>
+      <div className="subtitle">Pitch terrible movies to the world's worst executives</div>
       <div className="join-form">
         <input
           type="text"
@@ -58,6 +60,10 @@ export function Join() {
         <button onClick={handleJoinAsAudience} className="join-btn join-btn-audience">
           Join as Audience
         </button>
+        <div className="join-hint">
+          Share the 4-letter room code with your friends.<br />
+          Audience can join to watch on a shared screen.
+        </div>
       </div>
     </div>
   );

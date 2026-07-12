@@ -1,5 +1,3 @@
- Pitch Storm — global app styles
-
 /* ── Reset & base ───────────────────────────────────── */
 * {
   margin: 0;
@@ -9,7 +7,9 @@
 
 body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: #1a1a2e;
+  background: #0f0f1e;
+  background-image: radial-gradient(circle at 20% 50%, rgba(233,69,96,0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(15,52,96,0.12) 0%, transparent 50%);
   color: #eee;
   min-height: 100vh;
 }
@@ -33,6 +33,12 @@ button:active {
   transform: translateY(0);
 }
 
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* ── Join screen ────────────────────────────────────── */
 .join-screen {
   display: flex;
@@ -40,23 +46,44 @@ button:active {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  gap: 20px;
+  gap: 32px;
+}
+
+.join-screen .clapperboard {
+  font-size: 64px;
+  margin-bottom: -12px;
+  filter: drop-shadow(0 4px 12px rgba(233,69,96,0.4));
 }
 
 .join-screen h1 {
-  font-size: 48px;
-  letter-spacing: 6px;
-  background: linear-gradient(135deg, #e94560, #0f3460);
+  font-size: 56px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  background: linear-gradient(135deg, #e94560 0%, #f57c00 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-align: center;
+}
+
+.join-screen .subtitle {
+  font-size: 16px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  margin-top: -20px;
 }
 
 .join-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  width: 320px;
+  width: 340px;
+  padding: 32px;
+  background: rgba(22,33,62,0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px;
 }
 
 .join-input {
@@ -64,9 +91,10 @@ button:active {
   font-size: 18px;
   border: 2px solid #333;
   border-radius: 8px;
-  background: #16213e;
+  background: rgba(15,15,30,0.8);
   color: #eee;
   text-align: center;
+  transition: border-color 0.2s;
 }
 
 .join-input:focus {
@@ -82,6 +110,7 @@ button:active {
   padding: 14px;
   font-size: 18px;
   font-weight: 700;
+  letter-spacing: 1px;
 }
 
 .join-btn-player {
@@ -91,16 +120,72 @@ button:active {
 
 .join-btn-player:hover {
   background: linear-gradient(135deg, #f0506e, #d03960);
+  box-shadow: 0 4px 16px rgba(233,69,96,0.3);
 }
 
 .join-btn-audience {
-  background: linear-gradient(135deg, #0f3460, #16213e);
+  background: rgba(15,52,96,0.6);
   color: #eee;
   border: 2px solid #0f3460;
 }
 
 .join-btn-audience:hover {
-  background: linear-gradient(135deg, #1a4a7a, #1e2848);
+  background: rgba(26,74,122,0.8);
+  border-color: #1a4a7a;
+}
+
+.join-hint {
+  font-size: 12px;
+  color: #555;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* ── Phase indicator ────────────────────────────────── */
+.phase-indicator {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.phase-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.phase-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #333;
+  transition: background 0.3s;
+}
+
+.phase-step.active {
+  color: #e94560;
+}
+
+.phase-step.active .phase-step-dot {
+  background: #e94560;
+  box-shadow: 0 0 8px rgba(233,69,96,0.5);
+}
+
+.phase-step.done .phase-step-dot {
+  background: #4caf50;
+}
+
+.phase-divider {
+  width: 16px;
+  height: 1px;
+  background: #333;
 }
 
 /* ── Game view ──────────────────────────────────────── */
@@ -110,13 +195,16 @@ button:active {
   padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   align-items: center;
+  min-height: 100vh;
+  justify-content: flex-start;
 }
 
 .game-view h1 {
   font-size: 28px;
   color: #e94560;
+  font-weight: 700;
 }
 
 .game-view h2 {
@@ -134,14 +222,25 @@ button:active {
   color: white;
   font-size: 18px;
   padding: 12px 32px;
+  border-radius: 10px;
 }
 
 .game-view button:hover {
   background: #f0506e;
+  box-shadow: 0 4px 16px rgba(233,69,96,0.25);
+}
+
+.game-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .game-end-screen {
   text-align: center;
+  justify-content: center;
 }
 
 .game-end-screen h1 {
@@ -155,8 +254,8 @@ button:active {
 }
 
 .player-list h3 {
-  font-size: 16px;
-  color: #aaa;
+  font-size: 14px;
+  color: #666;
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -170,13 +269,14 @@ button:active {
 }
 
 .player-list li {
-  padding: 10px 16px;
-  background: #16213e;
+  padding: 12px 16px;
+  background: rgba(22,33,62,0.6);
   border-radius: 8px;
   font-size: 18px;
   display: flex;
   align-items: center;
   gap: 8px;
+  border: 1px solid rgba(255,255,255,0.03);
 }
 
 .player-disconnected {
@@ -190,7 +290,7 @@ button:active {
   gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
-  margin: 16px 0;
+  margin: 8px 0;
 }
 
 /* ── Writer controls ────────────────────────────────── */
@@ -224,10 +324,12 @@ button:active {
   color: white;
   font-size: 18px;
   padding: 12px 32px;
+  border-radius: 10px;
 }
 
 .btn-draw:hover {
   background: #1a4a7a;
+  box-shadow: 0 4px 16px rgba(15,52,96,0.3);
 }
 
 .ready-section {
@@ -244,10 +346,18 @@ button:active {
   font-size: 20px;
   padding: 16px 40px;
   font-weight: 700;
+  border-radius: 10px;
+  animation: btn-pulse 2s infinite;
 }
 
 .btn-ready:hover {
   background: #388e3c;
+  box-shadow: 0 4px 20px rgba(46,125,50,0.3);
+}
+
+@keyframes btn-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(46,125,50,0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(46,125,50,0); }
 }
 
 /* ── Executive controls ─────────────────────────────── */
@@ -256,12 +366,16 @@ button:active {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(22,33,62,0.4);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.03);
 }
 
 .executive-controls h3 {
-  font-size: 18px;
-  color: #eee;
+  font-size: 16px;
+  color: #aaa;
 }
 
 .timer-controls {
@@ -270,41 +384,86 @@ button:active {
 }
 
 .timer-controls button {
-  background: #e94560;
+  border-radius: 10px;
+}
+
+.timer-controls button:nth-child(1) {
+  background: #2e7d32;
   color: white;
 }
 
 .timer-controls button:nth-child(2) {
   background: #f57c00;
+  color: white;
 }
 
 .timer-controls button:nth-child(3) {
   background: #d32f2f;
+  color: white;
 }
 
 /* ── Timer ──────────────────────────────────────────── */
 .timer {
-  font-size: 32px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  padding: 8px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
   border-radius: 12px;
-  background: #16213e;
 }
 
-.timer--running {
+.timer-ring-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-ring {
+  transform: rotate(0deg);
+}
+
+.timer-ring-bg {
+  stroke: rgba(255,255,255,0.08);
+}
+
+.timer-ring-progress {
+  transition: stroke-dashoffset 1s linear, stroke 0.3s;
+}
+
+.timer-display {
+  position: absolute;
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer--running .timer-ring-progress {
+  stroke: #4caf50;
+}
+
+.timer--running .timer-display {
   color: #4caf50;
 }
 
-.timer--paused {
+.timer--paused .timer-ring-progress {
+  stroke: #ff9800;
+}
+
+.timer--paused .timer-display {
   color: #ff9800;
 }
 
 .timer--note-paused {
-  color: #ff9800;
-  background: #2a1a00;
-  border: 2px solid #ff9800;
   animation: pulse 1s infinite;
+}
+
+.timer--note-paused .timer-ring-progress {
+  stroke: #ff9800;
+}
+
+.timer--note-paused .timer-display {
+  color: #ff9800;
 }
 
 .timer-note-badge {
@@ -313,7 +472,11 @@ button:active {
   color: #ff9800;
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+.timer-large .timer-display {
+  font-size: 48px;
 }
 
 .timer-large .timer-note-badge {
@@ -325,16 +488,11 @@ button:active {
   50% { opacity: 0.6; }
 }
 
-.timer-large {
-  font-size: 72px;
-  padding: 16px 48px;
-}
-
 /* ── Movie reveal ───────────────────────────────────── */
 .movie-reveal {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   align-items: center;
 }
 
@@ -352,7 +510,7 @@ button:active {
 }
 
 .movie-notes h4 {
-  color: #4caf50;
+  color: #ff9800;
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -361,15 +519,16 @@ button:active {
 /* ── Scoreboard ─────────────────────────────────────── */
 .scoreboard {
   padding: 16px;
-  background: #16213e;
+  background: rgba(22,33,62,0.6);
   border-radius: 12px;
   width: 100%;
   max-width: 400px;
+  border: 1px solid rgba(255,255,255,0.03);
 }
 
 .scoreboard h3 {
   font-size: 14px;
-  color: #aaa;
+  color: #666;
   text-transform: uppercase;
   letter-spacing: 2px;
   margin-bottom: 12px;
@@ -385,8 +544,8 @@ button:active {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  background: #0f3460;
+  padding: 8px 12px;
+  background: rgba(15,52,96,0.4);
   border-radius: 6px;
   font-size: 16px;
 }
@@ -395,6 +554,7 @@ button:active {
   font-weight: bold;
   color: #e94560;
   width: 24px;
+  text-align: center;
 }
 
 .scoreboard-name {
@@ -413,7 +573,7 @@ button:active {
 
 .scoreboard-large .scoreboard-row {
   font-size: 20px;
-  padding: 10px 16px;
+  padding: 12px 16px;
 }
 
 /* ── Round summary ──────────────────────────────────── */
@@ -421,7 +581,7 @@ button:active {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   align-items: center;
 }
 
@@ -435,9 +595,15 @@ button:active {
   flex-direction: column;
   gap: 12px;
   align-items: center;
-  padding: 20px;
-  background: #16213e;
+  padding: 24px;
+  background: rgba(22,33,62,0.5);
   border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.03);
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.round-summary-movie:hover {
+  border-color: rgba(233,69,96,0.2);
 }
 
 .round-summary-movie h3 {
@@ -450,10 +616,12 @@ button:active {
   font-size: 18px;
   font-weight: 700;
   padding: 12px 32px;
+  border-radius: 10px;
 }
 
 .round-summary-movie button:hover {
   background: #388e3c;
+  box-shadow: 0 4px 16px rgba(46,125,50,0.3);
 }
 
 /* ── Audience view ──────────────────────────────────── */
@@ -466,18 +634,23 @@ button:active {
 .audience-header {
   text-align: center;
   padding: 20px;
-  background: #0f3460;
+  background: rgba(15,52,96,0.5);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .audience-header h1 {
   font-size: 36px;
-  letter-spacing: 6px;
-  color: white;
+  font-weight: 900;
+  letter-spacing: 8px;
+  background: linear-gradient(135deg, #e94560 0%, #f57c00 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .audience-meta {
-  font-size: 18px;
-  color: #aaa;
+  font-size: 16px;
+  color: #888;
   margin-top: 8px;
 }
 
@@ -498,17 +671,19 @@ button:active {
 .audience-lobby h2,
 .audience-setup h2,
 .audience-round-end h2 {
-  font-size: 28px;
+  font-size: 32px;
   color: #eee;
 }
 
 .audience-game-end h1 {
-  font-size: 48px;
+  font-size: 56px;
 }
 
 .audience-pitcher-name {
-  font-size: 32px;
+  font-size: 36px;
+  font-weight: 700;
   color: #e94560;
+  text-shadow: 0 0 20px rgba(233,69,96,0.3);
 }
 
 .audience-player-list {
@@ -520,21 +695,102 @@ button:active {
 
 .audience-player {
   font-size: 20px;
-  padding: 8px 20px;
-  background: #16213e;
+  padding: 10px 24px;
+  background: rgba(22,33,62,0.6);
   border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.03);
 }
 
 .audience-footer {
   padding: 16px;
-  background: #0a0a1a;
-  border-top: 2px solid #1a1a2e;
+  background: rgba(10,10,26,0.8);
+  border-top: 1px solid rgba(255,255,255,0.03);
 }
 
 .audience-footer .scoreboard {
   max-width: 800px;
   margin: 0 auto;
   background: transparent;
+  border: none;
+}
+
+/* ── Phase transition fade ──────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.audience-lobby,
+.audience-setup,
+.audience-pitching,
+.audience-round-end,
+.audience-game-end {
+  animation: fade-in 0.4s ease-out;
+}
+
+/* ── Game end: winner spotlight ─────────────────────── */
+.winner-spotlight {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 32px;
+  animation: fade-in 0.6s ease-out;
+}
+
+.winner-trophy {
+  font-size: 80px;
+  animation: bounce 1s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+.winner-name {
+  font-size: 48px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 2px;
+}
+
+.podium-scoreboard .scoreboard-row:nth-child(1) {
+  background: linear-gradient(135deg, rgba(255,193,7,0.2), rgba(255,152,0,0.1));
+  border: 1px solid rgba(255,193,7,0.3);
+  transform: scale(1.05);
+  margin-bottom: 8px;
+}
+
+.podium-scoreboard .scoreboard-row:nth-child(2) {
+  background: linear-gradient(135deg, rgba(192,192,192,0.15), rgba(160,160,160,0.05));
+  border: 1px solid rgba(192,192,192,0.2);
+}
+
+.podium-scoreboard .scoreboard-row:nth-child(3) {
+  background: linear-gradient(135deg, rgba(205,127,50,0.15), rgba(180,100,40,0.05));
+  border: 1px solid rgba(205,127,50,0.2);
+}
+
+/* ── Confetti ───────────────────────────────────────── */
+.confetti {
+  position: fixed;
+  top: -10px;
+  width: 8px;
+  height: 16px;
+  animation: confetti-fall 3s linear forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+
+@keyframes confetti-fall {
+  to {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
 }
 
 /* ── Loading ────────────────────────────────────────── */
@@ -544,7 +800,16 @@ button:active {
   justify-content: center;
   min-height: 100vh;
   font-size: 20px;
-  color: #aaa;
+  color: #666;
+}
+
+.audience-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 20px;
+  color: #666;
 }
 
 .error-banner {
@@ -557,23 +822,20 @@ button:active {
   text-align: center;
 }
 
-.audience-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  font-size: 20px;
-  color: #aaa;
-}
-
 /* ── Mobile responsive ─────────────────────────────── */
 @media (max-width: 640px) {
   .join-screen h1 {
-    font-size: 32px;
+    font-size: 36px;
+    letter-spacing: 4px;
+  }
+
+  .join-screen .clapperboard {
+    font-size: 48px;
   }
 
   .join-form {
     width: 90%;
+    padding: 20px;
   }
 
   .game-view {
@@ -614,22 +876,20 @@ button:active {
   }
 
   .card-large {
-    width: 240px;
-    height: 144px;
+    width: 260px;
+    height: 156px;
   }
 
   .card-large .card-text {
     font-size: 14px;
   }
 
-  .timer {
-    font-size: 28px;
-    padding: 6px 16px;
+  .timer-display {
+    font-size: 24px;
   }
 
-  .timer-large {
-    font-size: 48px;
-    padding: 12px 32px;
+  .timer-large .timer-display {
+    font-size: 36px;
   }
 
   .timer-large .timer-note-badge {
@@ -665,6 +925,7 @@ button:active {
 
   .audience-header h1 {
     font-size: 24px;
+    letter-spacing: 4px;
   }
 
   .audience-meta {
@@ -672,7 +933,7 @@ button:active {
   }
 
   .audience-pitcher-name {
-    font-size: 24px;
+    font-size: 28px;
   }
 
   .audience-lobby,
@@ -685,6 +946,14 @@ button:active {
   }
 
   .audience-game-end h1 {
+    font-size: 36px;
+  }
+
+  .winner-trophy {
+    font-size: 56px;
+  }
+
+  .winner-name {
     font-size: 32px;
   }
 

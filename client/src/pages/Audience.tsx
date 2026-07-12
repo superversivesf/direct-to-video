@@ -78,12 +78,23 @@ export function Audience() {
 
       {state.phase === "game-end" && (
         <div className="audience-game-end">
-          <h1>🏆 Game Over!</h1>
+          <div className="winner-spotlight">
+            <div className="winner-trophy">🏆</div>
+            {(() => {
+              const sorted = [...state.players].sort((a, b) => b.score - a.score);
+              const isTie = sorted.length > 1 && sorted[0].score === sorted[1].score;
+              return isTie ? (
+                <div className="winner-name">It's a tie!</div>
+              ) : (
+                <div className="winner-name">{sorted[0].name} wins!</div>
+              );
+            })()}
+          </div>
         </div>
       )}
 
       <footer className="audience-footer">
-        <Scoreboard players={state.players} large={state.phase === "game-end"} />
+        <Scoreboard players={state.players} large={state.phase === "game-end"} podium={state.phase === "game-end"} />
       </footer>
     </div>
   );
