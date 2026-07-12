@@ -8,6 +8,7 @@ export interface Card {
   id: string;
   type: CardType;
   text: string;
+  substitutedText?: string;
 }
 
 export interface Player {

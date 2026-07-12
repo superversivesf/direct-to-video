@@ -17,10 +17,12 @@ export function Card({ card, faceDown = false, large = false, onClick }: CardPro
     );
   }
 
+  const displayText = card.substitutedText || card.text;
+
   return (
     <CardTemplate type={card.type} large={large} onClick={onClick}>
       <div className="card-type-label">{card.type.toUpperCase()}</div>
-      <div className="card-text">{card.text}</div>
+      <div className="card-text">{displayText}</div>
     </CardTemplate>
   );
 }

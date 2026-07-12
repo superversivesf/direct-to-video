@@ -1,4 +1,4 @@
-import type { Room, Player, Card, DeckType } from "@pitch-storm/shared";
+import type { Room, Player, Card, CardType, DeckType } from "@pitch-storm/shared";
 import type { RoomStore } from "./rooms.js";
 import { createTimer } from "./timer.js";
 
@@ -83,11 +83,40 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
   if (!player) throw new Error("Player not found");
   const card = player.hand.find((c) => c.id === cardId);
   if (!card) throw new Error("Card not in hand");
+
+  let chosenCard = { ...card };
+  let updatedDeck = room.deck;
+
+  if (card.text.includes("____")) {
+    const instructionMatch = card.text.match(/\/\s*\(?\s*(draw[^)]*)\)?\s*$/i);
+    if (instructionMatch) {
+      const instruction = instructionMatch[1].toLowerCase();
+      let drawType: CardType | null = null;
+      if (instruction.includes("character")) drawType = "character";
+      else if (instruction.includes("plot")) drawType = "plot";
+
+      if (drawType) {
+        const { drawn, remaining } = drawCards(updatedDeck[drawType], 1);
+        const drawnCard = drawn[0];
+        updatedDeck = { ...updatedDeck, [drawType]: remaining };
+        if (drawnCard) {
+          const mainText = card.text.split(/\s*\/\s*\(?\s*draw/i)[0].trim();
+          chosenCard = {
+            ...card,
+            text: mainText,
+            substitutedText: mainText.replace("____", drawnCard.text),
+          };
+        }
+      }
+    }
+  }
+
   store.saveRoom({
     ...room,
+    deck: updatedDeck,
     players: room.players.map((p) =>
       p.id === playerId
-        ? { ...p, hand: p.hand.filter((c) => c.id !== cardId), chosenCard: card }
+        ? { ...p, hand: p.hand.filter((c) => c.id !== cardId), chosenCard }
         : p
     ),
   });
