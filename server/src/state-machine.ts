@@ -87,28 +87,20 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
   let chosenCard = { ...card };
   let updatedDeck = room.deck;
 
-  if (card.text.includes("____")) {
-    const instructionMatch = card.text.match(/\/\s*\(?\s*(draw[^)]*)\)?\s*$/i);
-    if (instructionMatch) {
-      const instruction = instructionMatch[1].toLowerCase();
-      let drawType: CardType | null = null;
-      if (instruction.includes("character")) drawType = "character";
-      else if (instruction.includes("plot")) drawType = "plot";
-
-      if (drawType) {
-        const { drawn, remaining } = drawCards(updatedDeck[drawType], 1);
-        const drawnCard = drawn[0];
-        updatedDeck = { ...updatedDeck, [drawType]: remaining };
-        if (drawnCard) {
-          const mainText = card.text.split(/\s*\/\s*\(?\s*draw/i)[0].trim();
-          chosenCard = {
-            ...card,
-            text: mainText,
-            substitutedText: mainText.replace("____", drawnCard.text),
-          };
+  if (card.draws && card.draws.length > 0) {
+    let resolvedText = card.text;
+    let drawIndex = 0;
+    for (const draw of card.draws) {
+      for (let i = 0; i < draw.count; i++) {
+        const { drawn, remaining } = drawCards(updatedDeck[draw.deck], 1);
+        updatedDeck = { ...updatedDeck, [draw.deck]: remaining };
+        if (drawn[0]) {
+          resolvedText = resolvedText.replace("____", drawn[0].text);
+          drawIndex++;
         }
       }
     }
+    chosenCard = { ...card, substitutedText: resolvedText };
   }
 
   store.saveRoom({

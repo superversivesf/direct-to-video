@@ -21,6 +21,7 @@ export function Card({ card, faceDown = false, large = false, onClick }: CardPro
 
   return (
     <CardTemplate type={card.type} large={large} onClick={onClick}>
+      {card.header && <div className="card-header">{card.header}</div>}
       <div className="card-type-label">{card.type.toUpperCase()}</div>
       <div className="card-text">{displayText}</div>
     </CardTemplate>

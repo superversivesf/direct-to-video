@@ -4,11 +4,21 @@ export type CardType = "plot" | "character" | "note";
 
 export type DeckType = "plot" | "character";
 
+export type DrawType = "character" | "plot";
+
+export interface CardDraw {
+  deck: DrawType;
+  count: number;
+}
+
 export interface Card {
   id: string;
   type: CardType;
   text: string;
+  header?: string;
+  draws?: CardDraw[];
   substitutedText?: string;
+  isFranchise?: boolean;
 }
 
 export interface Player {

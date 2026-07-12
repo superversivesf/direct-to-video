@@ -388,7 +388,7 @@ describe("state machine", () => {
     });
   });
 
-  describe("selectCard with ____ substitution", () => {
+  describe("selectCard with draws", () => {
     it("auto-draws a character card and substitutes ____ with its text", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
@@ -397,7 +397,7 @@ describe("state machine", () => {
       updated = store.getRoom(room.code)!;
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
 
-      const specialCard = { ...writer.hand[0], text: "has a steamy affair with ____. / (Draw a random character card)" };
+      const specialCard: Card = { ...writer.hand[0], text: "has a steamy affair with ____.", draws: [{ deck: "character", count: 1 }] };
       updated = {
         ...updated,
         players: updated.players.map((p) =>
@@ -414,11 +414,9 @@ describe("state machine", () => {
       expect(chosen).toBeDefined();
       expect(chosen.substitutedText).toBeDefined();
       expect(chosen.substitutedText).not.toContain("____");
-      expect(chosen.substitutedText).not.toContain("Draw");
-      expect(chosen.substitutedText).not.toContain("/");
     });
 
-    it("does not substitute when card has no ____ placeholder", () => {
+    it("does not substitute when card has no draws", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
@@ -430,46 +428,18 @@ describe("state machine", () => {
       const after = store.getRoom(room.code)!;
       const chosen = after.players.find((p) => p.id === playerIds[1])!.chosenCard!;
       expect(chosen.substitutedText).toBeUndefined();
-      expect(chosen.text).not.toContain("____");
     });
 
-    it("removes the draw instruction from the card text", () => {
+    it("draws from the character deck when specified", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
       selectDeckType(store, updated, playerIds[1], "plot");
       updated = store.getRoom(room.code)!;
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
-
-      const specialCard = { ...writer.hand[0], text: "has a steamy affair with ____. / (Draw a random character card)" };
-      updated = {
-        ...updated,
-        players: updated.players.map((p) =>
-          p.id === playerIds[1]
-            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
-            : p
-        ),
-      };
-      store.saveRoom(updated);
-
-      selectCard(store, updated, playerIds[1], specialCard.id);
-      const after = store.getRoom(room.code)!;
-      const chosen = after.players.find((p) => p.id === playerIds[1])!.chosenCard!;
-      expect(chosen.text).not.toContain("Draw");
-      expect(chosen.text).not.toContain("/");
-    });
-
-    it("draws from the correct deck based on instruction", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-
       const beforeDeckSize = updated.deck.character.length;
 
-      const specialCard = { ...writer.hand[0], text: "has a steamy affair with ____. / (Draw a random character card)" };
+      const specialCard: Card = { ...writer.hand[0], text: "has a steamy affair with ____.", draws: [{ deck: "character", count: 1 }] };
       updated = {
         ...updated,
         players: updated.players.map((p) =>
@@ -485,7 +455,7 @@ describe("state machine", () => {
       expect(after.deck.character.length).toBeLessThan(beforeDeckSize);
     });
 
-    it("does not substitute when ____ present but no draw instruction", () => {
+    it("handles multiple ____ placeholders with count > 1", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
@@ -493,7 +463,7 @@ describe("state machine", () => {
       updated = store.getRoom(room.code)!;
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
 
-      const specialCard = { ...writer.hand[0], text: "fights ____ in space" };
+      const specialCard: Card = { ...writer.hand[0], text: "____ and ____ team up.", draws: [{ deck: "character", count: 2 }] };
       updated = {
         ...updated,
         players: updated.players.map((p) =>
@@ -507,8 +477,51 @@ describe("state machine", () => {
       selectCard(store, updated, playerIds[1], specialCard.id);
       const after = store.getRoom(room.code)!;
       const chosen = after.players.find((p) => p.id === playerIds[1])!.chosenCard!;
+      expect(chosen.substitutedText).toBeDefined();
+      expect(chosen.substitutedText).not.toContain("____");
+    });
+
+    it("handles draws from different decks", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "character");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+
+      const specialCard: Card = { ...writer.hand[0], text: "____ meets ____.", draws: [{ deck: "character", count: 1 }, { deck: "plot", count: 1 }] };
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === playerIds[1]
+            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
+            : p
+        ),
+      };
+      store.saveRoom(updated);
+
+      const beforeChar = updated.deck.character.length;
+      const beforePlot = updated.deck.plot.length;
+
+      selectCard(store, updated, playerIds[1], specialCard.id);
+      const after = store.getRoom(room.code)!;
+      expect(after.deck.character.length).toBeLessThan(beforeChar);
+      expect(after.deck.plot.length).toBeLessThan(beforePlot);
+    });
+
+    it("preserves text that has no draws specified", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      const normalCard = writer.hand[0];
+      selectCard(store, updated, playerIds[1], normalCard.id);
+      const after = store.getRoom(room.code)!;
+      const chosen = after.players.find((p) => p.id === playerIds[1])!.chosenCard!;
+      expect(chosen.text).toBe(normalCard.text);
       expect(chosen.substitutedText).toBeUndefined();
-      expect(chosen.text).toContain("____");
     });
   });
 });

@@ -87,6 +87,18 @@
   opacity: 0.35;
 }
 
+.card-header {
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #e94560;
+  opacity: 0.8;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(233,69,96,0.2);
+  padding-bottom: 2px;
+}
+
 .card-text {
   font-size: 13px;
   line-height: 1.5;
