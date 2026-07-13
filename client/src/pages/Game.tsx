@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useRoom } from "../hooks/useRoom.js";
 import { PlayerList } from "../components/PlayerList.js";
@@ -44,9 +44,14 @@ export function Game() {
   const navigate = useNavigate();
   const room = useRoom();
   const joinedRef = useRef(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     const name = getCookie("playerName") || "";
+    if (!name && code && code !== "_create") {
+      navigate(`/?code=${code}`, { replace: true });
+      return;
+    }
     if (name && code) {
       const emitCode = code === "_create" ? "" : code;
       room.joinRoom(emitCode, name);
@@ -66,6 +71,19 @@ export function Game() {
   function getCookie(key: string): string | undefined {
     const match = document.cookie.match(new RegExp(`(^| )${key}=([^;]+)`));
     return match?.[2];
+  }
+
+  function copyRoomLink() {
+    const link = `${window.location.origin}/room/${state.code}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
+
+  function handleLeave() {
+    room.leaveGame();
+    navigate("/", { replace: true });
   }
 
   if (!room.roomState) {
@@ -93,6 +111,16 @@ export function Game() {
         <h1>Pitch Storm — Room {state.code}</h1>
         <PlayerList players={state.players} />
         {isHost && <button onClick={room.startGame}>Start Game</button>}
+        <div className="share-link-section">
+          <p>Share this link with your friends:</p>
+          <div className="share-link-row">
+            <code className="share-link-url">{window.location.origin}/room/{state.code}</code>
+            <button onClick={copyRoomLink} className="btn-copy-link">
+              {linkCopied ? "Copied!" : "Copy Link"}
+            </button>
+          </div>
+        </div>
+        <button onClick={handleLeave} className="btn-leave">Leave Game</button>
       </div>
     );
   }
@@ -106,6 +134,7 @@ export function Game() {
         <p>You are a Writer. Choose your deck:</p>
         <button onClick={() => room.selectDeckType("plot" as DeckType)}>Draw PLOT cards</button>
         <button onClick={() => room.selectDeckType("character" as DeckType)}>Draw CHARACTER cards</button>
+        <button onClick={handleLeave} className="btn-leave">Leave Game</button>
       </div>
     );
   }
@@ -119,6 +148,7 @@ export function Game() {
           <h2>Round {state.round.current} of {state.round.total}</h2>
           <p>You are the Executive. Waiting for writers to prepare their movies...</p>
           <PlayerList players={state.players} />
+          <button onClick={handleLeave} className="btn-leave">Leave Game</button>
         </div>
       );
     }
@@ -138,6 +168,7 @@ export function Game() {
           onSelectCard={room.selectCard}
           onReady={room.revealMovie}
         />
+        <button onClick={handleLeave} className="btn-leave">Leave Game</button>
       </div>
     );
   }
@@ -170,6 +201,7 @@ export function Game() {
           />
         )}
         {isMyPitch && timerStarted && <button onClick={room.endPitch}>I'm Done Pitching</button>}
+        <button onClick={handleLeave} className="btn-leave">Leave Game</button>
       </div>
     );
   }
@@ -186,6 +218,7 @@ export function Game() {
           isExecutive={isExecutive}
           onSelectWinner={room.selectWinner}
         />
+        <button onClick={handleLeave} className="btn-leave">Leave Game</button>
       </div>
     );
   }
@@ -208,6 +241,7 @@ export function Game() {
         </div>
         <Scoreboard players={state.players} large={true} podium={true} />
         {isHost && <button onClick={room.playAgain}>Play Again</button>}
+        <button onClick={handleLeave} className="btn-leave">Leave Game</button>
       </div>
     );
   }

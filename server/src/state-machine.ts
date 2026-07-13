@@ -22,8 +22,10 @@ function getWriterPlayers(room: Room): Player[] {
 
 export function startGame(store: RoomStore, room: Room): void {
   if (room.players.length < 2) throw new Error("Need at least 2 players");
-  const plotDeck = store.getCardsByType("plot");
-  const characterDeck = store.getCardsByType("character");
+  const isTwoPlayer = room.players.length === 2;
+  const filterFranchise = (cards: Card[]) => isTwoPlayer ? cards.filter(c => !c.isFranchise) : cards;
+  const plotDeck = filterFranchise(store.getCardsByType("plot"));
+  const characterDeck = filterFranchise(store.getCardsByType("character"));
   const noteDeck = store.getCardsByType("note");
   const updated: Room = {
     ...room,
@@ -156,6 +158,15 @@ export function startPitching(store: RoomStore, room: Room): void {
     const idx = (execIndex + i) % room.players.length;
     pitchOrder.push(room.players[idx].id);
   }
+  pitchOrder.sort((a, b) => {
+    const movieA = room.movies.find(m => m.playerId === a);
+    const movieB = room.movies.find(m => m.playerId === b);
+    const aFranchise = movieA?.chosenCard.isFranchise || movieA?.randomCard.isFranchise || false;
+    const bFranchise = movieB?.chosenCard.isFranchise || movieB?.randomCard.isFranchise || false;
+    if (aFranchise && !bFranchise) return 1;
+    if (!aFranchise && bFranchise) return -1;
+    return 0;
+  });
   const firstPitcherId = pitchOrder[0];
   store.saveRoom({
     ...room,

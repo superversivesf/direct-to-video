@@ -363,14 +363,28 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         if (info.socketId === socket.id) {
           const room = store.getRoom(info.roomCode);
           if (room) {
-            const updated = {
+            const leavingPlayer = room.players.find((p) => p.id === playerId);
+            const wasHost = leavingPlayer?.isHost ?? false;
+            let updated = {
               ...room,
               players: room.players.map((p) =>
-                p.id === playerId ? { ...p, isDisconnected: true, socketId: null } : p
+                p.id === playerId ? { ...p, isDisconnected: true, socketId: null, isHost: false } : p
               ),
             };
+            if (wasHost) {
+              const nextHost = updated.players.find((p) => !p.isDisconnected && p.id !== playerId);
+              if (nextHost) {
+                updated = {
+                  ...updated,
+                  players: updated.players.map((p) =>
+                    p.id === nextHost.id ? { ...p, isHost: true } : p
+                  ),
+                };
+              }
+            }
             store.saveRoom(updated);
             broadcastPlayerList(io, updated);
+            broadcastAllStates(io, updated);
           }
           playerSockets.delete(playerId);
           break;

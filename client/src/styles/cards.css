@@ -32,6 +32,8 @@
 }
 
 .card--note {
+  width: 288px;
+  height: 202px;
   background: #fff9c4;
   background-image: repeating-linear-gradient(
     transparent,
@@ -39,12 +41,12 @@
     #e6dc8a 20px,
     #e6dc8a 21px
   );
-  color: #333;
+  color: #222;
   border-color: #e6dc8a;
-  font-family: "Arial Narrow", "Arial", sans-serif;
+  font-family: "Permanent Marker", "Comic Sans MS", cursive;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-weight: bold;
+  font-weight: normal;
 }
 
 .card--note::before {
@@ -107,11 +109,8 @@
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #999;
-  opacity: 0.7;
-  margin-top: 4px;
-  border-top: 1px solid #eee;
-  padding-top: 4px;
+  color: #c0392b;
+  margin-bottom: 4px;
 }
 
 .card-text {
@@ -123,8 +122,22 @@
 }
 
 .card--note .card-text {
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.5;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+}
+
+.card-note-paragraph {
+  width: 100%;
+  color: inherit;
+}
+
+.card--note.card-large .card-text {
+  font-size: 17px;
+  gap: 5px;
 }
 
 .card-back-label {
@@ -139,6 +152,11 @@
 .card-large {
   width: 360px;
   height: 252px;
+}
+
+.card--note.card-large {
+  width: 432px;
+  height: 302px;
 }
 
 .card-large .card-text {

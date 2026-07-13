@@ -20,6 +20,7 @@ const mockFns = {
   endPitch: vi.fn(),
   selectWinner: vi.fn(),
   playAgain: vi.fn(),
+  leaveGame: vi.fn(),
 };
 
 const baseState: PublicRoomState = {

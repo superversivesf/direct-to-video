@@ -110,6 +110,12 @@ export function useRoom() {
   const selectWinner = useCallback((playerId: string) => { socket.emit("select_winner", playerId); }, []);
   const playAgain = useCallback(() => { socket.emit("play_again"); }, []);
 
+  const leaveGame = useCallback(() => {
+    socket.disconnect();
+    setRoomState(null);
+    setError(null);
+  }, []);
+
   return {
     roomState,
     error,
@@ -125,6 +131,7 @@ export function useRoom() {
     endPitch,
     selectWinner,
     playAgain,
+    leaveGame,
   };
 }
 

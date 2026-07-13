@@ -323,6 +323,76 @@ button:disabled {
   margin: 8px 0;
 }
 
+/* ── Share link ─────────────────────────────────────── */
+.share-link-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  background: rgba(22,33,62,0.4);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.03);
+  width: 100%;
+  max-width: 500px;
+}
+
+.share-link-section p {
+  font-size: 14px;
+  color: #888;
+  margin: 0;
+}
+
+.share-link-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.share-link-url {
+  flex-grow: 1;
+  font-size: 14px;
+  color: #aaa;
+  background: rgba(15,15,30,0.6);
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  overflow-x: auto;
+  white-space: nowrap;
+  user-select: all;
+}
+
+.btn-copy-link {
+  background: #0f3460;
+  color: white;
+  font-size: 14px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.btn-copy-link:hover {
+  background: #1a4a7a;
+  box-shadow: 0 4px 12px rgba(15,52,96,0.3);
+}
+
+/* ── Leave button ───────────────────────────────────── */
+.btn-leave {
+  background: rgba(211,47,47,0.2) !important;
+  color: #d32f2f !important;
+  border: 1px solid rgba(211,47,47,0.3) !important;
+  font-size: 14px !important;
+  padding: 8px 20px !important;
+  border-radius: 8px !important;
+  margin-top: 8px;
+}
+
+.btn-leave:hover {
+  background: rgba(211,47,47,0.35) !important;
+  box-shadow: 0 2px 8px rgba(211,47,47,0.2) !important;
+}
+
 /* ── Writer controls ────────────────────────────────── */
 .writer-controls {
   width: 100%;
