@@ -162,6 +162,7 @@ export function Game() {
           <ExecutiveControls
             notes={state.myExecutiveNotes || []}
             timerRunning={state.timer.running}
+            timerStarted={timerStarted}
             onStartTimer={room.startTimer}
             onPauseTimer={room.pauseTimer}
             onPlayNote={room.playNote}

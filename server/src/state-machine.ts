@@ -156,12 +156,16 @@ export function startPitching(store: RoomStore, room: Room): void {
     const idx = (execIndex + i) % room.players.length;
     pitchOrder.push(room.players[idx].id);
   }
+  const firstPitcherId = pitchOrder[0];
   store.saveRoom({
     ...room,
     phase: "pitching",
     pitchOrder,
     currentPitchIndex: 0,
-    currentPitcherId: pitchOrder[0],
+    currentPitcherId: firstPitcherId,
+    movies: room.movies.map((m) =>
+      m.playerId === firstPitcherId ? { ...m, revealed: true } : m
+    ),
   });
 }
 
@@ -178,16 +182,20 @@ export function revealMovie(store: RoomStore, room: Room, playerId: string): voi
 
 export function endPitch(store: RoomStore, room: Room, playerId: string): void {
   const nextIndex = room.currentPitchIndex + 1;
-  const allRevealed = room.movies.map((m) => ({ ...m, revealed: true }));
   if (nextIndex >= room.pitchOrder.length) {
+    const allRevealed = room.movies.map((m) => ({ ...m, revealed: true }));
     store.saveRoom({ ...room, phase: "round-end", currentPitcherId: null, timer: createTimer(45), movies: allRevealed });
   } else {
+    const nextPitcherId = room.pitchOrder[nextIndex];
+    const movies = room.movies.map((m) =>
+      m.playerId === nextPitcherId ? { ...m, revealed: true } : m
+    );
     store.saveRoom({
       ...room,
       currentPitchIndex: nextIndex,
-      currentPitcherId: room.pitchOrder[nextIndex],
+      currentPitcherId: nextPitcherId,
       timer: createTimer(45),
-      movies: allRevealed,
+      movies,
     });
   }
 }

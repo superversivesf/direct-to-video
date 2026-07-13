@@ -227,7 +227,7 @@ describe("Game", () => {
       myExecutiveNotes: [{ id: "n1", type: "note", text: "Note A" }],
     });
     renderGame();
-    expect(screen.getByText(/Your NOTE Cards/i)).toBeTruthy();
+    expect(screen.getByText(/Start the timer to enable Note cards/i)).toBeTruthy();
     expect(screen.getByText("Start Timer")).toBeTruthy();
     expect(screen.getByText("End Pitch")).toBeTruthy();
   });

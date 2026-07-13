@@ -274,6 +274,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
+      if (!ctx.room.timer.running && !ctx.room.timer.pausedForNote) return;
       try {
         const noteCard = ctx.room.executiveNotes.find((c) => c.id === noteCardId);
         if (!noteCard) throw new Error("Note card not in Executive's hand");

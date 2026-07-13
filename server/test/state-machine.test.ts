@@ -351,7 +351,7 @@ describe("state machine", () => {
   });
 
   describe("revealMovie", () => {
-    it("sets revealed to true on the movie", () => {
+    it("movie is auto-revealed when pitching starts", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
@@ -359,10 +359,6 @@ describe("state machine", () => {
       updated = store.getRoom(room.code)!;
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
       selectCard(store, updated, playerIds[1], writer.hand[0].id);
-      updated = store.getRoom(room.code)!;
-      updated = store.getRoom(room.code)!;
-      expect(updated.movies[0].revealed).toBe(false);
-      revealMovie(store, updated, playerIds[1]);
       updated = store.getRoom(room.code)!;
       expect(updated.movies[0].revealed).toBe(true);
     });
