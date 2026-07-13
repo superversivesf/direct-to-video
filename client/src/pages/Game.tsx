@@ -134,7 +134,7 @@ export function Game() {
           hasSelectedCard={hasSelectedCard}
           hasDrawnBlind={hasDrawnBlind}
           blindCard={state.myBlindCard}
-          blindRevealed={state.myMovieRevealed}
+          blindRevealed={false}
           onSelectCard={room.selectCard}
           onReady={room.revealMovie}
         />
@@ -157,7 +157,7 @@ export function Game() {
         {isMyPitch && timerStarted && <p>YOUR TURN TO PITCH!</p>}
         {!isMyPitch && !timerStarted && <p>Waiting for {pitcher?.name} to start pitching...</p>}
         {!isMyPitch && timerStarted && <p>{pitcher?.name} is pitching...</p>}
-        {currentMovie && <MovieReveal movie={currentMovie} large={true} />}
+        {currentMovie && <MovieReveal movie={currentMovie} large={true} blindFaceDown={!timerStarted} />}
         {isExecutive && (
           <ExecutiveControls
             notes={state.myExecutiveNotes || []}

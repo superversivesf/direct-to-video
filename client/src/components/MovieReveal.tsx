@@ -4,9 +4,10 @@ import { Card } from "./Card.js";
 interface MovieRevealProps {
   movie: MovieType;
   large?: boolean;
+  blindFaceDown?: boolean;
 }
 
-export function MovieReveal({ movie, large = false }: MovieRevealProps) {
+export function MovieReveal({ movie, large = false, blindFaceDown = false }: MovieRevealProps) {
   const cards = [movie.chosenCard, movie.randomCard];
   const characterFirst = [...cards].sort((a, b) => {
     if (a.type === "character" && b.type !== "character") return -1;
@@ -18,7 +19,12 @@ export function MovieReveal({ movie, large = false }: MovieRevealProps) {
     <div className="movie-reveal">
       <div className="movie-cards">
         {characterFirst.map((card, i) => (
-          <Card key={card.id + i} card={card} large={large} />
+          <Card
+            key={card.id + i}
+            card={card}
+            large={large}
+            faceDown={blindFaceDown && card.id === movie.randomCard.id}
+          />
         ))}
       </div>
       {movie.notesPlayed.length > 0 && (
