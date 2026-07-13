@@ -22,8 +22,8 @@ export function Card({ card, faceDown = false, large = false, onClick }: CardPro
 
   return (
     <CardTemplate type={card.type} large={large} onClick={onClick}>
-      {isFranchise && card.header && <div className="card-header-franchise">{card.header}</div>}
       <div className="card-type-label">{card.type.toUpperCase()}</div>
+      {isFranchise && card.header && <div className="card-header-franchise">{card.header}</div>}
       <div className="card-text">{displayText}</div>
       {!isFranchise && card.header && <div className="card-location">{card.header}</div>}
     </CardTemplate>

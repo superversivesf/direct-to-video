@@ -953,22 +953,22 @@ button:disabled {
   }
 
   .card-template {
-    width: 200px;
-    height: 119px;
-    padding: 10px 12px;
+    width: 220px;
+    height: 154px;
+    padding: 10px 14px;
   }
 
   .card-text {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .card-large {
-    width: 260px;
-    height: 156px;
+    width: 280px;
+    height: 196px;
   }
 
   .card-large .card-text {
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .timer-display {

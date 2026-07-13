@@ -1,6 +1,6 @@
 .card-template {
-  width: 220px;
-  height: 132px;
+  width: 240px;
+  height: 168px;
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -137,8 +137,8 @@
 }
 
 .card-large {
-  width: 340px;
-  height: 204px;
+  width: 360px;
+  height: 252px;
 }
 
 .card-large .card-text {
