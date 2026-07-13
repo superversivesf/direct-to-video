@@ -10,6 +10,8 @@ import { setupSocketHandlers } from "./sockets.js";
 import { logger } from "./logger.js";
 import type { DbHandle } from "./db.js";
 
+const VERSION = "1.0";
+
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || resolve(process.cwd(), "data", "directtovideo.db");
 const CLIENT_DIST = resolve(process.cwd(), "client", "dist");
@@ -82,7 +84,7 @@ function cleanupStaleRooms(): void {
 setInterval(cleanupStaleRooms, CLEANUP_INTERVAL_MS);
 
 httpServer.listen(PORT, () => {
-  logger.info(`Direct to Video server running on port ${PORT}`);
+  logger.info(`Direct to Video v${VERSION} server running on port ${PORT}`);
 });
 
 export { app, io, httpServer };

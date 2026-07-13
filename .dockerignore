@@ -7,3 +7,5 @@ docs
 e2e
 *.md
 PitchStorm-*.jpg
+docs/reference/*.jpg
+docs/reference/*.txt

@@ -85,6 +85,15 @@ button:disabled {
   font-size: 13px;
 }
 
+.version-tag {
+  position: fixed;
+  bottom: 8px;
+  right: 12px;
+  font-size: 11px;
+  color: #444;
+  opacity: 0.5;
+}
+
 .join-screen h1 {
   font-size: 56px;
   font-weight: 900;

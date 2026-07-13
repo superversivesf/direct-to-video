@@ -1,3 +1,5 @@
+export const VERSION = "1.0";
+
 export type Phase = "lobby" | "setup" | "card-selection" | "pitching" | "round-end" | "game-end";
 
 export type CardType = "plot" | "character" | "note";

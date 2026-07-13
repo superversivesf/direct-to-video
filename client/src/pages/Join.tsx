@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { VERSION } from "@direct-to-video/shared";
 
 export function Join() {
   const navigate = useNavigate();
@@ -78,6 +79,7 @@ export function Join() {
           GitHub
         </a>
       </div>
+      <div className="version-tag">v{VERSION}</div>
     </div>
   );
 }
