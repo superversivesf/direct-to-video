@@ -25,11 +25,11 @@ export function useRoom() {
     });
 
     socket.on("timer_started", (secondsRemaining: number) => {
-      setRoomState((prev) => prev ? { ...prev, timer: { ...prev.timer, running: true, secondsRemaining } } : prev);
+      setRoomState((prev) => prev ? { ...prev, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } } : prev);
     });
 
     socket.on("timer_tick", (secondsRemaining: number) => {
-      setRoomState((prev) => prev ? { ...prev, timer: { ...prev.timer, secondsRemaining } } : prev);
+      setRoomState((prev) => prev ? { ...prev, timer: { ...prev.timer, running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } } : prev);
     });
 
     socket.on("timer_paused", (remainingSeconds: number) => {
@@ -157,11 +157,11 @@ export function useAudience() {
     });
 
     socket.on("timer_started", (secondsRemaining: number) => {
-      setAudienceState((prev) => prev ? { ...prev, timer: { ...prev.timer, running: true, secondsRemaining } } : prev);
+      setAudienceState((prev) => prev ? { ...prev, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } } : prev);
     });
 
     socket.on("timer_tick", (secondsRemaining: number) => {
-      setAudienceState((prev) => prev ? { ...prev, timer: { ...prev.timer, secondsRemaining } } : prev);
+      setAudienceState((prev) => prev ? { ...prev, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } } : prev);
     });
 
     socket.on("timer_paused", (remainingSeconds: number) => {
