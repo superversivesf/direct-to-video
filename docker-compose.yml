@@ -8,5 +8,16 @@ services:
     environment:
       - PORT=3000
       - DB_PATH=/app/data/pitchstorm.db
+      - MAX_PLAYERS=20
+      - MAX_ROOMS=20
+    read_only: true
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    restart: unless-stopped
 volumes:
   pitchstorm-data:

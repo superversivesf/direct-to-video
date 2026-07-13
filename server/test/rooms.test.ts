@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { initDb, seedCards } from "../src/db.js";
-import { createRoom, joinRoom, generateRoomCode, RoomStore } from "../src/rooms.js";
+import { createRoom, joinRoom, generateRoomCode, validateName, RoomStore } from "../src/rooms.js";
 import type { Database } from "better-sqlite3";
 
 describe("rooms", () => {
@@ -71,5 +71,38 @@ describe("rooms", () => {
       codes.add(generateRoomCode(store));
     }
     expect(codes.size).toBe(50);
+  });
+
+  it("rejects empty names", () => {
+    expect(() => validateName("")).toThrow("Name is required");
+    expect(() => validateName("   ")).toThrow("Name is required");
+  });
+
+  it("rejects names over 20 characters", () => {
+    expect(() => validateName("a".repeat(21))).toThrow("20 characters");
+  });
+
+  it("rejects names with special characters", () => {
+    expect(() => validateName("Jason<script>")).toThrow("letters, numbers, and spaces");
+    expect(() => validateName("Bob&Co")).toThrow("letters, numbers, and spaces");
+    expect(() => validateName("Alice!")).toThrow("letters, numbers, and spaces");
+  });
+
+  it("accepts valid names with letters, numbers, and spaces", () => {
+    expect(validateName("Jason")).toBe("Jason");
+    expect(validateName("Player 1")).toBe("Player 1");
+    expect(validateName("Bob123")).toBe("Bob123");
+  });
+
+  it("trims whitespace from names", () => {
+    expect(validateName("  Jason  ")).toBe("Jason");
+  });
+
+  it("prevents joining a full room", () => {
+    const created = createRoom(store, "Host");
+    for (let i = 0; i < 19; i++) {
+      joinRoom(store, created.room.code, `Player${i}`);
+    }
+    expect(() => joinRoom(store, created.room.code, "Extra")).toThrow("Room is full");
   });
 });

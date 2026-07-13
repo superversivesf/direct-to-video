@@ -1,6 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import type { Room, PublicRoomState, AudienceRoomState, DeckType } from "@pitch-storm/shared";
-import { RoomStore, createRoom, joinRoom } from "./rooms.js";
+import { RoomStore, createRoom, joinRoom, validateName } from "./rooms.js";
 import { logger } from "./logger.js";
 import {
   startGame,
@@ -13,6 +13,63 @@ import {
   playAgain,
 } from "./state-machine.js";
 import { startTimer, pauseTimer, pauseForNote, tickTimer, isTimerExpired, shouldResumeFromNote } from "./timer.js";
+
+const MAX_CONNECTIONS_PER_IP = 10;
+const MAX_JOIN_ATTEMPTS_PER_IP = 10;
+const JOIN_WINDOW_MS = 60 * 1000;
+const SOCKET_EVENT_WINDOW_MS = 10 * 1000;
+const MAX_SOCKET_EVENTS = 30;
+
+const connectionsPerIp = new Map<string, number>();
+const joinAttemptsPerIp = new Map<string, { count: number; resetAt: number }>();
+const socketEventCounts = new Map<string, { count: number; resetAt: number }>();
+
+function getIp(socket: Socket): string {
+  return (socket.handshake.address || "unknown").replace(/^::ffff:/, "");
+}
+
+function checkConnectionLimit(socket: Socket): boolean {
+  const ip = getIp(socket);
+  const count = connectionsPerIp.get(ip) || 0;
+  if (count >= MAX_CONNECTIONS_PER_IP) return false;
+  connectionsPerIp.set(ip, count + 1);
+  return true;
+}
+
+function releaseConnection(socket: Socket): void {
+  const ip = getIp(socket);
+  const count = connectionsPerIp.get(ip) || 0;
+  if (count <= 1) {
+    connectionsPerIp.delete(ip);
+  } else {
+    connectionsPerIp.set(ip, count - 1);
+  }
+}
+
+function checkJoinRateLimit(socket: Socket): boolean {
+  const ip = getIp(socket);
+  const now = Date.now();
+  const entry = joinAttemptsPerIp.get(ip);
+  if (!entry || now > entry.resetAt) {
+    joinAttemptsPerIp.set(ip, { count: 1, resetAt: now + JOIN_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= MAX_JOIN_ATTEMPTS_PER_IP) return false;
+  entry.count++;
+  return true;
+}
+
+function checkSocketEventRate(socket: Socket): boolean {
+  const now = Date.now();
+  const entry = socketEventCounts.get(socket.id);
+  if (!entry || now > entry.resetAt) {
+    socketEventCounts.set(socket.id, { count: 1, resetAt: now + SOCKET_EVENT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= MAX_SOCKET_EVENTS) return false;
+  entry.count++;
+  return true;
+}
 
 function toPublicRoomState(room: Room, playerId: string | null): PublicRoomState {
   const player = playerId ? room.players.find((p) => p.id === playerId) : null;
@@ -128,7 +185,19 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     const clientIp = socket.handshake.address;
     logger.connect(clientIp, socket.id);
 
+    if (!checkConnectionLimit(socket)) {
+      logger.error(clientIp, socket.id, "Connection limit exceeded for IP");
+      socket.emit("error", "Too many connections from your address");
+      socket.disconnect();
+      return;
+    }
+
     socket.on("join_room", (code: string, name: string) => {
+      if (!checkJoinRateLimit(socket)) {
+        logger.error(clientIp, socket.id, "Join rate limit exceeded");
+        socket.emit("error", "Too many join attempts. Please wait a minute and try again.");
+        return;
+      }
       try {
         let room: Room;
         let playerId: string;
@@ -179,6 +248,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("start_game", () => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       try {
@@ -192,6 +262,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("select_deck_type", (deckType: DeckType) => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       try {
@@ -203,6 +274,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("select_card", (cardId: string) => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       try {
@@ -214,6 +286,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("reveal_movie", () => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       try {
@@ -230,6 +303,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("start_timer", () => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
@@ -257,6 +331,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("pause_timer", () => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
@@ -271,6 +346,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("play_note", (noteCardId: string) => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
@@ -297,6 +373,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("end_pitch", () => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       const isExecutive = ctx.playerId === ctx.room.executiveId;
@@ -318,6 +395,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("select_winner", (playerId: string) => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
@@ -345,6 +423,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
     });
 
     socket.on("play_again", () => {
+      if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       const player = ctx.room.players.find((p) => p.id === ctx.playerId);
@@ -359,6 +438,8 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
 
     socket.on("disconnect", () => {
       logger.disconnect(clientIp, socket.id);
+      releaseConnection(socket);
+      socketEventCounts.delete(socket.id);
       for (const [playerId, info] of playerSockets) {
         if (info.socketId === socket.id) {
           const room = store.getRoom(info.roomCode);

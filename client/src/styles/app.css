@@ -101,7 +101,7 @@ button:disabled {
   color: #666;
   text-transform: uppercase;
   letter-spacing: 4px;
-  margin-top: -20px;
+  margin-top: 8px;
 }
 
 .join-form {

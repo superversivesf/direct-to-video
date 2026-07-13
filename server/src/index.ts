@@ -2,6 +2,8 @@ import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { resolve } from "path";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { initDb, seedCards } from "./db.js";
 import { RoomStore } from "./rooms.js";
 import { setupSocketHandlers } from "./sockets.js";
@@ -20,9 +22,33 @@ const store = new RoomStore(dbHandle);
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer);
+const io = new Server(httpServer, {
+  maxHttpBufferSize: 4096,
+});
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+    },
+  },
+}));
+
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests, please slow down.",
+});
 
 app.use(express.json());
+app.use(generalLimiter);
 app.use((req, _res, next) => {
   logger.http(req.method, req.path, req.ip || "unknown");
   next();

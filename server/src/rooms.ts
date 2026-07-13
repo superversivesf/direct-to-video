@@ -3,6 +3,17 @@ import type { Room, Player, Card, CardType } from "@pitch-storm/shared";
 import type { DbHandle } from "./db.js";
 
 const VALID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+const MAX_PLAYERS = parseInt(process.env.MAX_PLAYERS || "20", 10);
+const MAX_ROOMS = parseInt(process.env.MAX_ROOMS || "20", 10);
+const MAX_NAME_LENGTH = 20;
+
+export function validateName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Name is required");
+  if (trimmed.length > MAX_NAME_LENGTH) throw new Error(`Name must be ${MAX_NAME_LENGTH} characters or fewer`);
+  if (!/^[a-zA-Z0-9 ]+$/.test(trimmed)) throw new Error("Name can only contain letters, numbers, and spaces");
+  return trimmed;
+}
 
 export function generateRoomCode(store: RoomStore): string {
   let code: string;
@@ -50,27 +61,32 @@ function createPlayer(name: string, isHost: boolean): Player {
 }
 
 export function createRoom(store: RoomStore, hostName: string): { room: Room; playerId: string } {
+  const name = validateName(hostName);
+  const activeRooms = store.getAllCachedRooms().filter(r => r.phase !== "game-end").length;
+  if (activeRooms >= MAX_ROOMS) throw new Error("Too many active rooms. Please try again later.");
   const code = generateRoomCode(store);
   const room = createEmptyRoom(code);
-  const player = createPlayer(hostName, true);
+  const player = createPlayer(name, true);
   room.players.push(player);
   store.saveRoom(room);
   return { room, playerId: player.id };
 }
 
 export function joinRoom(store: RoomStore, code: string, name: string): { room: Room; playerId: string } {
+  const validatedName = validateName(name);
   const room = store.getRoom(code);
   if (!room) throw new Error("Room not found");
 
   const existing = room.players.find(
-    (p) => p.name.toLowerCase() === name.toLowerCase()
+    (p) => p.name.toLowerCase() === validatedName.toLowerCase()
   );
   if (existing) {
     store.saveRoom(room);
     return { room, playerId: existing.id };
   }
 
-  const player = createPlayer(name, false);
+  if (room.players.length >= MAX_PLAYERS) throw new Error("Room is full");
+  const player = createPlayer(validatedName, false);
   room.players.push(player);
   store.saveRoom(room);
   return { room, playerId: player.id };
