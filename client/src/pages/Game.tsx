@@ -149,13 +149,16 @@ export function Game() {
     const currentMovie = state.movies.find((m) => m.playerId === state.currentPitcherId);
     const isMyPitch = state.currentPitcherId === state.myPlayerId;
     const pitcher = state.players.find((p) => p.id === state.currentPitcherId);
+    const timerStarted = state.timer.secondsRemaining < 45 || state.timer.running;
 
     return (
       <div className="game-view">
         <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
         <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} pausedForNote={state.timer.pausedForNote} />
-        {isMyPitch && <p>YOUR TURN TO PITCH!</p>}
-        {!isMyPitch && <p>{pitcher?.name} is pitching...</p>}
+        {isMyPitch && !timerStarted && <p>Your cards are ready — waiting for the Executive to start the timer...</p>}
+        {isMyPitch && timerStarted && <p>YOUR TURN TO PITCH!</p>}
+        {!isMyPitch && !timerStarted && <p>Waiting for {pitcher?.name} to start pitching...</p>}
+        {!isMyPitch && timerStarted && <p>{pitcher?.name} is pitching...</p>}
         {currentMovie && <MovieReveal movie={currentMovie} large={true} />}
         {isExecutive && (
           <ExecutiveControls
@@ -167,7 +170,7 @@ export function Game() {
             onEndPitch={room.endPitch}
           />
         )}
-        {isMyPitch && <button onClick={room.endPitch}>I'm Done Pitching</button>}
+        {isMyPitch && timerStarted && <button onClick={room.endPitch}>I'm Done Pitching</button>}
       </div>
     );
   }

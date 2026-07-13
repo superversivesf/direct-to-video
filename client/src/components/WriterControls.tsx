@@ -13,9 +13,8 @@ interface WriterControlsProps {
   onReady: () => void;
 }
 
-export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBlind, blindCard, blindRevealed, onSelectCard, onDrawBlind, onReady }: WriterControlsProps) {
+export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBlind, blindCard, blindRevealed, onSelectCard, onReady }: WriterControlsProps) {
   const blindDeckType: DeckType = selectedCard?.type === "plot" ? "character" : "plot";
-  const blindDeckLabel = blindDeckType === "plot" ? "Plot" : "Character";
 
   return (
     <div className="writer-controls">
@@ -29,19 +28,7 @@ export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBl
           </div>
         </>
       )}
-      {hasSelectedCard && selectedCard && !hasDrawnBlind && (
-        <>
-          <h3>Card Selected</h3>
-          <div className="card-row">
-            <Card card={selectedCard} />
-          </div>
-          <div className="blind-draw-controls">
-            <p>Draw a blind card from the {blindDeckLabel} deck:</p>
-            <button className="btn-draw" onClick={() => onDrawBlind(blindDeckType)}>{blindDeckLabel} Deck</button>
-          </div>
-        </>
-      )}
-      {hasSelectedCard && selectedCard && hasDrawnBlind && !blindRevealed && (
+      {hasSelectedCard && selectedCard && !blindRevealed && (
         <>
           <h3>Your Movie</h3>
           <div className="movie-cards">
@@ -65,18 +52,18 @@ export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBl
           </button>
         </>
       )}
-      {hasSelectedCard && selectedCard && hasDrawnBlind && blindRevealed && (
+      {hasSelectedCard && selectedCard && blindRevealed && blindCard && (
         <>
           <h3>Your Movie</h3>
           <div className="movie-cards">
             {selectedCard.type === "character" ? (
               <>
                 <Card card={selectedCard} />
-                {blindCard && <Card card={blindCard} />}
+                <Card card={blindCard} />
               </>
             ) : (
               <>
-                {blindCard && <Card card={blindCard} />}
+                <Card card={blindCard} />
                 <Card card={selectedCard} />
               </>
             )}

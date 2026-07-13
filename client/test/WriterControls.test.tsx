@@ -38,40 +38,21 @@ describe("WriterControls", () => {
     expect(mockFns.onSelectCard).toHaveBeenCalledWith("p1");
   });
 
-  it("shows selected card and blind draw button after selecting", () => {
-    render(
-      <WriterControls hand={[plotCard]} selectedCard={plotCard} hasSelectedCard={true} hasDrawnBlind={false}
-        blindCard={null} blindRevealed={false} {...mockFns} />
-    );
-    expect(screen.getByText("Card Selected")).toBeTruthy();
-    expect(screen.getByText(/draw a blind card/i)).toBeTruthy();
-    expect(screen.getByText("Character Deck")).toBeTruthy();
-  });
-
-  it("only shows opposite deck for blind draw", () => {
-    render(
-      <WriterControls hand={[charCard]} selectedCard={charCard} hasSelectedCard={true} hasDrawnBlind={false}
-        blindCard={null} blindRevealed={false} {...mockFns} />
-    );
-    expect(screen.getByText("Plot Deck")).toBeTruthy();
-    expect(screen.queryByText("Character Deck")).toBeNull();
-  });
-
-  it("calls onDrawBlind with correct deck type", () => {
-    render(
-      <WriterControls hand={[plotCard]} selectedCard={plotCard} hasSelectedCard={true} hasDrawnBlind={false}
-        blindCard={null} blindRevealed={false} {...mockFns} />
-    );
-    fireEvent.click(screen.getByText("Character Deck"));
-    expect(mockFns.onDrawBlind).toHaveBeenCalledWith("character");
-  });
-
-  it("shows face-down blind card and Ready to Pitch button after blind draw", () => {
+  it("shows selected card and face-down blind card after selecting (not revealed)", () => {
     render(
       <WriterControls hand={[]} selectedCard={plotCard} hasSelectedCard={true} hasDrawnBlind={true}
         blindCard={null} blindRevealed={false} {...mockFns} />
     );
-    expect(screen.getByText(/blind card will be revealed/i)).toBeTruthy();
+    expect(screen.getByText("Your Movie")).toBeTruthy();
+    expect(screen.getByText("A heist gone wrong")).toBeTruthy();
+    expect(screen.getByText("CHARACTER")).toBeTruthy();
+  });
+
+  it("shows Ready to Pitch button after selecting", () => {
+    render(
+      <WriterControls hand={[]} selectedCard={plotCard} hasSelectedCard={true} hasDrawnBlind={true}
+        blindCard={null} blindRevealed={false} {...mockFns} />
+    );
     expect(screen.getByText("Ready to Pitch")).toBeTruthy();
   });
 

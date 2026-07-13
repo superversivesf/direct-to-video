@@ -125,7 +125,6 @@ describe("state machine", () => {
       updated = store.getRoom(room.code)!;
       const writerAfterSelect = updated.players.find((p) => p.id === writerId)!;
       expect(writerAfterSelect.hand).toHaveLength(2);
-      drawBlindCard(store, updated, writerId, "character");
       updated = store.getRoom(room.code)!;
       const movie = updated.movies.find((m) => m.playerId === writerId);
       expect(movie).toBeDefined();
@@ -145,7 +144,6 @@ describe("state machine", () => {
         const writer = updated.players.find((p) => p.id === playerIds[i])!;
         selectCard(store, updated, playerIds[i], writer.hand[0].id);
         updated = store.getRoom(room.code)!;
-        drawBlindCard(store, updated, playerIds[i], "character");
         updated = store.getRoom(room.code)!;
       }
       startPitching(store, updated);
@@ -166,7 +164,6 @@ describe("state machine", () => {
         const writer = updated.players.find((p) => p.id === playerIds[i])!;
         selectCard(store, updated, playerIds[i], writer.hand[0].id);
         updated = store.getRoom(room.code)!;
-        drawBlindCard(store, updated, playerIds[i], "character");
         updated = store.getRoom(room.code)!;
       }
       startPitching(store, updated);
@@ -188,7 +185,6 @@ describe("state machine", () => {
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
       selectCard(store, updated, playerIds[1], writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      drawBlindCard(store, updated, playerIds[1], "character");
       updated = store.getRoom(room.code)!;
       startPitching(store, updated);
       updated = store.getRoom(room.code)!;
@@ -210,7 +206,6 @@ describe("state machine", () => {
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
       selectCard(store, updated, playerIds[1], writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      drawBlindCard(store, updated, playerIds[1], "character");
       updated = store.getRoom(room.code)!;
       startPitching(store, updated);
       updated = store.getRoom(room.code)!;
@@ -233,7 +228,6 @@ describe("state machine", () => {
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
       selectCard(store, updated, playerIds[1], writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      drawBlindCard(store, updated, playerIds[1], "character");
       updated = store.getRoom(room.code)!;
       startPitching(store, updated);
       updated = store.getRoom(room.code)!;
@@ -286,7 +280,6 @@ describe("state machine", () => {
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
       selectCard(store, updated, playerIds[1], writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      expect(() => drawBlindCard(store, updated, playerIds[1], "plot")).toThrow(/Blind draw must be from the character deck/);
     });
 
     it("allows blind draw from opposite deck (character after plot)", () => {
@@ -298,7 +291,6 @@ describe("state machine", () => {
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
       selectCard(store, updated, playerIds[1], writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      drawBlindCard(store, updated, playerIds[1], "character");
       updated = store.getRoom(room.code)!;
       const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
       expect(movie).toBeDefined();
@@ -314,7 +306,6 @@ describe("state machine", () => {
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
       selectCard(store, updated, playerIds[1], writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      drawBlindCard(store, updated, playerIds[1], "plot");
       updated = store.getRoom(room.code)!;
       const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
       expect(movie).toBeDefined();
@@ -332,7 +323,6 @@ describe("state machine", () => {
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
       selectCard(store, updated, playerIds[1], writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      drawBlindCard(store, updated, playerIds[1], "character");
       updated = store.getRoom(room.code)!;
       expect(updated.movies[0].revealed).toBe(false);
       revealMovie(store, updated, playerIds[1]);
@@ -358,7 +348,6 @@ describe("state machine", () => {
       const writer = updated.players.find((p) => p.id === playerIds[1])!;
       selectCard(store, updated, playerIds[1], writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      drawBlindCard(store, updated, playerIds[1], "character");
       updated = store.getRoom(room.code)!;
       startPitching(store, updated);
       updated = store.getRoom(room.code)!;

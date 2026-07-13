@@ -89,21 +89,32 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
 
   if (card.draws && card.draws.length > 0) {
     let resolvedText = card.text;
-    let drawIndex = 0;
     for (const draw of card.draws) {
       for (let i = 0; i < draw.count; i++) {
         const { drawn, remaining } = drawCards(updatedDeck[draw.deck], 1);
         updatedDeck = { ...updatedDeck, [draw.deck]: remaining };
         if (drawn[0]) {
           resolvedText = resolvedText.replace("____", drawn[0].text);
-          drawIndex++;
         }
       }
     }
     chosenCard = { ...card, substitutedText: resolvedText };
   }
 
-  store.saveRoom({
+  const blindDeckType: DeckType = card.type === "plot" ? "character" : "plot";
+  const { drawn: blindDrawn, remaining: blindRemaining } = drawCards(updatedDeck[blindDeckType], 1);
+  updatedDeck = { ...updatedDeck, [blindDeckType]: blindRemaining };
+  const blindCard = blindDrawn[0];
+
+  const newMovie = {
+    playerId,
+    chosenCard,
+    randomCard: blindCard,
+    notesPlayed: [] as Card[],
+    revealed: false,
+  };
+
+  let updatedRoom: Room = {
     ...room,
     deck: updatedDeck,
     players: room.players.map((p) =>
@@ -111,7 +122,13 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
         ? { ...p, hand: p.hand.filter((c) => c.id !== cardId), chosenCard }
         : p
     ),
-  });
+    movies: [
+      ...room.movies.filter((m) => m.playerId !== playerId),
+      newMovie,
+    ],
+  };
+
+  checkAllMoviesReady(store, updatedRoom);
 }
 
 export function drawBlindCard(store: RoomStore, room: Room, playerId: string, deckType: DeckType): void {

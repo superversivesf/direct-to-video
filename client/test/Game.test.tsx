@@ -132,18 +132,21 @@ describe("Game", () => {
     expect(mockFns.selectCard).toHaveBeenCalledWith("c1");
   });
 
-  it("renders blind draw controls after selecting a card", () => {
+  it("renders movie preview with face-down blind card after selecting", () => {
     setState({
       phase: "card-selection",
       round: { current: 1, total: 3 },
       executiveId: "9",
       myPlayerId: "1",
-      myHand: [{ id: "c1", type: "plot", text: "Plot A" }],
+      myHand: [],
       myChosenCard: { id: "c2", type: "plot", text: "Plot B" },
+      myMovieReady: true,
+      myMovieRevealed: false,
+      myBlindCard: null,
     });
     renderGame();
-    expect(screen.getByText(/draw a blind card/i)).toBeTruthy();
-    expect(screen.getByText("Character Deck")).toBeTruthy();
+    expect(screen.getByText(/Your Movie/i)).toBeTruthy();
+    expect(screen.getByText(/blind card will be revealed/i)).toBeTruthy();
   });
 
   it("renders executive waiting view during setup when player is executive", () => {
