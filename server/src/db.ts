@@ -1,7 +1,6 @@
 import Database from "better-sqlite3";
 import type { Database as DB } from "better-sqlite3";
 import type { Card, CardType, Room } from "@pitch-storm/shared";
-import { nanoid } from "nanoid";
 import { getSeedCards } from "./seed-cards.js";
 
 export interface DbHandle {

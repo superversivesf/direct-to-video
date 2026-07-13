@@ -4,4 +4,4 @@ data/
 *.db
 .env
 test-results/
-playwright-report/
+playwright-report/*.swp

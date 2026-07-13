@@ -122,7 +122,6 @@ export function Game() {
         </div>
       );
     }
-    const myMovie = state.movies.find((m) => m.playerId === state.myPlayerId);
     const hasSelectedCard = !!state.myChosenCard;
     const hasDrawnBlind = state.myMovieReady;
     return (

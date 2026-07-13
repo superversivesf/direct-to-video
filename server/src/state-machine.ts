@@ -1,4 +1,4 @@
-import type { Room, Player, Card, CardType, DeckType } from "@pitch-storm/shared";
+import type { Room, Player, Card, DeckType } from "@pitch-storm/shared";
 import type { RoomStore } from "./rooms.js";
 import { createTimer } from "./timer.js";
 

@@ -1,5 +1,5 @@
 import { resolve } from "path";
-import { mkdirSync, appendFileSync, writeFileSync, existsSync } from "fs";
+import { mkdirSync, appendFileSync } from "fs";
 
 const LOG_DIR = resolve(process.cwd(), "data");
 const LOG_FILE = resolve(LOG_DIR, "pitchstorm.log");
