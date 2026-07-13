@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { Game } from "../src/pages/Game.js";
-import type { PublicRoomState } from "@pitch-storm/shared";
+import type { PublicRoomState } from "@direct-to-video/shared";
 
 vi.mock("../src/socket.js", () => ({
   socket: { connect: vi.fn(), emit: vi.fn(), on: vi.fn(), off: vi.fn() },

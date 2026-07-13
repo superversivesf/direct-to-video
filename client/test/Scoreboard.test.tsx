@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Scoreboard } from "../src/components/Scoreboard.js";
-import type { PublicPlayer } from "@pitch-storm/shared";
+import type { PublicPlayer } from "@direct-to-video/shared";
 
 const players: PublicPlayer[] = [
   { id: "1", name: "Jason", isExecutive: false, isHost: true, score: 3, isDisconnected: false },

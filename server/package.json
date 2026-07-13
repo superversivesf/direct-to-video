@@ -1,5 +1,5 @@
 {
-  "name": "@pitch-storm/server",
+  "name": "@direct-to-video/server",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@pitch-storm/shared": "*",
+    "@direct-to-video/shared": "*",
     "better-sqlite3": "^11.0.0",
     "express": "^4.19.0",
     "express-rate-limit": "^8.5.2",

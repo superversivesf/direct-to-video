@@ -37,8 +37,8 @@ export function Join() {
     <div className="join-screen">
       <div className="join-logo">
         <div className="clapperboard">🎬</div>
-        <h1>PITCH STORM</h1>
-        <div className="subtitle">Pitch terrible movies to the world's worst executives</div>
+        <h1>DIRECT TO VIDEO</h1>
+        <div className="subtitle">Every movie pitched goes straight to the bargain bin</div>
       </div>
       <div className="join-form">
         <input
@@ -74,7 +74,7 @@ export function Join() {
           Original Game
         </a>
         <span className="footer-link-divider">·</span>
-        <a href="https://github.com/superversivesf/pitch-storm" target="_blank" rel="noopener noreferrer" className="footer-link">
+        <a href="https://github.com/superversivesf/direct-to-video" target="_blank" rel="noopener noreferrer" className="footer-link">
           GitHub
         </a>
       </div>

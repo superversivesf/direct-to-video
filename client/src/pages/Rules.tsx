@@ -1,14 +1,17 @@
 export function Rules() {
   return (
     <div className="rules-page">
-      <h1>How to Play Pitch Storm</h1>
+      <h1>How to Play Direct to Video</h1>
 
       <section>
         <h2>Overview</h2>
         <p>
-          Pitch Storm is a party game where players take turns acting as unprepared writers
+          Direct to Video is a party game where players take turns acting as unprepared writers
           pitching terrible movie ideas to the world's worst executives. One player is the
           Executive each round — everyone else pitches movies, and the Executive picks the best one.
+        </p>
+        <p className="clone-acknowledgment">
+          Direct to Video is an unofficial clone of <a href="https://boardgamegeek.com/boardgame/254132/pitchstorm" target="_blank" rel="noopener noreferrer">Pitch Storm</a> by Cutlass &amp; Cape Games. All credit for the game design and card content goes to them.
         </p>
       </section>
 

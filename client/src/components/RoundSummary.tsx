@@ -1,5 +1,5 @@
-import type { Movie } from "@pitch-storm/shared";
-import type { PublicPlayer } from "@pitch-storm/shared";
+import type { Movie } from "@direct-to-video/shared";
+import type { PublicPlayer } from "@direct-to-video/shared";
 import { MovieReveal } from "./MovieReveal.js";
 
 interface RoundSummaryProps {

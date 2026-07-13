@@ -19,7 +19,7 @@ export default defineConfig({
     cwd: "..",
     env: {
       PORT: "3100",
-      DB_PATH: "/tmp/pitchstorm-e2e-test.db",
+      DB_PATH: "/tmp/directtovideo-e2e-test.db",
     },
   },
 });

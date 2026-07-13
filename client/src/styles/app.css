@@ -981,6 +981,20 @@ button:disabled {
   color: #eee;
 }
 
+.clone-acknowledgment {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: rgba(15,52,96,0.3);
+  border-left: 3px solid #0f3460;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #888;
+}
+
+.clone-acknowledgment a {
+  color: #6a9fd9;
+}
+
 .rules-back-btn {
   display: inline-block;
   margin-top: 40px;

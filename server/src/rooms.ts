@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import type { Room, Player, Card, CardType } from "@pitch-storm/shared";
+import type { Room, Player, Card, CardType } from "@direct-to-video/shared";
 import type { DbHandle } from "./db.js";
 
 const VALID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";

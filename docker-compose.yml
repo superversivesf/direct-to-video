@@ -1,13 +1,13 @@
 services:
-  pitchstorm:
+  direct-to-video:
     build: .
     ports:
       - "3000:3000"
     volumes:
-      - pitchstorm-data:/app/data
+      - direct-to-video-data:/app/data
     environment:
       - PORT=3000
-      - DB_PATH=/app/data/pitchstorm.db
+      - DB_PATH=/app/data/directtovideo.db
       - MAX_PLAYERS=20
       - MAX_ROOMS=20
     read_only: true
@@ -20,4 +20,4 @@ services:
           cpus: "1.0"
     restart: unless-stopped
 volumes:
-  pitchstorm-data:
+  direct-to-video-data:

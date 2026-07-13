@@ -1,4 +1,4 @@
-import type { Card as CardType, DeckType } from "@pitch-storm/shared";
+import type { Card as CardType, DeckType } from "@direct-to-video/shared";
 import { Card } from "./Card.js";
 
 interface WriterControlsProps {

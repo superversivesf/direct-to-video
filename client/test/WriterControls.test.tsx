@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { WriterControls } from "../src/components/WriterControls.js";
-import type { Card as CardType } from "@pitch-storm/shared";
+import type { Card as CardType } from "@direct-to-video/shared";
 
 const plotCard: CardType = { id: "p1", type: "plot", text: "A heist gone wrong" };
 const charCard: CardType = { id: "c1", type: "character", text: "A retired villain" };

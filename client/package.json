@@ -1,5 +1,5 @@
 {
-  "name": "@pitch-storm/client",
+  "name": "@direct-to-video/client",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@pitch-storm/shared": "*",
+    "@direct-to-video/shared": "*",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-router-dom": "^6.23.0",

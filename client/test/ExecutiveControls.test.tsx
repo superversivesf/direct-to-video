@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ExecutiveControls } from "../src/components/ExecutiveControls.js";
-import type { Card as CardType } from "@pitch-storm/shared";
+import type { Card as CardType } from "@direct-to-video/shared";
 
 const notes: CardType[] = [
   { id: "n1", type: "note", text: "Add a musical number" },

@@ -1,4 +1,4 @@
-import type { Card as CardType } from "@pitch-storm/shared";
+import type { Card as CardType } from "@direct-to-video/shared";
 import { CardTemplate } from "./CardTemplate.js";
 
 interface CardProps {

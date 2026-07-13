@@ -9,7 +9,7 @@ import { WriterControls } from "../components/WriterControls.js";
 import { ExecutiveControls } from "../components/ExecutiveControls.js";
 import { RoundSummary } from "../components/RoundSummary.js";
 import { PhaseIndicator } from "../components/PhaseIndicator.js";
-import type { DeckType } from "@pitch-storm/shared";
+import type { DeckType } from "@direct-to-video/shared";
 
 function Confetti() {
   const colors = ["#e94560", "#f57c00", "#ffc107", "#4caf50", "#0f3460", "#e0e0e0"];
@@ -108,7 +108,7 @@ export function Game() {
   if (state.phase === "lobby") {
     return (
       <div className="game-view">
-        <h1>Pitch Storm — Room {state.code}</h1>
+        <h1>Direct to Video — Room {state.code}</h1>
         <PlayerList players={state.players} />
         {isHost && <button onClick={room.startGame}>Start Game</button>}
         <div className="share-link-section">

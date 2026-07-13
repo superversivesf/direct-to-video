@@ -1,6 +1,8 @@
-# Pitch Storm
+# Direct to Video
 
-A self-hosted web app for playing the card game [Pitch Storm](https://boardgamegeek.com/boardgame/254132/pitchstorm) by Cutlass & Cape Games with a group remotely. Players connect via a room code, manage their cards in a private browser view, and pitch verbally over Zoom/Teams. A separate audience/spectator page displays the full game state and is designed to be screen-shared.
+A self-hosted web app for playing a remote party game with a group. Players connect via a room code, manage their cards in a private browser view, and pitch verbally over Zoom/Teams. A separate audience/spectator page displays the full game state and is designed to be screen-shared.
+
+> **Note:** Direct to Video is an unofficial clone of [Pitch Storm](https://boardgamegeek.com/boardgame/254132/pitchstorm) by Cutlass & Cape Games. All credit for the game design and card content goes to them.
 
 ## Features
 
@@ -8,18 +10,18 @@ A self-hosted web app for playing the card game [Pitch Storm](https://boardgameg
 - **Player view** — draw cards, select your movie, pitch, see your hand privately
 - **Audience view** — large-screen spectator layout optimized for Zoom/Teams screen-sharing
 - **Server-authoritative timer** — 45-second pitches with auto-pause when the Executive plays a Note card (5-second read window, then auto-resumes)
-- **492 real cards** — 166 Plot, 160 Character, 166 Note cards transcribed from the physical game
+- **493 real cards** — 166 Plot, 161 Character, 166 Note cards transcribed from the physical game
 - **Auto-draw mechanics** — cards with `____` placeholders automatically draw from the appropriate deck and substitute the text
 - **Franchise cards** — special cards that reference previously pitched movies
 - **Cookie-based name persistence** — your name is remembered between sessions
 - **Docker deployment** — single container, SQLite persistence via volume
-- **Game logging** — connection IPs, player names, game events logged to `data/pitchstorm.log` and `data/games.log`
+- **Game logging** — connection IPs, player names, game events logged to `data/directtovideo.log` and `data/games.log`
 
 ## Tech Stack
 
 - **Backend:** Node.js 20, TypeScript, Express, Socket.IO, better-sqlite3
 - **Frontend:** React 18, Vite, React Router
-- **Testing:** Vitest (141 unit/integration tests), Playwright (E2E)
+- **Testing:** Vitest (150 unit/integration tests), Playwright (E2E)
 - **Deployment:** Docker, docker-compose
 
 ## Quick Start
@@ -46,7 +48,7 @@ Use `http://localhost:5173` for development (proxies WebSocket to :3000).
 
 1. Open the app in your browser
 2. Leave the room code blank, enter your name, click **Join as Player** — you're the host
-3. Share the 4-letter room code with friends
+3. Share the 4-letter room code (or the room link) with friends
 4. Friends enter the code + their name, click **Join as Player**
 5. Anyone wanting to spectate enters the code and clicks **Join as Audience**
 6. Host clicks **Start Game** when everyone's in
@@ -72,7 +74,7 @@ Lobby → Setup → Card Selection → Pitching → Round End → (next round) �
 | Type | Count | Description |
 |------|-------|-------------|
 | Plot | 166 | Story premises (6 with auto-draw `____`, 7 franchise) |
-| Character | 160 | Characters with location headers (10 franchise, 2 "Pick a...") |
+| Character | 161 | Characters with location headers (10 franchise, 2 "Pick a...") |
 | Note | 166 | Executive twist notes (8 with auto-draw: plot, character, or note cards) |
 
 ### Special card mechanics
@@ -86,15 +88,15 @@ Lobby → Setup → Card Selection → Pitching → Round End → (next round) �
 
 ```bash
 # Unit + integration tests
-cd server && npx vitest run    # 66 server tests
-cd client && npx vitest run    # 75 client tests
+cd server && npx vitest run    # 72 server tests
+cd client && npx vitest run    # 78 client tests
 
 # E2E test (requires build first)
 npm run build
 npx playwright test --config e2e/playwright.config.ts
 ```
 
-142 total tests (66 server + 75 client + 1 E2E).
+150 total tests (72 server + 78 client + 1 E2E).
 
 ## Project Structure
 
@@ -104,7 +106,7 @@ movie-pitch/
 │   ├── src/
 │   │   ├── index.ts       # Express + Socket.IO bootstrap
 │   │   ├── db.ts          # SQLite setup, migrations, card storage
-│   │   ├── seed-cards.ts  # 492 card definitions
+│   │   ├── seed-cards.ts  # 493 card definitions
 │   │   ├── rooms.ts       # Room management, code generation
 │   │   ├── state-machine.ts # Game phase transitions
 │   │   ├── sockets.ts     # Socket.IO event handlers
@@ -130,14 +132,15 @@ movie-pitch/
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `PORT` | `3000` | Server listen port |
-| `DB_PATH` | `data/pitchstorm.db` | SQLite database path |
-| `ROOM_TTL_MS` | `3600000` (1hr) | Time before stale rooms are cleaned up |
+| `DB_PATH` | `data/directtovideo.db` | SQLite database path |
+| `MAX_PLAYERS` | `20` | Max players per room |
+| `MAX_ROOMS` | `20` | Max concurrent active rooms |
 
 ## Logging
 
 Logs are written to the `data/` directory (persisted via Docker volume):
 
-- `pitchstorm.log` — all server events (HTTP, connections, joins, errors)
+- `directtovideo.log` — all server events (HTTP, connections, joins, errors)
 - `games.log` — game events (player joins with IP, game start, round winners, final scores)
 
 ## Future Scope
@@ -149,6 +152,6 @@ Logs are written to the `data/` directory (persisted via Docker volume):
 
 ## Credits
 
-- Game design: Ben Kasner / Cutlass & Cape Games
+- Original game design: Ben Kasner / Cutlass & Cape Games ([Pitch Storm](https://boardgamegeek.com/boardgame/254132/pitchstorm))
 - Web app: Jason Sherwin
 - Card data: Transcribed from the physical card game

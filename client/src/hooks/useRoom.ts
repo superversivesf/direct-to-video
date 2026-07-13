@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { socket } from "../socket.js";
-import type { PublicRoomState, AudienceRoomState, Movie, Card, DeckType } from "@pitch-storm/shared";
+import type { PublicRoomState, AudienceRoomState, Movie, Card, DeckType } from "@direct-to-video/shared";
 
 export function useRoom() {
   const [roomState, setRoomState] = useState<PublicRoomState | null>(null);

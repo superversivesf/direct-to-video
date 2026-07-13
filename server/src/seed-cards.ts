@@ -1,4 +1,4 @@
-import type { Card } from "@pitch-storm/shared";
+import type { Card } from "@direct-to-video/shared";
 
 const PLOT_CARDS: Card[] = [
   { id: "plot-1", type: "plot", text: "gets in big trouble with the mafia." },

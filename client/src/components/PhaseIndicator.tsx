@@ -1,4 +1,4 @@
-import type { Phase } from "@pitch-storm/shared";
+import type { Phase } from "@direct-to-video/shared";
 
 interface PhaseIndicatorProps {
   phase: Phase;

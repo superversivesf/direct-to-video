@@ -1,4 +1,4 @@
-import type { TimerState } from "@pitch-storm/shared";
+import type { TimerState } from "@direct-to-video/shared";
 
 export function createTimer(durationSeconds: number): TimerState {
   return {

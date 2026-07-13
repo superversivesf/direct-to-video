@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MovieReveal } from "../src/components/MovieReveal.js";
-import type { Movie } from "@pitch-storm/shared";
+import type { Movie } from "@direct-to-video/shared";
 
 const plotCard = { id: "p1", type: "plot" as const, text: "A heist gone wrong" };
 const charCard = { id: "c1", type: "character" as const, text: "A retired villain" };

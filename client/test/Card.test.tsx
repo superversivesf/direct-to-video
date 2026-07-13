@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Card } from "../src/components/Card.js";
-import type { Card as CardType } from "@pitch-storm/shared";
+import type { Card as CardType } from "@direct-to-video/shared";
 
 describe("Card", () => {
   const card: CardType = {

@@ -2,7 +2,7 @@ import { resolve } from "path";
 import { mkdirSync, appendFileSync } from "fs";
 
 const LOG_DIR = resolve(process.cwd(), "data");
-const LOG_FILE = resolve(LOG_DIR, "pitchstorm.log");
+const LOG_FILE = resolve(LOG_DIR, "directtovideo.log");
 const GAME_LOG_FILE = resolve(LOG_DIR, "games.log");
 
 mkdirSync(LOG_DIR, { recursive: true });

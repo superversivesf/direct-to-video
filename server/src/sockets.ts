@@ -1,5 +1,5 @@
 import type { Server, Socket } from "socket.io";
-import type { Room, PublicRoomState, AudienceRoomState, DeckType } from "@pitch-storm/shared";
+import type { Room, PublicRoomState, AudienceRoomState, DeckType } from "@direct-to-video/shared";
 import { RoomStore, createRoom, joinRoom, validateName } from "./rooms.js";
 import { logger } from "./logger.js";
 import {

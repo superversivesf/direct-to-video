@@ -34,7 +34,7 @@ export function Audience() {
   return (
     <div className="audience-view">
       <header className="audience-header">
-        <h1>PITCH STORM</h1>
+        <h1>DIRECT TO VIDEO</h1>
         <div className="audience-meta">
           Room: {state.code} | Round {state.round.current}/{state.round.total}
           {executive && ` | Executive: ${executive.name}`}

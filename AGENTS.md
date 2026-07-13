@@ -1,10 +1,10 @@
-# AGENTS.md — Pitch Storm
+# AGENTS.md — Direct to Video
 
-> **Status snapshot:** 2026-07-13. All 144 tests pass, build and typecheck clean. Production-ready for standard 3-5 player mode.
+> **Status snapshot:** 2026-07-13. All 150 tests pass, build and typecheck clean. Production-ready for standard 3-5 player mode.
 
 ## Project Overview
 
-Pitch Storm is a self-hosted web app for playing the card game [Pitch Storm](https://boardgamegeek.com/boardgame/254132/pitchstorm) by Cutlass & Cape Games remotely. Players join via a 4-letter room code, manage cards in a private browser view, and pitch verbally over Zoom/Teams. A separate audience page displays the full game state for screen-sharing.
+Direct to Video is a self-hosted web app for playing a remote party game. It is an unofficial clone of [Pitch Storm](https://boardgamegeek.com/boardgame/254132/pitchstorm) by Cutlass & Cape Games — all credit for the game design and card content goes to them. Players join via a 4-letter room code, manage cards in a private browser view, and pitch verbally over Zoom/Teams. A separate audience page displays the full game state for screen-sharing.
 
 **Repository:** `/home/jason/Repos/movie-pitch` — git repo on `master` branch, clean working tree.
 
@@ -41,7 +41,7 @@ movie-pitch/
 │   │   ├── state-machine.ts  # Game phase transitions, card drawing, winner selection
 │   │   ├── sockets.ts        # Socket.IO event handlers, timer tick loop, state broadcasting
 │   │   ├── timer.ts          # Server-authoritative timer: start, pause, tick, note-pause, resume
-│   │   └── logger.ts         # File logging to data/pitchstorm.log + data/games.log
+│   │   └── logger.ts         # File logging to data/directtovideo.log + data/games.log
 │   └── test/
 │       ├── db.test.ts        # 7 tests
 │       ├── rooms.test.ts     # 8 tests
@@ -271,7 +271,7 @@ lobby → setup → card-selection → pitching → round-end → setup (next ro
 - Stale room cleanup (1-hour TTL after all disconnected or game-end)
 - SQLite persistence (survives restarts)
 - Docker deployment with volume for SQLite
-- Logging to `data/pitchstorm.log` and `data/games.log`
+- Logging to `data/directtovideo.log` and `data/games.log`
 - Rules page at `/rules`
 - Confetti animation on game end
 - Phase indicator progress dots
@@ -426,7 +426,7 @@ The design spec and implementation plan are in `docs/superpowers/specs/` and `do
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `PORT` | `3000` | Server listen port |
-| `DB_PATH` | `data/pitchstorm.db` | SQLite database path |
+| `DB_PATH` | `data/directtovideo.db` | SQLite database path |
 | `ROOM_TTL_MS` | `3600000` (1hr) | Stale room cleanup threshold (hardcoded in index.ts, not actually read from env) |
 
 Note: `ROOM_TTL_MS` and `CLEANUP_INTERVAL_MS` are hardcoded constants in `server/src/index.ts`, not read from `process.env` despite the README listing `ROOM_TTL_MS` as an environment variable.

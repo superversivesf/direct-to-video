@@ -11,7 +11,7 @@ import { logger } from "./logger.js";
 import type { DbHandle } from "./db.js";
 
 const PORT = process.env.PORT || 3000;
-const DB_PATH = process.env.DB_PATH || resolve(process.cwd(), "data", "pitchstorm.db");
+const DB_PATH = process.env.DB_PATH || resolve(process.cwd(), "data", "directtovideo.db");
 const CLIENT_DIST = resolve(process.cwd(), "client", "dist");
 const ROOM_TTL_MS = 60 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
@@ -80,7 +80,7 @@ function cleanupStaleRooms(): void {
 setInterval(cleanupStaleRooms, CLEANUP_INTERVAL_MS);
 
 httpServer.listen(PORT, () => {
-  logger.info(`Pitch Storm server running on port ${PORT}`);
+  logger.info(`Direct to Video server running on port ${PORT}`);
 });
 
 export { app, io, httpServer };

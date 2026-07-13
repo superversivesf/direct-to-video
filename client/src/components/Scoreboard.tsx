@@ -1,4 +1,4 @@
-import type { PublicPlayer } from "@pitch-storm/shared";
+import type { PublicPlayer } from "@direct-to-video/shared";
 
 interface ScoreboardProps {
   players: PublicPlayer[];

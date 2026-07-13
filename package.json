@@ -1,5 +1,5 @@
 {
-  "name": "movie-pitch",
+  "name": "direct-to-video",
   "private": true,
   "workspaces": ["shared", "server", "client"],
   "scripts": {

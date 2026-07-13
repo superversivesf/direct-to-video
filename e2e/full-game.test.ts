@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { io as ioClient, type Socket as ClientSocket } from "socket.io-client";
-import type { PublicRoomState, DeckType } from "@pitch-storm/shared";
+import type { PublicRoomState, DeckType } from "@direct-to-video/shared";
 
 const BASE = "http://localhost:3100";
 
 /**
- * E2E test for a full 2-player Pitch Storm game.
+ * E2E test for a full 2-player Direct to Video game.
  *
  * Player socket actions (join, start game, select deck, select card,
  * draw blind, start timer, end pitch, select winner) are driven through
