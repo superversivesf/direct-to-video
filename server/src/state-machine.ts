@@ -131,33 +131,6 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
   checkAllMoviesReady(store, updatedRoom);
 }
 
-export function drawBlindCard(store: RoomStore, room: Room, playerId: string, deckType: DeckType): void {
-  if (room.phase !== "card-selection" && room.phase !== "setup") throw new Error("Cannot draw blind card outside card-selection phase");
-  const player = room.players.find((p) => p.id === playerId);
-  if (!player) throw new Error("Player not found");
-  if (!player.chosenCard) throw new Error("Must select a card before drawing blind");
-  const handDeckType = player.chosenCard.type;
-  if (deckType === handDeckType) throw new Error(`Blind draw must be from the ${handDeckType === "plot" ? "character" : "plot"} deck, not the ${handDeckType} deck`);
-  const { drawn, remaining } = drawCards(room.deck[deckType], 1);
-  const blindCard = drawn[0];
-  const newMovie = {
-    playerId,
-    chosenCard: player.chosenCard,
-    randomCard: blindCard,
-    notesPlayed: [] as Card[],
-    revealed: false,
-  };
-  const updated: Room = {
-    ...room,
-    deck: { ...room.deck, [deckType]: remaining },
-    movies: [
-      ...room.movies.filter((m) => m.playerId !== playerId),
-      newMovie,
-    ],
-  };
-  checkAllMoviesReady(store, updated);
-}
-
 function checkAllMoviesReady(store: RoomStore, room: Room): void {
   const writers = getWriterPlayers(room);
   const readyWriters = writers.filter((w) =>

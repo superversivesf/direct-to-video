@@ -103,12 +103,10 @@ test("full 2-player game", async ({ browser }) => {
   const gs3 = waitForState(guest.socket);
   const cardId = gs2State.myHand![0].id;
   guest.socket.emit("select_card", cardId);
-  await gs3;
 
-  // Guest draws blind → triggers pitching phase
+  // selectCard auto-draws blind card → triggers pitching phase
   const gs4 = waitForState(guest.socket);
   const hostState4 = waitForState(host.socket);
-  guest.socket.emit("draw_random_card", "plot" as DeckType);
   const gs4State = await gs4;
   const hs4 = await hostState4;
   expect(gs4State.phase).toBe("pitching");
@@ -157,15 +155,10 @@ test("full 2-player game", async ({ browser }) => {
   const hs7State = await hs7;
   expect(hs7State.myHand?.length).toBe(3);
 
-  // Host selects a card
-  const hs8 = waitForState(host.socket);
+  // Host selects a card — auto-draws blind → triggers pitching
+  const hs9 = waitForState(host.socket);
   const cardId2 = hs7State.myHand![0].id;
   host.socket.emit("select_card", cardId2);
-  await hs8;
-
-  // Host draws blind → triggers pitching
-  const hs9 = waitForState(host.socket);
-  host.socket.emit("draw_random_card", "plot" as DeckType);
   const hs9State = await hs9;
   expect(hs9State.phase).toBe("pitching");
 
@@ -200,8 +193,9 @@ test("full 2-player game", async ({ browser }) => {
   expect(gs11State.phase).toBe("game-end");
 
   // ── Game end ──
-  // Audience sees game-end screen with scoreboard
-  await expect(audiencePage.locator("text=Game Over")).toBeVisible({ timeout: 10000 });
+  // Audience sees game-end screen
+  await expect(audiencePage.locator(".audience-game-end")).toBeVisible({ timeout: 10000 });
+  await expect(audiencePage.locator(".winner-spotlight")).toBeVisible({ timeout: 10000 });
   await expect(audiencePage.locator(".audience-footer .scoreboard")).toBeVisible({ timeout: 10000 });
 
   // Verify scoreboard shows both player names

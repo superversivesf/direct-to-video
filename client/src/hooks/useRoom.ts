@@ -102,7 +102,6 @@ export function useRoom() {
   const startGame = useCallback(() => { socket.emit("start_game"); }, []);
   const selectDeckType = useCallback((dt: DeckType) => { socket.emit("select_deck_type", dt); }, []);
   const selectCard = useCallback((cardId: string) => { socket.emit("select_card", cardId); }, []);
-  const drawRandomCard = useCallback((dt: DeckType) => { socket.emit("draw_random_card", dt); }, []);
   const revealMovie = useCallback(() => { socket.emit("reveal_movie"); }, []);
   const startTimer = useCallback(() => { socket.emit("start_timer"); }, []);
   const pauseTimer = useCallback(() => { socket.emit("pause_timer"); }, []);
@@ -119,7 +118,6 @@ export function useRoom() {
     startGame,
     selectDeckType,
     selectCard,
-    drawRandomCard,
     revealMovie,
     startTimer,
     pauseTimer,
@@ -183,10 +181,21 @@ export function useAudience() {
       } : prev);
     });
 
+    socket.on("game_ended", () => {
+      setAudienceState((prev) => prev ? { ...prev, phase: "game-end" } : prev);
+    });
+
     return () => {
       socket.off("audience_joined");
       socket.off("audience_update");
       socket.off("error");
+      socket.off("movie_revealed");
+      socket.off("timer_started");
+      socket.off("timer_tick");
+      socket.off("timer_paused");
+      socket.off("timer_expired");
+      socket.off("note_played");
+      socket.off("game_ended");
     };
   }, []);
 

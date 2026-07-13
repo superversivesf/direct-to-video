@@ -6,7 +6,6 @@ import {
   startGame,
   selectDeckType,
   selectCard,
-  drawBlindCard,
   revealMovie,
   endPitch,
   playNote,
@@ -208,17 +207,6 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       if (!ctx) return;
       try {
         selectCard(store, ctx.room, ctx.playerId, cardId);
-        broadcastAllStates(io, store.getRoom(ctx.room.code)!);
-      } catch (err) {
-        socket.emit("error", (err as Error).message);
-      }
-    });
-
-    socket.on("draw_random_card", (deckType: DeckType) => {
-      const ctx = getPlayerContext(socket.id, store);
-      if (!ctx) return;
-      try {
-        drawBlindCard(store, ctx.room, ctx.playerId, deckType);
         broadcastAllStates(io, store.getRoom(ctx.room.code)!);
       } catch (err) {
         socket.emit("error", (err as Error).message);

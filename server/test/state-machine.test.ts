@@ -6,7 +6,6 @@ import {
   setupRound,
   selectDeckType,
   selectCard,
-  drawBlindCard,
   startPitching,
   revealMovie,
   endPitch,
@@ -111,8 +110,8 @@ describe("state machine", () => {
     });
   });
 
-  describe("selectCard and drawBlindCard", () => {
-    it("creates a movie with chosen card + blind draw", () => {
+  describe("selectCard", () => {
+    it("creates a movie with chosen card + auto-drawn blind card", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
@@ -125,11 +124,49 @@ describe("state machine", () => {
       updated = store.getRoom(room.code)!;
       const writerAfterSelect = updated.players.find((p) => p.id === writerId)!;
       expect(writerAfterSelect.hand).toHaveLength(2);
-      updated = store.getRoom(room.code)!;
       const movie = updated.movies.find((m) => m.playerId === writerId);
       expect(movie).toBeDefined();
       expect(movie!.chosenCard.id).toBe(cardId);
       expect(movie!.randomCard.type).toBe("character");
+    });
+
+    it("auto-draws from character deck when plot card selected", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
+      expect(movie!.randomCard.type).toBe("character");
+    });
+
+    it("auto-draws from plot deck when character card selected", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "character");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
+      expect(movie!.randomCard.type).toBe("plot");
+    });
+
+    it("reduces the opposite deck by one card on auto-draw", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, playerIds[1], "plot");
+      updated = store.getRoom(room.code)!;
+      const beforeCharDeck = updated.deck.character.length;
+      const writer = updated.players.find((p) => p.id === playerIds[1])!;
+      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      expect(updated.deck.character.length).toBe(beforeCharDeck - 1);
     });
   });
 

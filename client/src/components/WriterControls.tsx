@@ -9,7 +9,6 @@ interface WriterControlsProps {
   blindCard: CardType | null;
   blindRevealed: boolean;
   onSelectCard: (cardId: string) => void;
-  onDrawBlind: (dt: DeckType) => void;
   onReady: () => void;
 }
 

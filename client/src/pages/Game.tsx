@@ -137,7 +137,6 @@ export function Game() {
           blindCard={state.myBlindCard}
           blindRevealed={state.myMovieRevealed}
           onSelectCard={room.selectCard}
-          onDrawBlind={room.drawRandomCard}
           onReady={room.revealMovie}
         />
       </div>

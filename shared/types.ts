@@ -114,7 +114,6 @@ export interface ClientToServerEvents {
   join_room: (code: string, name: string) => void;
   select_deck_type: (deckType: DeckType) => void;
   select_card: (cardId: string) => void;
-  draw_random_card: (deckType: DeckType) => void;
   reveal_movie: () => void;
   start_timer: () => void;
   pause_timer: () => void;

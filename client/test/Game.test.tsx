@@ -13,7 +13,6 @@ const mockFns = {
   startGame: vi.fn(),
   selectDeckType: vi.fn(),
   selectCard: vi.fn(),
-  drawRandomCard: vi.fn(),
   revealMovie: vi.fn(),
   startTimer: vi.fn(),
   pauseTimer: vi.fn(),
