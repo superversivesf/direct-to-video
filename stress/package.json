@@ -1,0 +1,19 @@
+{
+  "name": "@direct-to-video/stress",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "stress": "tsx stress-test.ts",
+    "stress:local": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=10 STRESS_ROUNDS=3 tsx stress-test.ts",
+    "stress:prod": "STRESS_TARGET=https://dtv.superversive.net STRESS_PLAYERS=10 STRESS_ROUNDS=3 tsx stress-test.ts",
+    "stress:small": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=3 STRESS_ROUNDS=2 tsx stress-test.ts",
+    "stress:heavy": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=20 STRESS_ROUNDS=5 tsx stress-test.ts"
+  },
+  "dependencies": {
+    "@direct-to-video/shared": "*",
+    "socket.io-client": "^4.7.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0"
+  }
+}

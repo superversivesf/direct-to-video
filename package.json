@@ -1,14 +1,18 @@
 {
   "name": "direct-to-video",
   "private": true,
-  "workspaces": ["shared", "server", "client"],
+  "workspaces": ["shared", "server", "client", "stress"],
   "scripts": {
     "dev:server": "tsx watch server/src/index.ts",
     "dev:client": "vite --config client/vite.config.ts",
     "build:client": "vite build --config client/vite.config.ts",
     "build": "npm run build:client && tsc -p server/tsconfig.json",
     "test": "vitest run --config server/vitest.config.ts && vitest run --config client/vitest.config.ts",
-    "test:e2e": "npx playwright test --config e2e/playwright.config.ts"
+    "test:e2e": "npx playwright test --config e2e/playwright.config.ts",
+    "stress": "tsx stress/stress-test.ts",
+    "stress:local": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=10 STRESS_ROUNDS=3 tsx stress/stress-test.ts",
+    "stress:small": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=3 STRESS_ROUNDS=2 tsx stress/stress-test.ts",
+    "stress:heavy": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=20 STRESS_ROUNDS=5 tsx stress/stress-test.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.45.0",

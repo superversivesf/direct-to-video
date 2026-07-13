@@ -38,7 +38,7 @@ export function Join() {
       <div className="join-logo">
         <div className="clapperboard">🎬</div>
         <h1>DIRECT TO VIDEO</h1>
-        <div className="subtitle">Every movie pitched goes straight to the bargain bin</div>
+        <div className="subtitle">Every pitch straight to the bargain bin</div>
       </div>
       <div className="join-form">
         <input
