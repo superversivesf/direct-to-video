@@ -18,12 +18,14 @@ export function Card({ card, faceDown = false, large = false, onClick }: CardPro
   }
 
   const displayText = card.substitutedText || card.text;
+  const isFranchise = card.isFranchise;
 
   return (
     <CardTemplate type={card.type} large={large} onClick={onClick}>
-      {card.header && <div className="card-header">{card.header}</div>}
+      {isFranchise && card.header && <div className="card-header-franchise">{card.header}</div>}
       <div className="card-type-label">{card.type.toUpperCase()}</div>
       <div className="card-text">{displayText}</div>
+      {!isFranchise && card.header && <div className="card-location">{card.header}</div>}
     </CardTemplate>
   );
 }
