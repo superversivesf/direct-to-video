@@ -4,7 +4,7 @@ export type CardType = "plot" | "character" | "note";
 
 export type DeckType = "plot" | "character";
 
-export type DrawType = "character" | "plot";
+export type DrawType = "character" | "plot" | "note";
 
 export interface CardDraw {
   deck: DrawType;

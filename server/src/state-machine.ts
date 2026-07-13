@@ -206,7 +206,25 @@ export function playNote(store: RoomStore, room: Room, noteCardId: string, pitch
   if (room.phase !== "pitching") throw new Error("Can only play notes during pitching");
   const noteCard = room.executiveNotes.find((c) => c.id === noteCardId);
   if (!noteCard) throw new Error("Note card not in Executive's hand");
-  const { drawn, remaining } = drawCards(room.deck.note, 1);
+
+  let playedCard = { ...noteCard };
+  let updatedDeck = room.deck;
+
+  if (noteCard.draws && noteCard.draws.length > 0) {
+    let resolvedText = noteCard.text;
+    for (const draw of noteCard.draws) {
+      for (let i = 0; i < draw.count; i++) {
+        const { drawn, remaining } = drawCards(updatedDeck[draw.deck], 1);
+        updatedDeck = { ...updatedDeck, [draw.deck]: remaining };
+        if (drawn[0]) {
+          resolvedText = resolvedText.replace("____", drawn[0].text);
+        }
+      }
+    }
+    playedCard = { ...noteCard, substitutedText: resolvedText };
+  }
+
+  const { drawn, remaining } = drawCards(updatedDeck.note, 1);
   const refill = drawn[0] || null;
   store.saveRoom({
     ...room,
@@ -214,9 +232,9 @@ export function playNote(store: RoomStore, room: Room, noteCardId: string, pitch
       ...room.executiveNotes.filter((c) => c.id !== noteCardId),
       ...(refill ? [refill] : []),
     ],
-    deck: { ...room.deck, note: remaining },
+    deck: { ...updatedDeck, note: remaining },
     movies: room.movies.map((m) =>
-      m.playerId === pitcherId ? { ...m, notesPlayed: [...m.notesPlayed, noteCard] } : m
+      m.playerId === pitcherId ? { ...m, notesPlayed: [...m.notesPlayed, playedCard] } : m
     ),
   });
 }
