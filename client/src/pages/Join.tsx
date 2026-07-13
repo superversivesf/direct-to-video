@@ -34,9 +34,11 @@ export function Join() {
 
   return (
     <div className="join-screen">
-      <div className="clapperboard">🎬</div>
-      <h1>PITCH STORM</h1>
-      <div className="subtitle">Pitch terrible movies to the world's worst executives</div>
+      <div className="join-logo">
+        <div className="clapperboard">🎬</div>
+        <h1>PITCH STORM</h1>
+        <div className="subtitle">Pitch terrible movies to the world's worst executives</div>
+      </div>
       <div className="join-form">
         <input
           type="text"
@@ -65,6 +67,15 @@ export function Join() {
           Audience can join to watch on a shared screen.
         </div>
         <a href="/rules" className="rules-link">How to Play →</a>
+      </div>
+      <div className="join-footer-links">
+        <a href="https://boardgamegeek.com/boardgame/254132/pitchstorm" target="_blank" rel="noopener noreferrer" className="footer-link">
+          Original Game
+        </a>
+        <span className="footer-link-divider">·</span>
+        <a href="https://github.com/superversivesf/pitch-storm" target="_blank" rel="noopener noreferrer" className="footer-link">
+          GitHub
+        </a>
       </div>
     </div>
   );

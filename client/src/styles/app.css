@@ -55,6 +55,36 @@ button:disabled {
   filter: drop-shadow(0 4px 12px rgba(233,69,96,0.4));
 }
 
+.join-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.join-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.footer-link {
+  color: #666;
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s;
+}
+
+.footer-link:hover {
+  color: #e94560;
+}
+
+.footer-link-divider {
+  color: #444;
+  font-size: 13px;
+}
+
 .join-screen h1 {
   font-size: 56px;
   font-weight: 900;
