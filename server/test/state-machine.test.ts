@@ -12,6 +12,10 @@ import {
   selectWinner,
   nextRound,
   playAgain,
+  startVoting,
+  castVote,
+  endVoting,
+  tallyVotes,
 } from "../src/state-machine.js";
 import type { Database } from "better-sqlite3";
 
@@ -544,6 +548,112 @@ describe("state machine", () => {
       const chosen = after.players.find((p) => p.id === playerIds[1])!.chosenCard!;
       expect(chosen.text).toBe(normalCard.text);
       expect(chosen.substitutedText).toBeUndefined();
+    });
+  });
+
+  describe("voting", () => {
+    function setupRoundEnd(names: string[]): { room: ReturnType<typeof createRoom>["room"]; playerIds: string[] } {
+      const { room, playerIds } = createGameWithPlayers(names);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      for (let i = 1; i < playerIds.length; i++) {
+        selectDeckType(store, updated, playerIds[i], "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === playerIds[i])!;
+        selectCard(store, updated, playerIds[i], writer.hand[0].id);
+        updated = store.getRoom(room.code)!;
+      }
+      startPitching(store, updated);
+      updated = store.getRoom(room.code)!;
+      for (const pitcherId of updated.pitchOrder) {
+        revealMovie(store, updated, pitcherId);
+        updated = store.getRoom(room.code)!;
+        endPitch(store, updated, pitcherId);
+        updated = store.getRoom(room.code)!;
+      }
+      return { room: store.getRoom(room.code)!, playerIds };
+    }
+
+    it("starts voting with 30s timer", () => {
+      const { room } = setupRoundEnd(["Jason", "Sarah"]);
+      startVoting(store, store.getRoom(room.code)!);
+      const updated = store.getRoom(room.code)!;
+      expect(updated.votingActive).toBe(true);
+      expect(updated.timer.secondsRemaining).toBe(30);
+      expect(updated.votes).toEqual({});
+    });
+
+    it("prevents starting voting outside round-end", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      expect(() => startVoting(store, store.getRoom(room.code)!)).toThrow("round-end");
+    });
+
+    it("records audience vote", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah"]);
+      startVoting(store, store.getRoom(room.code)!);
+      castVote(store, store.getRoom(room.code)!, "audience1", playerIds[1]);
+      const updated = store.getRoom(room.code)!;
+      expect(updated.votes["audience1"]).toBe(playerIds[1]);
+    });
+
+    it("executive vote counts as 2x", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      startVoting(store, store.getRoom(room.code)!);
+      const execId = store.getRoom(room.code)!.executiveId!;
+      castVote(store, store.getRoom(room.code)!, execId, playerIds[1]);
+      castVote(store, store.getRoom(room.code)!, "audience1", playerIds[2]);
+      const updated = store.getRoom(room.code)!;
+      const winnerId = tallyVotes(updated);
+      expect(winnerId).toBe(playerIds[1]);
+    });
+
+    it("tally breaks ties using executive pick", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      startVoting(store, store.getRoom(room.code)!);
+      const execId = store.getRoom(room.code)!.executiveId!;
+      castVote(store, store.getRoom(room.code)!, execId, playerIds[1]);
+      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[2]);
+      castVote(store, store.getRoom(room.code)!, "aud2", playerIds[2]);
+      const updated = store.getRoom(room.code)!;
+      const winnerId = tallyVotes(updated);
+      expect(winnerId).toBe(playerIds[1]);
+    });
+
+    it("endVoting selects the winner and advances round", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah"]);
+      startVoting(store, store.getRoom(room.code)!);
+      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[1]);
+      const winnerId = endVoting(store, store.getRoom(room.code)!);
+      expect(winnerId).toBe(playerIds[1]);
+      const updated = store.getRoom(room.code)!;
+      expect(updated.votingActive).toBe(false);
+      expect(updated.phase).toBe("setup");
+      expect(updated.round.current).toBe(2);
+    });
+
+    it("endVoting with no votes does nothing", () => {
+      const { room } = setupRoundEnd(["Jason", "Sarah"]);
+      startVoting(store, store.getRoom(room.code)!);
+      const winnerId = endVoting(store, store.getRoom(room.code)!);
+      expect(winnerId).toBe("");
+      const updated = store.getRoom(room.code)!;
+      expect(updated.votingActive).toBe(false);
+      expect(updated.phase).toBe("round-end");
+    });
+
+    it("prevents voting when not active", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah"]);
+      expect(() => castVote(store, store.getRoom(room.code)!, "aud1", playerIds[1])).toThrow("not active");
+    });
+
+    it("prevents double voting", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah"]);
+      startVoting(store, store.getRoom(room.code)!);
+      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[1]);
+      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[1]);
+      const updated = store.getRoom(room.code)!;
+      expect(updated.votes["aud1"]).toBe(playerIds[1]);
     });
   });
 });

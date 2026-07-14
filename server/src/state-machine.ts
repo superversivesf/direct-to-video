@@ -278,6 +278,8 @@ export function selectWinner(store: RoomStore, room: Room, playerId: string): vo
     players: room.players.map((p) =>
       p.id === playerId ? { ...p, score: p.score + 1 } : p
     ),
+    votes: {},
+    votingActive: false,
   };
 
   if (!noteGiven && updated.deck.note.length > 0) {
@@ -290,6 +292,60 @@ export function selectWinner(store: RoomStore, room: Room, playerId: string): vo
   } else {
     nextRound(store, updated);
   }
+}
+
+export function startVoting(store: RoomStore, room: Room): void {
+  if (room.phase !== "round-end") throw new Error("Can only start voting during round-end");
+  if (room.votingActive) throw new Error("Voting is already active");
+  store.saveRoom({
+    ...room,
+    votingActive: true,
+    votes: {},
+    timer: createTimer(30),
+  });
+}
+
+export function castVote(store: RoomStore, room: Room, voterId: string, playerId: string): void {
+  if (!room.votingActive) throw new Error("Voting is not active");
+  const movie = room.movies.find((m) => m.playerId === playerId);
+  if (!movie) throw new Error("No movie found for voted player");
+  store.saveRoom({
+    ...room,
+    votes: { ...room.votes, [voterId]: playerId },
+  });
+}
+
+export function tallyVotes(room: Room): string {
+  const counts: Record<string, number> = {};
+  for (const [voterId, votedFor] of Object.entries(room.votes)) {
+    const weight = voterId === room.executiveId ? 2 : 1;
+    counts[votedFor] = (counts[votedFor] || 0) + weight;
+  }
+  let maxVotes = 0;
+  let winners: string[] = [];
+  for (const [playerId, voteCount] of Object.entries(counts)) {
+    if (voteCount > maxVotes) {
+      maxVotes = voteCount;
+      winners = [playerId];
+    } else if (voteCount === maxVotes) {
+      winners.push(playerId);
+    }
+  }
+  if (winners.length === 0) return "";
+  if (winners.length === 1) return winners[0];
+  const execVote = room.votes[room.executiveId || ""];
+  if (execVote && winners.includes(execVote)) return execVote;
+  return winners[Math.floor(Math.random() * winners.length)];
+}
+
+export function endVoting(store: RoomStore, room: Room): string {
+  if (!room.votingActive) throw new Error("Voting is not active");
+  const winnerId = tallyVotes(room);
+  store.saveRoom({ ...room, votingActive: false, timer: createTimer(45) });
+  if (winnerId) {
+    selectWinner(store, store.getRoom(room.code)!, winnerId);
+  }
+  return winnerId;
 }
 
 export function nextRound(store: RoomStore, room: Room): void {
@@ -312,6 +368,8 @@ export function nextRound(store: RoomStore, room: Room): void {
     pitchOrder: [],
     currentPitchIndex: 0,
     currentPitcherId: null,
+    votes: {},
+    votingActive: false,
   };
   setupRound(store, updated);
 }
@@ -336,5 +394,7 @@ export function playAgain(store: RoomStore, room: Room): void {
     round: { current: 0, total: 0 },
     pitchOrder: [],
     currentPitchIndex: 0,
+    votes: {},
+    votingActive: false,
   });
 }

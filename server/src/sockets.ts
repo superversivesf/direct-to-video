@@ -11,6 +11,9 @@ import {
   playNote,
   selectWinner,
   playAgain,
+  startVoting,
+  castVote,
+  endVoting,
 } from "./state-machine.js";
 import { startTimer, pauseTimer, pauseForNote, tickTimer, isTimerExpired, shouldResumeFromNote } from "./timer.js";
 
@@ -98,10 +101,15 @@ function toPublicRoomState(room: Room, playerId: string | null): PublicRoomState
     myMovieRevealed: myMovie ? myMovie.revealed : false,
     myBlindCard: myMovie && myMovie.revealed ? myMovie.randomCard : null,
     myExecutiveNotes: isExec ? room.executiveNotes : null,
+    votingActive: room.votingActive,
+    voteCounts: computeVoteCounts(room),
+    myVote: playerId ? room.votes[playerId] || null : null,
+    audienceCount: countAudience(room.code),
   };
 }
 
-function toAudienceRoomState(room: Room): AudienceRoomState {
+function toAudienceRoomState(room: Room, audienceSocketId?: string): AudienceRoomState {
+  const hasVoted = audienceSocketId ? !!room.votes[audienceSocketId] : false;
   return {
     code: room.code,
     phase: room.phase,
@@ -119,6 +127,9 @@ function toAudienceRoomState(room: Room): AudienceRoomState {
     round: room.round,
     movies: room.movies.filter((m) => m.revealed),
     scoreboard: room.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score })),
+    votingActive: room.votingActive,
+    voteCounts: computeVoteCounts(room),
+    hasVoted,
   };
 }
 
@@ -136,10 +147,37 @@ function broadcastPlayerList(io: Server, room: Room): void {
     isDisconnected: p.isDisconnected,
   }));
   io.to(`room:${room.code}`).emit("player_list_updated", players);
-  io.to(`audience:${room.code}`).emit("audience_update", toAudienceRoomState(room));
+  for (const [audienceId, info] of audienceSockets) {
+    if (info.roomCode === room.code) {
+      const socket = io.sockets.sockets.get(info.socketId);
+      if (socket) {
+        socket.emit("audience_update", toAudienceRoomState(room, audienceId));
+      }
+    }
+  }
 }
 
 const playerSockets = new Map<string, { socketId: string; roomCode: string }>();
+const audienceSockets = new Map<string, { socketId: string; roomCode: string }>();
+
+function countAudience(roomCode: string): number {
+  let count = 0;
+  for (const info of audienceSockets.values()) {
+    if (info.roomCode === roomCode) count++;
+  }
+  return count;
+}
+
+function computeVoteCounts(room: Room): { playerId: string; votes: number }[] {
+  const counts: Record<string, number> = {};
+  for (const [voterId, votedFor] of Object.entries(room.votes)) {
+    const weight = voterId === room.executiveId ? 2 : 1;
+    counts[votedFor] = (counts[votedFor] || 0) + weight;
+  }
+  return room.movies
+    .filter((m) => m.revealed)
+    .map((m) => ({ playerId: m.playerId, votes: counts[m.playerId] || 0 }));
+}
 
 export function setupSocketHandlers(io: Server, store: RoomStore): void {
   const timerInterval = setInterval(() => {
@@ -148,11 +186,24 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         const ticked = tickTimer(room.timer);
         store.saveRoom({ ...room, timer: ticked });
         io.to(`room:${room.code}`).emit("timer_tick", ticked.secondsRemaining);
-        io.to(`audience:${room.code}`).emit("audience_update", toAudienceRoomState(store.getRoom(room.code)!));
+        broadcastAllStates(io, store.getRoom(room.code)!);
         if (isTimerExpired(ticked)) {
           io.to(`room:${room.code}`).emit("timer_expired");
-          io.to(`audience:${room.code}`).emit("audience_update", toAudienceRoomState(store.getRoom(room.code)!));
-          if (room.currentPitcherId) {
+          if (room.votingActive) {
+            const updated = store.getRoom(room.code)!;
+            const winnerId = endVoting(store, updated);
+            const postVote = store.getRoom(room.code)!;
+            io.to(`room:${postVote.code}`).emit("voting_ended", winnerId);
+            if (postVote.phase === "game-end") {
+              const scoreboard = postVote.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score }));
+              io.to(`room:${postVote.code}`).emit("game_ended", scoreboard);
+              io.to(`audience:${postVote.code}`).emit("game_ended", scoreboard);
+              logger.endGame(postVote.code, scoreboard);
+            } else if (postVote.phase === "setup") {
+              io.to(`room:${postVote.code}`).emit("round_started", postVote.round.current);
+            }
+            broadcastAllStates(io, postVote);
+          } else if (room.currentPitcherId) {
             endPitch(store, store.getRoom(room.code)!, room.currentPitcherId);
             const updated = store.getRoom(room.code)!;
             io.to(`room:${updated.code}`).emit("pitch_ended", room.currentPitcherId);
@@ -243,8 +294,10 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         return;
       }
       socket.join(`audience:${room.code}`);
+      const audienceId = socket.id;
+      audienceSockets.set(audienceId, { socketId: socket.id, roomCode: room.code });
       logger.joinAudience(clientIp, room.code);
-      socket.emit("audience_joined", toAudienceRoomState(room));
+      socket.emit("audience_joined", toAudienceRoomState(room, audienceId));
     });
 
     socket.on("start_game", () => {
@@ -422,6 +475,69 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       }
     });
 
+    socket.on("start_voting", () => {
+      if (!checkSocketEventRate(socket)) return;
+      const ctx = getPlayerContext(socket.id, store);
+      if (!ctx) return;
+      if (ctx.playerId !== ctx.room.executiveId) return;
+      try {
+        startVoting(store, ctx.room);
+        const updated = store.getRoom(ctx.room.code)!;
+        io.to(`room:${updated.code}`).emit("voting_started", updated.timer.secondsRemaining);
+        broadcastAllStates(io, updated);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
+    });
+
+    socket.on("cast_vote", (playerId: string) => {
+      if (!checkSocketEventRate(socket)) return;
+      const room = findRoomBySocket(socket, store);
+      if (!room) return;
+      if (!room.votingActive) return;
+      const voterId = socket.id;
+      if (room.votes[voterId]) return;
+      try {
+        castVote(store, room, voterId, playerId);
+        const updated = store.getRoom(room.code)!;
+        const voteCounts = computeVoteCounts(updated);
+        io.to(`room:${updated.code}`).emit("vote_update", voteCounts);
+        broadcastAllStates(io, updated);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
+    });
+
+    socket.on("end_voting", () => {
+      if (!checkSocketEventRate(socket)) return;
+      const ctx = getPlayerContext(socket.id, store);
+      if (!ctx) return;
+      if (ctx.playerId !== ctx.room.executiveId) return;
+      if (!ctx.room.votingActive) return;
+      try {
+        const winnerId = endVoting(store, ctx.room);
+        const updated = store.getRoom(ctx.room.code)!;
+        io.to(`room:${updated.code}`).emit("voting_ended", winnerId);
+        const winnerNote = updated.movies.find((m) => m.playerId === winnerId)?.notesPlayed.slice(-1)[0] || null;
+        const winnerPlayer = updated.players.find((p) => p.id === winnerId);
+        io.to(`room:${updated.code}`).emit("winner_selected", winnerId, winnerNote);
+        io.to(`audience:${updated.code}`).emit("winner_selected", winnerId, winnerNote);
+        if (updated.phase === "game-end") {
+          const scoreboard = updated.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score }));
+          io.to(`room:${updated.code}`).emit("game_ended", scoreboard);
+          io.to(`audience:${updated.code}`).emit("game_ended", scoreboard);
+          logger.endGame(updated.code, scoreboard);
+        } else if (updated.phase === "setup" && updated.round.current > ctx.room.round.current) {
+          io.to(`room:${updated.code}`).emit("round_started", updated.round.current);
+          io.to(`audience:${updated.code}`).emit("round_started", updated.round.current);
+          logger.roundEnd(updated.code, updated.round.current, updated.round.total, winnerPlayer?.name || "unknown");
+        }
+        broadcastAllStates(io, updated);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
+    });
+
     socket.on("play_again", () => {
       if (!checkSocketEventRate(socket)) return;
       const ctx = getPlayerContext(socket.id, store);
@@ -471,6 +587,12 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
           break;
         }
       }
+      for (const [audienceId, info] of audienceSockets) {
+        if (info.socketId === socket.id) {
+          audienceSockets.delete(audienceId);
+          break;
+        }
+      }
     });
   });
 }
@@ -485,6 +607,15 @@ function getPlayerContext(socketId: string, store: RoomStore): { room: Room; pla
   return null;
 }
 
+function findRoomBySocket(socket: Socket, store: RoomStore): Room | null {
+  const audienceInfo = audienceSockets.get(socket.id);
+  if (audienceInfo) {
+    return store.getRoom(audienceInfo.roomCode);
+  }
+  const ctx = getPlayerContext(socket.id, store);
+  return ctx ? ctx.room : null;
+}
+
 function broadcastAllStates(io: Server, room: Room): void {
   for (const player of room.players) {
     if (player.socketId) {
@@ -494,7 +625,14 @@ function broadcastAllStates(io: Server, room: Room): void {
       }
     }
   }
-  io.to(`audience:${room.code}`).emit("audience_update", toAudienceRoomState(room));
+  for (const [audienceId, info] of audienceSockets) {
+    if (info.roomCode === room.code) {
+      const socket = io.sockets.sockets.get(info.socketId);
+      if (socket) {
+        socket.emit("audience_update", toAudienceRoomState(room, audienceId));
+      }
+    }
+  }
 }
 
 function* allRooms(store: RoomStore): Generator<Room> {

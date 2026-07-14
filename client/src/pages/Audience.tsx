@@ -7,7 +7,7 @@ import { MovieReveal } from "../components/MovieReveal.js";
 
 export function Audience() {
   const { code } = useParams<{ code: string }>();
-  const { audienceState, error, join } = useAudience();
+  const { audienceState, error, join, castVote } = useAudience();
 
   useEffect(() => {
     if (code) join(code.toUpperCase());
@@ -72,13 +72,26 @@ export function Audience() {
 
       {state.phase === "round-end" && (
         <div className="audience-round-end">
-          <h2>Executive is choosing the winner...</h2>
+          {state.votingActive ? (
+            <h2>Vote for the Best Movie!</h2>
+          ) : (
+            <h2>Executive is choosing the winner...</h2>
+          )}
           {state.movies.map((movie) => {
             const player = state.players.find((p) => p.id === movie.playerId);
+            const voteCount = state.voteCounts?.find((v) => v.playerId === movie.playerId)?.votes || 0;
             return (
-              <div key={movie.playerId}>
+              <div key={movie.playerId} className="audience-movie-card">
                 <h3>{player?.name}'s Movie</h3>
                 <MovieReveal movie={movie} />
+                {state.votingActive && !state.hasVoted && (
+                  <button onClick={() => castVote(movie.playerId)} className="btn-vote">
+                    Vote for this movie
+                  </button>
+                )}
+                {state.votingActive && state.hasVoted && voteCount > 0 && (
+                  <div className="vote-tally">{voteCount} vote{voteCount > 1 ? "s" : ""}</div>
+                )}
               </div>
             );
           })}

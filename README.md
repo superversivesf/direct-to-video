@@ -13,6 +13,7 @@ A self-hosted web app for playing a remote party game with a group. Players conn
 - **493 real cards** — 166 Plot, 161 Character, 166 Note cards transcribed from the physical game
 - **Auto-draw mechanics** — cards with `____` placeholders automatically draw from the appropriate deck and substitute the text
 - **Franchise cards** — special cards that reference previously pitched movies
+- **Audience voting** — audience members can vote on the best movie (Executive's vote counts 2x)
 - **Cookie-based name persistence** — your name is remembered between sessions
 - **Docker deployment** — single container, SQLite persistence via volume
 - **Game logging** — connection IPs, player names, game events logged to `data/directtovideo.log` and `data/games.log`
@@ -53,9 +54,19 @@ Use `http://localhost:5173` for development (proxies WebSocket to :3000).
 5. Anyone wanting to spectate enters the code and clicks **Join as Audience**
 6. Host clicks **Start Game** when everyone's in
 7. Each round: the Executive draws Note cards, writers choose Plot or Character deck, select a card (blind card auto-draws from the opposite deck), click **Ready to Pitch**, then pitch verbally over Zoom while the Executive controls the timer and plays Note cards
-8. Executive picks the winner, rounds rotate until everyone has been Executive once
+8. Executive picks the winner (or starts audience voting if audience is present), rounds rotate until everyone has been Executive once
 
 Full rules at `/rules` in the app.
+
+### Audience Voting
+
+When audience members are present, the Executive can start a voting period instead of picking the winner directly:
+- Executive clicks **Start Audience Voting** → 30-second timer begins
+- Each audience member clicks **Vote** on their favorite movie (one vote each)
+- The Executive also votes (their pick counts as **2x**)
+- When the timer expires or the Executive clicks **End Voting**, the highest total wins
+- Ties are broken by the Executive's pick
+- If no audience is present, the Executive picks the winner directly (no voting phase)
 
 ## Game Flow
 
@@ -88,7 +99,7 @@ Lobby → Setup → Card Selection → Pitching → Round End → (next round) �
 
 ```bash
 # Unit + integration tests
-cd server && npx vitest run    # 72 server tests
+cd server && npx vitest run    # 81 server tests
 cd client && npx vitest run    # 78 client tests
 
 # E2E test (requires build first)
@@ -96,7 +107,7 @@ npm run build
 npx playwright test --config e2e/playwright.config.ts
 ```
 
-150 total tests (72 server + 78 client + 1 E2E).
+159 total tests (81 server + 78 client + 1 E2E).
 
 ## Project Structure
 

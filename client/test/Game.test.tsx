@@ -19,6 +19,9 @@ const mockFns = {
   playNote: vi.fn(),
   endPitch: vi.fn(),
   selectWinner: vi.fn(),
+  startVoting: vi.fn(),
+  castVote: vi.fn(),
+  endVoting: vi.fn(),
   playAgain: vi.fn(),
   leaveGame: vi.fn(),
 };
@@ -39,6 +42,10 @@ const baseState: PublicRoomState = {
   myMovieRevealed: false,
   myBlindCard: null,
   myExecutiveNotes: null,
+  votingActive: false,
+  voteCounts: [],
+  myVote: null,
+  audienceCount: 0,
 };
 
 let mockState: PublicRoomState = { ...baseState };

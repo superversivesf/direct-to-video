@@ -1,6 +1,6 @@
 # AGENTS.md — Direct to Video
 
-> **Status snapshot:** 2026-07-14. v1.0.2. All 150 tests pass, build and typecheck clean. Production-deployed and stress-tested with 20 players, 20 rounds. Security-hardened for public internet exposure.
+> **Status snapshot:** 2026-07-14. v1.1.0. All 159 tests pass, build and typecheck clean. Production-deployed and stress-tested with 20 players, 20 rounds. Security-hardened for public internet exposure. Audience voting implemented.
 
 ## Project Overview
 
@@ -218,9 +218,9 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 
 ### Socket.IO Events
 
-**Client → Server:** `join_room`, `join_audience`, `start_game`, `select_deck_type`, `select_card`, `reveal_movie`, `start_timer`, `pause_timer`, `play_note`, `end_pitch`, `select_winner`, `play_again`
+**Client → Server:** `join_room`, `join_audience`, `start_game`, `select_deck_type`, `select_card`, `reveal_movie`, `start_timer`, `pause_timer`, `play_note`, `end_pitch`, `select_winner`, `play_again`, `start_voting`, `cast_vote`, `end_voting`
 
-**Server → Client:** `room_joined` (full per-player state), `player_list_updated`, `movie_revealed`, `timer_started`, `timer_tick`, `timer_paused`, `timer_expired`, `note_played`, `pitch_ended`, `next_pitcher`, `winner_selected`, `round_started`, `game_ended`, `error`, `audience_joined`, `audience_update`
+**Server → Client:** `room_joined` (full per-player state), `player_list_updated`, `movie_revealed`, `timer_started`, `timer_tick`, `timer_paused`, `timer_expired`, `note_played`, `pitch_ended`, `next_pitcher`, `winner_selected`, `round_started`, `game_ended`, `error`, `audience_joined`, `audience_update`, `voting_started`, `vote_update`, `voting_ended`
 
 ### Visibility Rules
 
@@ -267,7 +267,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | server/test/db.test.ts | 7 | PASS |
 | server/test/rooms.test.ts | 14 | PASS |
 | server/test/sockets.test.ts | 4 | PASS |
-| server/test/state-machine.test.ts | 32 | PASS |
+| server/test/state-machine.test.ts  | 41 tests |
 | client/test/Card.test.tsx | 4 | PASS |
 | client/test/WriterControls.test.tsx | 6 | PASS |
 | client/test/Timer.test.tsx | 5 | PASS |
@@ -278,7 +278,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | client/test/PhaseIndicator.test.tsx | 9 | PASS |
 | client/test/MovieReveal.test.tsx | 6 | PASS |
 | client/test/Game.test.tsx | 16 | PASS |
-| **Total** | **150** | **ALL PASS** |
+| **Total** | **159** | **ALL PASS** |
 
 ### Build & Typecheck
 
@@ -305,6 +305,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 - Leave game button in all phases (marks disconnected, can rejoin later)
 - Host succession: if host leaves, first connected player promoted to host
 - Audience/spectator view for screen-sharing
+- Audience voting: audience members vote on best movie (Executive's vote = 2x, audience = 1x each)
 - Server-authoritative 45-second timer with SVG ring display
 - Executive NOTE card play with 5-second pause window and auto-resume
 - Auto-draw cards with `____` placeholder substitution

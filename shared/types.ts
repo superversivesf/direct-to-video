@@ -1,4 +1,4 @@
-export const VERSION = "1.0.2";
+export const VERSION = "1.1.0";
 
 export type Phase = "lobby" | "setup" | "card-selection" | "pitching" | "round-end" | "game-end";
 
@@ -71,6 +71,8 @@ export interface Room {
   };
   pitchOrder: string[];
   currentPitchIndex: number;
+  votes: Record<string, string>;
+  votingActive: boolean;
 }
 
 export interface PublicPlayer {
@@ -98,6 +100,10 @@ export interface PublicRoomState {
   myMovieRevealed: boolean;
   myBlindCard: Card | null;
   myExecutiveNotes: Card[] | null;
+  votingActive: boolean;
+  voteCounts: { playerId: string; votes: number }[];
+  myVote: string | null;
+  audienceCount: number;
 }
 
 export interface AudienceRoomState {
@@ -110,6 +116,9 @@ export interface AudienceRoomState {
   round: { current: number; total: number };
   movies: Movie[];
   scoreboard: { playerId: string; name: string; score: number }[];
+  votingActive: boolean;
+  voteCounts: { playerId: string; votes: number }[];
+  hasVoted: boolean;
 }
 
 export interface ClientToServerEvents {
@@ -125,6 +134,9 @@ export interface ClientToServerEvents {
   start_game: () => void;
   play_again: () => void;
   join_audience: (code: string) => void;
+  start_voting: () => void;
+  cast_vote: (playerId: string) => void;
+  end_voting: () => void;
 }
 
 export interface ServerToClientEvents {
@@ -144,4 +156,7 @@ export interface ServerToClientEvents {
   error: (message: string) => void;
   audience_joined: (state: AudienceRoomState) => void;
   audience_update: (state: AudienceRoomState) => void;
+  voting_started: (secondsRemaining: number) => void;
+  vote_update: (voteCounts: { playerId: string; votes: number }[]) => void;
+  voting_ended: (winnerId: string) => void;
 }

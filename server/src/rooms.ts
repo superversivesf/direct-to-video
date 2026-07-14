@@ -43,6 +43,8 @@ function createEmptyRoom(code: string): Room {
     round: { current: 0, total: 0 },
     pitchOrder: [],
     currentPitchIndex: 0,
+    votes: {},
+    votingActive: false,
   };
 }
 

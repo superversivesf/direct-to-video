@@ -61,6 +61,18 @@ export function useRoom() {
     socket.on("winner_selected", (_playerId: string, _noteCard: Card | null) => {
     });
 
+    socket.on("voting_started", (secondsRemaining: number) => {
+      setRoomState((prev) => prev ? { ...prev, votingActive: true, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } } : prev);
+    });
+
+    socket.on("vote_update", (voteCounts: { playerId: string; votes: number }[]) => {
+      setRoomState((prev) => prev ? { ...prev, voteCounts } : prev);
+    });
+
+    socket.on("voting_ended", (winnerId: string) => {
+      setRoomState((prev) => prev ? { ...prev, votingActive: false } : prev);
+    });
+
     socket.on("round_started", (roundNumber: number) => {
       setRoomState((prev) => prev ? { ...prev, round: { ...prev.round, current: roundNumber } } : prev);
     });
@@ -85,6 +97,9 @@ export function useRoom() {
       socket.off("pitch_ended");
       socket.off("next_pitcher");
       socket.off("winner_selected");
+      socket.off("voting_started");
+      socket.off("vote_update");
+      socket.off("voting_ended");
       socket.off("round_started");
       socket.off("game_ended");
       socket.off("error");
@@ -108,6 +123,9 @@ export function useRoom() {
   const playNote = useCallback((noteCardId: string) => { socket.emit("play_note", noteCardId); }, []);
   const endPitch = useCallback(() => { socket.emit("end_pitch"); }, []);
   const selectWinner = useCallback((playerId: string) => { socket.emit("select_winner", playerId); }, []);
+  const startVoting = useCallback(() => { socket.emit("start_voting"); }, []);
+  const castVote = useCallback((playerId: string) => { socket.emit("cast_vote", playerId); }, []);
+  const endVoting = useCallback(() => { socket.emit("end_voting"); }, []);
   const playAgain = useCallback(() => { socket.emit("play_again"); }, []);
 
   const leaveGame = useCallback(() => {
@@ -130,6 +148,9 @@ export function useRoom() {
     playNote,
     endPitch,
     selectWinner,
+    startVoting,
+    castVote,
+    endVoting,
     playAgain,
     leaveGame,
   };
@@ -188,6 +209,18 @@ export function useAudience() {
       } : prev);
     });
 
+    socket.on("voting_started", (secondsRemaining: number) => {
+      setAudienceState((prev) => prev ? { ...prev, votingActive: true, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } } : prev);
+    });
+
+    socket.on("vote_update", (voteCounts: { playerId: string; votes: number }[]) => {
+      setAudienceState((prev) => prev ? { ...prev, voteCounts } : prev);
+    });
+
+    socket.on("voting_ended", (_winnerId: string) => {
+      setAudienceState((prev) => prev ? { ...prev, votingActive: false } : prev);
+    });
+
     socket.on("game_ended", () => {
       setAudienceState((prev) => prev ? { ...prev, phase: "game-end" } : prev);
     });
@@ -202,11 +235,15 @@ export function useAudience() {
       socket.off("timer_paused");
       socket.off("timer_expired");
       socket.off("note_played");
+      socket.off("voting_started");
+      socket.off("vote_update");
+      socket.off("voting_ended");
       socket.off("game_ended");
     };
   }, []);
 
   const join = useCallback((code: string) => { socket.emit("join_audience", code); }, []);
+  const castVote = useCallback((playerId: string) => { socket.emit("cast_vote", playerId); }, []);
 
-  return { audienceState, error, join };
+  return { audienceState, error, join, castVote };
 }

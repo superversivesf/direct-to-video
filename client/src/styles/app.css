@@ -737,6 +737,45 @@ button:disabled {
   box-shadow: 0 4px 16px rgba(46,125,50,0.3);
 }
 
+.vote-tally {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffc107;
+  padding: 8px 16px;
+  background: rgba(255,193,7,0.1);
+  border-radius: 8px;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.btn-voting {
+  background: #f57c00 !important;
+  color: white !important;
+  font-size: 18px !important;
+  padding: 12px 32px !important;
+  border-radius: 10px !important;
+}
+
+.btn-voting:hover {
+  background: #ff9800 !important;
+  box-shadow: 0 4px 16px rgba(245,124,0,0.3) !important;
+}
+
+.btn-vote {
+  background: #0f3460;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 10px 24px;
+  border-radius: 10px;
+  margin-top: 8px;
+}
+
+.btn-vote:hover {
+  background: #1a4a7a;
+  box-shadow: 0 4px 12px rgba(15,52,96,0.3);
+}
+
 /* ── Audience view ──────────────────────────────────── */
 .audience-view {
   min-height: 100vh;

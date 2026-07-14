@@ -206,18 +206,32 @@ export function Game() {
     );
   }
 
-  // ROUND END (Executive picks winner)
+  // ROUND END (Executive picks winner or audience voting)
   if (state.phase === "round-end") {
     return (
       <div className="game-view">
         <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
         <h2>Round {state.round.current} of {state.round.total}</h2>
+        {state.votingActive && (
+          <>
+            <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} />
+            <p>Audience voting in progress...</p>
+          </>
+        )}
         <RoundSummary
           movies={state.movies}
           players={state.players}
           isExecutive={isExecutive}
           onSelectWinner={room.selectWinner}
+          votingActive={state.votingActive}
+          voteCounts={state.voteCounts}
         />
+        {isExecutive && !state.votingActive && state.audienceCount > 0 && (
+          <button onClick={room.startVoting} className="btn-voting">Start Audience Voting</button>
+        )}
+        {isExecutive && state.votingActive && (
+          <button onClick={room.endVoting} className="btn-voting">End Voting</button>
+        )}
         <button onClick={handleLeave} className="btn-leave">Leave Game</button>
       </div>
     );
