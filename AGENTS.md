@@ -1,12 +1,13 @@
 # AGENTS.md — Direct to Video
 
-> **Status snapshot:** 2026-07-13. All 150 tests pass, build and typecheck clean. Production-ready for standard 3-5 player mode.
+> **Status snapshot:** 2026-07-14. v1.0.2. All 150 tests pass, build and typecheck clean. Production-deployed and stress-tested with 20 players, 20 rounds. Security-hardened for public internet exposure.
 
 ## Project Overview
 
 Direct to Video is a self-hosted web app for playing a remote party game. It is an unofficial clone of [Pitch Storm](https://boardgamegeek.com/boardgame/254132/pitchstorm) by Cutlass & Cape Games — all credit for the game design and card content goes to them. Players join via a 4-letter room code, manage cards in a private browser view, and pitch verbally over Zoom/Teams. A separate audience page displays the full game state for screen-sharing.
 
-**Repository:** `/home/jason/Repos/movie-pitch` — git repo on `master` branch, clean working tree.
+**Repository:** `https://github.com/superversivesf/direct-to-video` — git repo on `master` branch.
+**Production:** `https://dtv.superversive.net` (behind nginx HTTPS proxy).
 
 ## Tech Stack
 
@@ -14,59 +15,62 @@ Direct to Video is a self-hosted web app for playing a remote party game. It is 
 |-------|-----------|
 | Backend | Node.js 20, TypeScript, Express, Socket.IO v4, better-sqlite3 |
 | Frontend | React 18, Vite 5, React Router v6 |
-| Shared | TypeScript types package (`@pitch-storm/shared`) |
+| Shared | TypeScript types package (`@direct-to-video/shared`) |
 | Testing | Vitest 1.6 (unit/integration), Playwright 1.45 (E2E) |
 | Deployment | Docker multi-stage build, docker-compose, SQLite volume |
+| Security | helmet, express-rate-limit, socket rate limiting, non-root Docker |
 
 ## Project Structure
 
 ```
-movie-pitch/
-├── package.json              # Root workspace: shared, server, client
+direct-to-video/
+├── package.json              # Root workspace: shared, server, client, stress
 ├── tsconfig.base.json        # Shared TS config (strict, ES2022, bundler resolution)
-├── Dockerfile                # Multi-stage: build client+server → slim runtime
-├── docker-compose.yml        # Single service + persistent volume for SQLite
+├── Dockerfile                # Multi-stage: build client+server → slim non-root runtime
+├── docker-compose.yml        # Single service + persistent volume, resource limits
 ├── shared/
-│   ├── package.json          # @pitch-storm/shared
-│   └── types.ts              # All shared types: Card, Player, Room, Movie, TimerState, events
+│   ├── package.json          # @direct-to-video/shared
+│   └── types.ts              # All shared types + VERSION constant
 ├── server/
-│   ├── package.json          # @pitch-storm/server (ESM, type: module)
+│   ├── package.json          # @direct-to-video/server (ESM, type: module)
 │   ├── tsconfig.json         # Extends base, outDir: dist, rootDir: src
 │   ├── vitest.config.ts      # globals: true, environment: node, include: test/**/*.test.ts
 │   ├── src/
-│   │   ├── index.ts          # Express + Socket.IO bootstrap, room cleanup, static serving
+│   │   ├── index.ts          # Express + Socket.IO bootstrap, helmet, rate limiting, room cleanup
 │   │   ├── db.ts             # SQLite init, migrations, room CRUD, card deck queries
 │   │   ├── seed-cards.ts     # 493 real cards (166 plot, 161 character, 166 note)
-│   │   ├── rooms.ts          # RoomStore (in-memory cache + DB), room creation, code generation
-│   │   ├── state-machine.ts  # Game phase transitions, card drawing, winner selection
-│   │   ├── sockets.ts        # Socket.IO event handlers, timer tick loop, state broadcasting
+│   │   ├── rooms.ts          # RoomStore, room creation, code generation, name validation, limits
+│   │   ├── state-machine.ts  # Game phase transitions, card drawing, deck reshuffling, winner selection
+│   │   ├── sockets.ts        # Socket.IO handlers, timer tick loop, rate limiting, state broadcasting
 │   │   ├── timer.ts          # Server-authoritative timer: start, pause, tick, note-pause, resume
 │   │   └── logger.ts         # File logging to data/directtovideo.log + data/games.log
 │   └── test/
 │       ├── db.test.ts        # 7 tests
-│       ├── rooms.test.ts     # 8 tests
+│       ├── rooms.test.ts     # 14 tests (includes name validation + room capacity)
 │       ├── timer.test.ts     # 15 tests
 │       ├── state-machine.test.ts  # 32 tests
 │       └── sockets.test.ts   # 4 tests
 ├── client/
-│   ├── package.json          # @pitch-storm/client (ESM, type: module)
+│   ├── package.json          # @direct-to-video/client (ESM, type: module)
 │   ├── tsconfig.json         # JSX: react-jsx, noEmit, DOM libs
 │   ├── vite.config.ts        # Vite + React plugin, dev proxy /socket.io → :3000
 │   ├── vitest.config.ts      # globals: true, environment: jsdom, include: test/**/*.test.tsx
-│   ├── index.html
+│   ├── index.html            # Includes Google Fonts (Permanent Marker) + favicon
+│   ├── public/
+│   │   └── favicon.svg       # Clapperboard emoji SVG
 │   ├── src/
 │   │   ├── main.tsx          # React root + BrowserRouter
 │   │   ├── App.tsx           # Router: /, /room/:code, /audience/:code, /rules
 │   │   ├── socket.ts         # Socket.IO client singleton (autoConnect: false)
 │   │   ├── hooks/
-│   │   │   └── useRoom.ts    # useRoom() + useAudience() — socket state subscriptions
+│   │   │   └── useRoom.ts    # useRoom() + useAudience() — socket state subscriptions + leaveGame
 │   │   ├── pages/
-│   │   │   ├── Join.tsx      # Room code + name input, cookie persistence
-│   │   │   ├── Game.tsx      # Player view — renders all 6 phases
+│   │   │   ├── Join.tsx      # Room code + name input, ?code= prefill, cookie persistence, version tag
+│   │   │   ├── Game.tsx      # Player view — renders all 6 phases, share link, leave button
 │   │   │   ├── Audience.tsx  # Spectator view — large-screen layout
-│   │   │   └── Rules.tsx     # How-to-play page
+│   │   │   └── Rules.tsx     # How-to-play page with clone acknowledgment
 │   │   ├── components/
-│   │   │   ├── Card.tsx              # Card renderer (text, header, franchise, face-down)
+│   │   │   ├── Card.tsx              # Card renderer (text, header, franchise, face-down, note paragraphs)
 │   │   │   ├── CardTemplate.tsx      # Background graphic wrapper
 │   │   │   ├── Timer.tsx             # SVG ring countdown display
 │   │   │   ├── Scoreboard.tsx        # Ranked player scores with podium
@@ -77,8 +81,8 @@ movie-pitch/
 │   │   │   ├── RoundSummary.tsx      # All movies displayed for winner selection
 │   │   │   └── PhaseIndicator.tsx    # Progress dots for current phase
 │   │   └── styles/
-│   │       ├── app.css       # Main app styles
-│   │       └── cards.css     # Card template styling
+│   │       ├── app.css       # Main app styles (share link, leave button, version tag, subtitle)
+│   │       └── cards.css     # Card template styling (note cards: Permanent Marker font, 20% larger)
 │   └── test/
 │       ├── setup.ts          # Vitest setup (jest-dom matchers)
 │       ├── Card.test.tsx             # 4 tests
@@ -91,12 +95,17 @@ movie-pitch/
 │       ├── PhaseIndicator.test.tsx   # 9 tests
 │       ├── MovieReveal.test.tsx      # 6 tests
 │       └── Game.test.tsx             # 16 tests
+├── stress/
+│   ├── package.json          # @direct-to-video/stress
+│   └── stress-test.ts        # Full game simulation (configurable players/rounds/target)
 ├── e2e/
 │   ├── playwright.config.ts  # Port 3100, chromium
 │   └── full-game.test.ts     # Full 2-player game via socket clients + audience browser
-└── docs/superpowers/
-    ├── specs/                # Design spec (2026-07-10)
-    └── plans/                # Implementation plan (2026-07-10)
+└── docs/
+    ├── reference/            # Original Pitch Storm card images + raw text transcriptions
+    └── superpowers/
+        ├── specs/            # Design spec (2026-07-10)
+        └── plans/            # Implementation plan (2026-07-10)
 ```
 
 ## Build & Run Commands
@@ -123,14 +132,18 @@ Build output: `client/dist/` (static files) + `server/dist/` (compiled JS).
 ### Test
 
 ```bash
-# IMPORTANT: Root `npm test` is broken (see Known Issues #1).
-# Run tests from each workspace instead:
-cd server && npx vitest run   # 66 server tests
-cd client && npx vitest run   # 78 client tests
+npm test                     # Runs both server + client test suites from root
+cd server && npx vitest run  # 72 server tests
+cd client && npx vitest run  # 78 client tests
 
 # E2E (requires build first + running server on :3100):
 npm run build
 npx playwright test --config e2e/playwright.config.ts
+
+# Stress test (requires running server):
+npm run stress:local         # 10 players, 3 rounds, localhost
+npm run stress:heavy         # 20 players, 5 rounds, localhost
+STRESS_TARGET=https://dtv.superversive.net STRESS_PLAYERS=20 STRESS_ROUNDS=20 npx tsx stress/stress-test.ts
 ```
 
 ### Typecheck
@@ -139,8 +152,6 @@ npx playwright test --config e2e/playwright.config.ts
 npx tsc --noEmit -p server/tsconfig.json   # Server typecheck
 npx tsc --noEmit -p client/tsconfig.json   # Client typecheck
 ```
-
-Both pass clean as of this snapshot.
 
 ### Docker
 
@@ -157,8 +168,8 @@ docker compose up --build    # App at http://localhost:3000
 ### Monorepo Monolith
 
 Single Node.js process serves:
-1. Express REST API (static file serving + SPA fallback)
-2. Socket.IO real-time game state
+1. Express REST API (static file serving + SPA fallback) with helmet security headers + rate limiting
+2. Socket.IO real-time game state with per-IP connection limits + per-socket event rate limiting
 3. Built React static files from `client/dist/`
 
 Socket.IO rooms map to game rooms: players join `room:CODE`, spectators join `audience:CODE`.
@@ -168,9 +179,10 @@ Socket.IO rooms map to game rooms: players join `room:CODE`, spectators join `au
 ```
 Client (React) ──socket.io──▶ Server (Socket.IO handlers)
                                   │
-                                  ├──▶ State Machine (phase transitions)
+                                  ├──▶ State Machine (phase transitions, deck reshuffling)
                                   ├──▶ RoomStore (in-memory cache + SQLite)
                                   ├──▶ Timer (server-authoritative, 1s tick loop)
+                                  ├──▶ Rate Limiters (per-IP, per-socket, join throttle)
                                   └──▶ Logger (file-based)
                                       │
                                       ▼
@@ -193,12 +205,16 @@ lobby → setup → card-selection → pitching → round-end → setup (next ro
                                                                               playAgain → lobby
 ```
 
-- **lobby:** Players join, host clicks "Start Game"
+- **lobby:** Players join, host clicks "Start Game". Shareable room link available.
 - **setup:** Executive assigned (rotates each round), 3 NOTE cards drawn, writers choose deck type (PLOT or CHARACTER) and draw 3 cards
 - **card-selection:** Writers select 1 card from hand, blind card auto-drawn from opposite deck, click "Ready to Pitch". Phase auto-advances when all writers ready.
-- **pitching:** Writers pitch one at a time (Executive's left first). 45s timer. Executive can pause to play NOTE cards (5s read window, auto-resumes).
+- **pitching:** Writers pitch one at a time (Executive's left first, franchise card holders go last). 45s timer. Executive can pause to play NOTE cards (5s read window, auto-resumes).
 - **round-end:** Executive picks winning movie. Winner gets 1 point.
 - **game-end:** After every player has been Executive once. Highest score wins. "Play Again" resets to lobby.
+
+### Card Deck Reshuffling
+
+When any deck (plot, character, or note) runs out, it automatically refills and reshuffles from the full card set. This allows games with more players than the physical game was designed for. In 2-player games, franchise cards are filtered from both the initial deck and the refill deck.
 
 ### Socket.IO Events
 
@@ -216,11 +232,32 @@ lobby → setup → card-selection → pitching → round-end → setup (next ro
 ### Special Card Mechanics
 
 - **Auto-draw cards:** Cards with `draws: [{ deck, count }]` and `____` in text automatically draw from the specified deck and substitute the placeholder. E.g., `"has a steamy affair with ____"` draws a character card.
-- **Franchise cards:** Cards with `isFranchise: true` and `header: "FRANCHISE PITCH:"` reference previously pitched movies (display-only, handled verbally).
-- **Multi-line notes:** Note cards with ` / ` separator display as multiple lines (note + executive commentary).
+- **Franchise cards:** Cards with `isFranchise: true` and `header: "FRANCHISE PITCH:"` reference previously pitched movies (display-only, handled verbally). Filtered out in 2-player games. Franchise card holders pitch last.
+- **Multi-line notes:** Note cards with ` / ` separator display as separate paragraphs (note + executive commentary).
 - **Note card draws:** Some note cards draw plot, character, or even other note cards when played.
+- **Card rendering:** Note cards use "Permanent Marker" handwritten font. Character cards have red location header above typewriter-font text. Note cards are 20% larger than other cards.
 
-## What Works (Verified 2026-07-13)
+## Security Hardening
+
+| Layer | Protection | Limit |
+|-------|-----------|-------|
+| HTTP | Rate limiting per IP | 60 req/min |
+| HTTP | Security headers | helmet + CSP (allows Google Fonts + WebSocket) |
+| HTTP | Trust proxy | enabled (for nginx X-Forwarded-For) |
+| Socket | Max payload size | 4KB |
+| Socket | Connections per IP | 25 |
+| Socket | Join attempts per IP | 20/min |
+| Socket | Game events per socket | 50 per 10s |
+| Rooms | Max active rooms | 20 (`MAX_ROOMS` env) |
+| Rooms | Max players per room | 20 (`MAX_PLAYERS` env) |
+| Names | Validation | 20 chars, alphanumeric + spaces only |
+| Docker | Runs as | non-root `appuser` |
+| Docker | Filesystem | read-only (data volume writable) |
+| Docker | Memory | 512MB limit |
+| Docker | CPU | 1 core limit |
+| Docker | Restart | unless-stopped |
+
+## What Works (Verified 2026-07-14)
 
 ### Tests — All Passing
 
@@ -228,7 +265,7 @@ lobby → setup → card-selection → pitching → round-end → setup (next ro
 |-------|-------|--------|
 | server/test/timer.test.ts | 15 | PASS |
 | server/test/db.test.ts | 7 | PASS |
-| server/test/rooms.test.ts | 8 | PASS |
+| server/test/rooms.test.ts | 14 | PASS |
 | server/test/sockets.test.ts | 4 | PASS |
 | server/test/state-machine.test.ts | 32 | PASS |
 | client/test/Card.test.tsx | 4 | PASS |
@@ -241,7 +278,7 @@ lobby → setup → card-selection → pitching → round-end → setup (next ro
 | client/test/PhaseIndicator.test.tsx | 9 | PASS |
 | client/test/MovieReveal.test.tsx | 6 | PASS |
 | client/test/Game.test.tsx | 16 | PASS |
-| **Total** | **144** | **ALL PASS** |
+| **Total** | **150** | **ALL PASS** |
 
 ### Build & Typecheck
 
@@ -249,20 +286,31 @@ lobby → setup → card-selection → pitching → round-end → setup (next ro
 - `npx tsc --noEmit -p server/tsconfig.json` — clean
 - `npx tsc --noEmit -p client/tsconfig.json` — clean
 
+### Stress Test
+
+- Full 20-player, 20-round game completed successfully against production
+- 380 pitches, deck reshuffling, note cards, winner selection — all verified
+- No crashes, no rate-limit false positives, no memory issues
+
 ### Features Working
 
 - Full game flow: lobby → setup → card-selection → pitching → round-end → game-end → play again
 - 493 real cards transcribed from the physical game (166 plot, 161 character, 166 note)
+- Card deck reshuffling when decks run out (supports large player counts)
 - Room creation with 4-letter codes (no ambiguous chars: no O, 0, I, 1)
 - Player join with name persistence via cookie
 - Same-name rejoin restores player identity (case-insensitive match)
+- Shareable room link with copy button in lobby
+- Join page pre-fills room code from `?code=` query parameter
+- Leave game button in all phases (marks disconnected, can rejoin later)
+- Host succession: if host leaves, first connected player promoted to host
 - Audience/spectator view for screen-sharing
 - Server-authoritative 45-second timer with SVG ring display
 - Executive NOTE card play with 5-second pause window and auto-resume
 - Auto-draw cards with `____` placeholder substitution
-- Franchise card display
+- Franchise card display (filtered in 2-player games, holders pitch last)
 - Blind card auto-draw from opposite deck on card selection
-- Pitch order: Executive's left first, circular rotation
+- Pitch order: Executive's left first, circular rotation, franchise holders last
 - Round rotation: Executive role rotates to next player each round
 - Winner selection and scoring (1 point per win)
 - Game end after all players have been Executive once
@@ -270,156 +318,53 @@ lobby → setup → card-selection → pitching → round-end → setup (next ro
 - Disconnect handling (player marked as disconnected, not removed)
 - Stale room cleanup (1-hour TTL after all disconnected or game-end)
 - SQLite persistence (survives restarts)
-- Docker deployment with volume for SQLite
+- Docker deployment with non-root user, read-only fs, resource limits
 - Logging to `data/directtovideo.log` and `data/games.log`
-- Rules page at `/rules`
+- Rules page at `/rules` with clone acknowledgment
 - Confetti animation on game end
 - Phase indicator progress dots
+- Note cards: Permanent Marker handwritten font, paragraph breaks on `/`
+- Character cards: red location header, typewriter-font text
+- Favicon (clapperboard SVG)
+- Version tag in bottom-right corner
 
 ## Known Issues & What Doesn't Work
 
-### 1. Root `npm test` is broken
+### 1. No linter or formatter
 
-The root `package.json` test script is:
-```json
-"test": "vitest run --config server/vitest.config.ts && vitest run --config client/vitest.config.ts"
-```
+No ESLint, Prettier, or any lint configuration exists. Code style is enforced only by convention and review.
 
-When run from the project root, vitest resolves `include: ["test/**/*.test.ts"]` relative to the **invocation directory** (root), not the config file location. Since there's no `test/` directory at root, it fails with "No test files found, exiting with code 1".
-
-**Workaround:** Run tests from each workspace:
-```bash
-cd server && npx vitest run
-cd client && npx vitest run
-```
-
-**Fix:** Either change include paths to absolute (`server/test/**/*.test.ts`), or change the root script to `cd server && npx vitest run && cd ../client && npx vitest run`.
-
-### 2. No linter or formatter
-
-No ESLint, Prettier, or any lint configuration exists. No lint scripts in any package.json. Code style is enforced only by convention and review.
-
-### 3. No CI/CD pipeline
+### 2. No CI/CD pipeline
 
 No GitHub Actions, no CI configuration of any kind. Tests and build are only verified manually.
 
-### 4. E2E test not verified in this snapshot
+### 3. E2E test not verified
 
-The Playwright E2E test (`e2e/full-game.test.ts`) uses port 3100 and requires a built server running. It was not run in this snapshot. The test drives a full 2-player game via raw socket connections and verifies the audience browser UI across all phases. It may have issues with the `round_started` event emission after timer expiry (see #5 below).
+The Playwright E2E test (`e2e/full-game.test.ts`) uses port 3100 and requires a built server running. The stress test (`stress/stress-test.ts`) is more comprehensive and has been verified against production.
 
-### 5. Potential `round_started` event miss after timer expiry
+### 4. `round_started` dead code after timer expiry
 
-In `sockets.ts`, the timer tick loop handles expiry by calling `endPitch`. After `endPitch`, if the next phase is `round-end` (all pitchers done), the code checks:
-```typescript
-if (updated.phase === "setup" && updated.round.current > 1) {
-  io.to(`room:${updated.code}`).emit("round_started", updated.round.current);
-}
-```
-But `endPitch` transitions to `round-end`, not `setup`. The `round_started` event is only emitted after `select_winner` transitions to `setup` for the next round. When the timer expires on the **last pitcher**, the flow is: timer expires → `endPitch` → phase becomes `round-end` → (Executive must manually `select_winner`) → phase becomes `setup` → `round_started` emitted. This works for the normal flow, but the timer-expiry path has a redundant/dead code block that checks for `setup` phase immediately after `endPitch`, which will never be true.
+In `sockets.ts`, the timer tick loop has a dead code block that checks for `setup` phase immediately after `endPitch` on timer expiry, which will never be true (endPitch transitions to `round-end`, not `setup`). This is harmless but redundant.
 
-### 6. `canPlayNotes` dead variable in ExecutiveControls
+### 5. Executive disconnect soft-lock
 
-`ExecutiveControls.tsx` computes `const canPlayNotes = timerRunning || !timerStarted;` but never uses it. The actual click handler uses `timerStarted ? () => onPlayNote(note.id) : undefined`. The variable is dead code.
+When the Executive disconnects, they are marked `isDisconnected: true` but the Executive role does not transfer. The game can soft-lock if the Executive disconnects during pitching or round-end. Host succession only covers the host role, not the executive role.
 
-### 7. Executive disconnect not handled
+### 6. Force-start for slow writers not implemented
 
-The design spec says: "If Executive disconnects, host takes over Exec role for remainder of round." This is **not implemented**. When the Executive disconnects, they are marked `isDisconnected: true` but the Executive role does not transfer. The game can soft-lock if the Executive disconnects during pitching or round-end, as no other player can start the timer, play notes, end pitches, or select a winner.
+There is no force-start mechanism. If a writer goes AFK during card selection, the game is stuck.
 
-### 8. Force-start for slow writers not implemented
+### 7. React Router v7 future flag warnings
 
-The design spec says: "Writer doesn't select cards before all others ready → Host can force-start with auto-random selection." This is **not implemented**. There is no force-start mechanism. If a writer goes AFK during card selection, the game is stuck.
+Client tests emit warnings about React Router v6 future flags. These are warnings only, not errors.
 
-### 9. Card count discrepancy in README
+### 8. No reconnection state recovery
 
-README states 492 cards (166 plot, 160 character, 166 note). Actual seed data has 493 cards (166 plot, **161** character, 166 note). The character count in the README is wrong by 1.
+If a player disconnects mid-game and reconnects, they get the current room state. No "spectator until round end" mode for missed pitches.
 
-### 10. React Router v7 future flag warnings
+### 9. Room codes are letters-only
 
-Client tests emit warnings about React Router v6 future flags (`v7_startTransition`, `v7_relativeSplatPath`). These are warnings only, not errors, and don't affect functionality. Will need attention when upgrading to React Router v7.
-
-### 11. No reconnection state recovery
-
-If a player disconnects mid-game and reconnects, they get the current room state via `room_joined`. However, if their pitch already happened while disconnected, there's no mechanism to put them into a "spectator until round end" mode as the spec describes. They simply rejoin with the current state.
-
-### 12. Room codes are letters-only
-
-The implementation plan specified `VALID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"` (letters + numbers, no ambiguous chars). The actual implementation is `VALID_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ"` (letters only, no numbers). This reduces the code space but is arguably better for verbal communication. This is a deviation from the plan, not a bug.
-
-## Spec Drift (Design Doc vs Implementation)
-
-The design spec and implementation plan are in `docs/superpowers/specs/` and `docs/superpowers/plans/`. The implementation has evolved significantly from the plan:
-
-### Intentional Improvements
-
-| Area | Plan | Implementation |
-|------|------|----------------|
-| Card count | 10 placeholder cards per deck | 493 real cards transcribed from the physical game |
-| Card fields | `id`, `type`, `text` | Added `header`, `draws`, `substitutedText`, `isFranchise` |
-| Movie | `chosenCard` + `randomCard` + `notesPlayed` | Added `revealed` boolean |
-| Timer | `running`, `secondsRemaining`, `pausedAt` | Added `pausedForNote`, `noteResumeAt` for 5-second note read window |
-| Blind draw | Separate `draw_random_card` event | Auto-drawn in `selectCard` — no separate event needed |
-| State push | Granular events (`deck_selected`, `card_selected`, `card_drawn`, `player_joined`, `player_left`) | Simplified to `room_joined` (full state) + `player_list_updated` |
-| PublicRoomState | Basic fields | Added `myChosenCard`, `myMovieReady`, `myMovieRevealed`, `myBlindCard` for richer client state |
-| Player | Basic fields | Added `chosenCard` field |
-| Logger | Not in plan | Full logging system: HTTP, connections, joins, game events, errors |
-| DB migration | Not in plan | Cards table migration from old schema (text → data column) |
-| Rules page | Not in plan | Full how-to-play page at `/rules` |
-| Confetti | Not in plan | Confetti animation on game-end screen |
-| Phase indicator | Not in plan | Progress dots showing current phase |
-| Timer ring | Not in plan | SVG circular countdown ring |
-
-### Removed/Consolidated Events
-
-| Plan Event | Status | Replacement |
-|------------|--------|-------------|
-| `draw_random_card` (C→S) | Removed | Auto-drawn in `selectCard` |
-| `next_pitcher` (C→S) | Removed | Auto-advanced in `endPitch` |
-| `next_round` (C→S) | Removed | Auto-advanced in `selectWinner` |
-| `player_joined` (S→C) | Removed | `player_list_updated` |
-| `player_left` (S→C) | Removed | `player_list_updated` |
-| `deck_selected` (S→C) | Removed | `room_joined` (full state) |
-| `card_selected` (S→C) | Removed | `room_joined` (full state) |
-| `card_drawn` (S→C) | Removed | `room_joined` (full state) |
-| `timer_tick` (S→C) | Added | Not in plan, needed for countdown display |
-
-### Missing From Plan
-
-| Plan Item | Status |
-|-----------|--------|
-| `useTimer` hook | Not implemented — timer display handled inline in Timer component |
-| Cookie-based server-side reconnect | Not implemented as described — cookie stores name client-side, sent on join |
-| Executive disconnect → host takeover | Not implemented |
-| Force-start for slow writers | Not implemented |
-| Spectator-until-round-end for reconnecting players | Not implemented |
-
-## Code Conventions
-
-- **TypeScript strict mode** — all files typecheck clean
-- **ESM modules** — `"type": "module"` in server and client packages
-- **Import extensions** — `.js` extensions used in server imports (ESM requirement), `.js` in client (Vite resolves)
-- **Functional React** — hooks only, no class components
-- **Socket singleton** — single `socket.io-client` instance in `client/src/socket.ts`, `autoConnect: false`
-- **Immutable state updates** — all state-machine functions return new Room objects via spread, never mutate
-- **Server-authoritative** — all game logic runs on server, clients only display server-pushed state
-- **No comments in code** — code is self-documenting
-- **No external CSS framework** — plain CSS in `styles/app.css` and `styles/cards.css`
-- **Test co-location** — tests in `server/test/` and `client/test/` directories, not colocated with source
-
-## Key Files
-
-| File | Role |
-|------|------|
-| `shared/types.ts` | All shared TypeScript types — single source of truth for data model |
-| `server/src/state-machine.ts` | Game logic: all phase transitions, card drawing, winner selection |
-| `server/src/sockets.ts` | Socket.IO handlers, timer tick loop, state broadcasting — largest server file (407 lines) |
-| `server/src/rooms.ts` | RoomStore: in-memory cache + SQLite persistence, room creation, code generation |
-| `server/src/db.ts` | SQLite setup, schema migrations, card deck queries |
-| `server/src/seed-cards.ts` | 493 card definitions — largest file in the project |
-| `server/src/timer.ts` | Pure timer state transitions (no side effects) |
-| `client/src/hooks/useRoom.ts` | Socket state subscriptions — the bridge between server and React |
-| `client/src/pages/Game.tsx` | Player view — renders all 6 game phases (216 lines, highest complexity) |
-| `client/src/pages/Audience.tsx` | Spectator view for screen-sharing |
-| `client/src/components/Card.tsx` | Card renderer with franchise/face-down support |
+The implementation plan specified letters + numbers. The actual implementation is letters only (`ABCDEFGHJKLMNPQRSTUVWXYZ`). This is a deliberate deviation — better for verbal communication.
 
 ## Configuration
 
@@ -427,9 +372,10 @@ The design spec and implementation plan are in `docs/superpowers/specs/` and `do
 |---------------------|---------|-------------|
 | `PORT` | `3000` | Server listen port |
 | `DB_PATH` | `data/directtovideo.db` | SQLite database path |
-| `ROOM_TTL_MS` | `3600000` (1hr) | Stale room cleanup threshold (hardcoded in index.ts, not actually read from env) |
+| `MAX_PLAYERS` | `20` | Max players per room |
+| `MAX_ROOMS` | `20` | Max concurrent active rooms |
 
-Note: `ROOM_TTL_MS` and `CLEANUP_INTERVAL_MS` are hardcoded constants in `server/src/index.ts`, not read from `process.env` despite the README listing `ROOM_TTL_MS` as an environment variable.
+Note: `ROOM_TTL_MS` and `CLEANUP_INTERVAL_MS` are hardcoded constants in `server/src/index.ts`.
 
 ## Testing Notes
 
@@ -437,6 +383,7 @@ Note: `ROOM_TTL_MS` and `CLEANUP_INTERVAL_MS` are hardcoded constants in `server
 - **Client tests** use jsdom + @testing-library/react + jest-dom matchers
 - **Socket tests** (4 tests) test the socket handler setup, not full game flow
 - **E2E test** uses raw socket.io-client connections for player actions + a Playwright browser page for the audience UI. Port 3100. Requires `npm run build` + running server first.
+- **Stress test** simulates a full N-player game via socket connections. Configurable via `STRESS_TARGET`, `STRESS_PLAYERS`, `STRESS_ROUNDS` env vars. Verified with 20 players × 20 rounds against production.
 - State-machine tests are comprehensive (32 tests) — cover startGame, setupRound, selectDeckType, selectCard, startPitching, revealMovie, endPitch, selectWinner, nextRound, playAgain, and auto-draw mechanics.
 
 ## Future Scope (From README)
@@ -448,7 +395,7 @@ Note: `ROOM_TTL_MS` and `CLEANUP_INTERVAL_MS` are hardcoded constants in `server
 
 ## Gotchas for Agents
 
-1. **Don't run `npm test` from root** — it's broken. Use `cd server && npx vitest run` and `cd client && npx vitest run`.
+1. **Root `npm test` works** — it runs both server and client test suites. You can also run them individually from each workspace.
 2. **Server imports use `.js` extensions** — ESM requires this even for TypeScript files. Don't remove them.
 3. **`seed-cards.ts` is huge** — 493 cards, ~600 lines. Don't read the whole file unless necessary. Use grep/search for specific cards.
 4. **State machine is pure** — `state-machine.ts` functions take a `RoomStore` and `Room`, mutate via `store.saveRoom()`, and the caller re-fetches with `store.getRoom()`. Always re-fetch after calling a state-machine function.
@@ -458,3 +405,7 @@ Note: `ROOM_TTL_MS` and `CLEANUP_INTERVAL_MS` are hardcoded constants in `server
 8. **`broadcastAllStates` sends per-player state** — each player gets their own `room_joined` event with their own hand. Don't broadcast raw room state to all sockets.
 9. **Room codes exclude ambiguous characters** — `ABCDEFGHJKLMNPQRSTUVWXYZ` only (no O, 0, I, 1). No numbers.
 10. **The `selectCard` function auto-draws the blind card** — there is no separate "draw blind card" event. Card selection + blind draw + movie creation happen atomically in `state-machine.ts:selectCard`.
+11. **Deck reshuffling is automatic** — when a deck runs out, `drawFromDeck` refills from the full card set. In 2-player games, franchise cards are filtered from refills too.
+12. **Security limits are env-configurable** — `MAX_PLAYERS` and `MAX_ROOMS` can be set via environment variables. Socket/HTTP rate limits are hardcoded in `sockets.ts` and `index.ts`.
+13. **`trust proxy` is enabled** — Express trusts one proxy hop for correct client IP identification behind nginx.
+14. **VERSION is duplicated** — `shared/types.ts` has `VERSION` for the client, `server/src/index.ts` has its own copy for the server (because the server can't import runtime values from the shared `.ts` file in production).

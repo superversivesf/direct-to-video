@@ -12,7 +12,6 @@ interface ExecutiveControlsProps {
 }
 
 export function ExecutiveControls({ notes, timerRunning, timerStarted, onStartTimer, onPauseTimer, onPlayNote, onEndPitch }: ExecutiveControlsProps) {
-  const canPlayNotes = timerRunning || !timerStarted;
   return (
     <div className="executive-controls">
       <div className="timer-controls">

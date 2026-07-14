@@ -5,6 +5,7 @@ data
 .git
 docs
 e2e
+stress
 *.md
 PitchStorm-*.jpg
 docs/reference/*.jpg
