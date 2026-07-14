@@ -1,4 +1,4 @@
-import type { Room, Player, Card, DeckType } from "@direct-to-video/shared";
+import type { Room, Player, Card, DeckType, CardType } from "@direct-to-video/shared";
 import type { RoomStore } from "./rooms.js";
 import { createTimer } from "./timer.js";
 
@@ -11,9 +11,16 @@ function shuffle<T>(array: T[]): T[] {
   return arr;
 }
 
-function drawCards(deck: Card[], count: number): { drawn: Card[]; remaining: Card[] } {
-  const shuffled = shuffle(deck);
-  return { drawn: shuffled.slice(0, count), remaining: shuffled.slice(count) };
+function drawCards(deck: Card[], count: number, refillDeck?: Card[]): { drawn: Card[]; remaining: Card[] } {
+  if (deck.length >= count) {
+    const shuffled = shuffle(deck);
+    return { drawn: shuffled.slice(0, count), remaining: shuffled.slice(count) };
+  }
+  if (refillDeck && refillDeck.length > 0) {
+    const refilled = shuffle([...deck, ...refillDeck]);
+    return { drawn: refilled.slice(0, count), remaining: refilled.slice(count) };
+  }
+  return { drawn: shuffle(deck), remaining: [] };
 }
 
 function getWriterPlayers(room: Room): Player[] {
@@ -41,8 +48,20 @@ export function startGame(store: RoomStore, room: Room): void {
   setupRound(store, updated);
 }
 
+function getRefillDeck(store: RoomStore, type: CardType, room: Room): Card[] {
+  if (room.players.length === 2) {
+    return store.getCardsByType(type).filter(c => !c.isFranchise);
+  }
+  return store.getCardsByType(type);
+}
+
+function drawFromDeck(store: RoomStore, deck: Card[], count: number, type: CardType, room: Room): { drawn: Card[]; remaining: Card[] } {
+  const refill = getRefillDeck(store, type, room);
+  return drawCards(deck, count, refill);
+}
+
 export function setupRound(store: RoomStore, room: Room): void {
-  const { drawn: notes, remaining: noteRemaining } = drawCards(room.deck.note, 3);
+  const { drawn: notes, remaining: noteRemaining } = drawFromDeck(store, room.deck.note, 3, "note", room);
   store.saveRoom({
     ...room,
     phase: "setup",
@@ -59,7 +78,7 @@ export function setupRound(store: RoomStore, room: Room): void {
 export function selectDeckType(store: RoomStore, room: Room, playerId: string, deckType: DeckType): void {
   if (room.phase !== "setup") throw new Error("Cannot select deck outside setup phase");
   if (playerId === room.executiveId) throw new Error("Executive cannot draw writer cards");
-  const { drawn, remaining } = drawCards(room.deck[deckType], 3);
+  const { drawn, remaining } = drawFromDeck(store, room.deck[deckType], 3, deckType, room);
   const updated: Room = {
     ...room,
     deck: { ...room.deck, [deckType]: remaining },
@@ -93,7 +112,7 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
     let resolvedText = card.text;
     for (const draw of card.draws) {
       for (let i = 0; i < draw.count; i++) {
-        const { drawn, remaining } = drawCards(updatedDeck[draw.deck], 1);
+        const { drawn, remaining } = drawFromDeck(store, updatedDeck[draw.deck], 1, draw.deck, room);
         updatedDeck = { ...updatedDeck, [draw.deck]: remaining };
         if (drawn[0]) {
           resolvedText = resolvedText.replace("____", drawn[0].text);
@@ -104,7 +123,7 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
   }
 
   const blindDeckType: DeckType = card.type === "plot" ? "character" : "plot";
-  const { drawn: blindDrawn, remaining: blindRemaining } = drawCards(updatedDeck[blindDeckType], 1);
+  const { drawn: blindDrawn, remaining: blindRemaining } = drawFromDeck(store, updatedDeck[blindDeckType], 1, blindDeckType, room);
   updatedDeck = { ...updatedDeck, [blindDeckType]: blindRemaining };
   const blindCard = blindDrawn[0];
 
@@ -223,7 +242,7 @@ export function playNote(store: RoomStore, room: Room, noteCardId: string, pitch
     let resolvedText = noteCard.text;
     for (const draw of noteCard.draws) {
       for (let i = 0; i < draw.count; i++) {
-        const { drawn, remaining } = drawCards(updatedDeck[draw.deck], 1);
+        const { drawn, remaining } = drawFromDeck(store, updatedDeck[draw.deck], 1, draw.deck, room);
         updatedDeck = { ...updatedDeck, [draw.deck]: remaining };
         if (drawn[0]) {
           resolvedText = resolvedText.replace("____", drawn[0].text);
@@ -233,7 +252,7 @@ export function playNote(store: RoomStore, room: Room, noteCardId: string, pitch
     playedCard = { ...noteCard, substitutedText: resolvedText };
   }
 
-  const { drawn, remaining } = drawCards(updatedDeck.note, 1);
+  const { drawn, remaining } = drawFromDeck(store, updatedDeck.note, 1, "note", room);
   const refill = drawn[0] || null;
   store.saveRoom({
     ...room,
@@ -262,7 +281,7 @@ export function selectWinner(store: RoomStore, room: Room, playerId: string): vo
   };
 
   if (!noteGiven && updated.deck.note.length > 0) {
-    const { remaining } = drawCards(updated.deck.note, 1);
+    const { remaining } = drawFromDeck(store, updated.deck.note, 1, "note", updated);
     updated = { ...updated, deck: { ...updated.deck, note: remaining } };
   }
 

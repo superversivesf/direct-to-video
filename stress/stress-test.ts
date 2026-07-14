@@ -29,7 +29,7 @@ function waitForState(socket: ClientSocket, timeout = 10000): Promise<PublicRoom
   });
 }
 
-function waitForPhase(socket: ClientSocket, phase: string, timeout = 10000): Promise<PublicRoomState> {
+function waitForPhase(socket: ClientSocket, phase: string, timeout = 15000): Promise<PublicRoomState> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Timeout waiting for phase ${phase}`)), timeout);
     const handler = (state: PublicRoomState) => {
@@ -41,6 +41,51 @@ function waitForPhase(socket: ClientSocket, phase: string, timeout = 10000): Pro
     };
     socket.on("room_joined", handler);
   });
+}
+
+function waitForHand(socket: ClientSocket, getState: () => PublicRoomState | null, timeout = 30000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      const state = getState();
+      if (state && state.myHand && state.myHand.length > 0) {
+        resolve();
+        return;
+      }
+      if (Date.now() - start > timeout) {
+        reject(new Error("Timeout waiting for hand"));
+        return;
+      }
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
+function waitForMovieReady(socket: ClientSocket, getState: () => PublicRoomState | null, timeout = 10000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      const state = getState();
+      if (state && state.myMovieReady) {
+        resolve();
+        return;
+      }
+      if (Date.now() - start > timeout) {
+        reject(new Error("Timeout waiting for movie ready"));
+        return;
+      }
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
+function waitForPhaseAll(players: Player[], phase: string, timeout = 15000): Promise<void> {
+  return Promise.all(players.map((p) => {
+    if (p.state?.phase === phase) return Promise.resolve();
+    return waitForPhase(p.socket, phase, timeout);
+  })).then(() => {});
 }
 
 function connectPlayer(target: string, roomCode: string, name: string): Promise<Player> {
@@ -119,10 +164,10 @@ async function runGame(target: string, numPlayers: number, numRounds: number): P
     printBanner(`PHASE 3: Round ${round}`);
 
     // All players wait for setup phase
-    if (players[0].state?.phase !== "setup") {
-      await Promise.all(players.map((p) => waitForPhase(p.socket, "setup").catch(() => null)));
-    }
+    await waitForPhaseAll(players, "setup").catch(() => null);
+    await sleep(500);
 
+    // Re-read state to get current executive
     const currentState = players[0].state!;
     const executiveId = currentState.executiveId;
     const executive = players.find((p) => p.playerId === executiveId);
@@ -132,16 +177,17 @@ async function runGame(target: string, numPlayers: number, numRounds: number): P
     console.log(`  Writers: ${writers.map((w) => w.name).join(", ")}`);
 
     // Writers select deck type and cards
-    // First: all writers select their deck type
+    // First: all writers select their deck type (hands are cleared each round)
     for (const writer of writers) {
       const writerState = writer.state!;
       if (!writerState.myHand || writerState.myHand.length === 0) {
         const deckType: DeckType = Math.random() < 0.5 ? "plot" : "character";
         console.log(`  ${writer.name} selecting deck: ${deckType}`);
+        const handPromise = waitForHand(writer.socket, () => writer.state);
         writer.socket.emit("select_deck_type", deckType);
+        await handPromise;
       }
     }
-    await sleep(1000);
 
     // Then: all writers select a card from their hand
     for (const writer of writers) {
@@ -149,18 +195,17 @@ async function runGame(target: string, numPlayers: number, numRounds: number): P
       const cardId = deckState.myHand?.[0]?.id;
       if (cardId) {
         console.log(`  ${writer.name} selecting card ${cardId}`);
+        const moviePromise = waitForMovieReady(writer.socket, () => writer.state).catch(() => null);
         writer.socket.emit("select_card", cardId);
+        await moviePromise;
       } else {
         console.log(`  ${writer.name} has no cards in hand! (phase: ${deckState.phase}, hand: ${deckState.myHand?.length ?? 0})`);
       }
     }
-    await sleep(1000);
 
     // Wait for pitching phase
     console.log("  Waiting for pitching phase...");
-    if (players[0].state?.phase !== "pitching") {
-      await Promise.all(players.map((p) => waitForPhase(p.socket, "pitching")));
-    }
+    await waitForPhaseAll(players, "pitching");
     console.log("  Pitching phase reached");
 
     const pitchState = players[0].state!;
@@ -208,11 +253,10 @@ async function runGame(target: string, numPlayers: number, numRounds: number): P
       }
     }
 
-    // Wait for round-end
+    // Wait for round-end — give extra time for all 20 state updates
     console.log("\n  Waiting for round-end...");
-    if (players[0].state?.phase !== "round-end") {
-      await Promise.all(players.map((p) => waitForPhase(p.socket, "round-end")));
-    }
+    await sleep(1000);
+    await waitForPhaseAll(players, "round-end");
     console.log("  Round-end phase reached");
 
     // Executive picks a random winner
@@ -224,8 +268,10 @@ async function runGame(target: string, numPlayers: number, numRounds: number): P
 
       executive?.socket.emit("select_winner", winnerMovie.playerId);
 
+      // Wait for next round's setup phase or game-end
+      await sleep(2000);
+
       // Check if game ended
-      await sleep(1000);
       const postWinState = players[0].state!;
       if (postWinState.phase === "game-end") {
         printBanner("GAME ENDED");
