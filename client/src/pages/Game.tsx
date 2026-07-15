@@ -178,7 +178,7 @@ export function Game() {
     const currentMovie = state.movies.find((m) => m.playerId === state.currentPitcherId);
     const isMyPitch = state.currentPitcherId === state.myPlayerId;
     const pitcher = state.players.find((p) => p.id === state.currentPitcherId);
-    const timerStarted = state.timer.secondsRemaining < 45 || state.timer.running;
+    const timerStarted = state.timer.secondsRemaining < 45 || state.timer.running || state.timer.pausedForNote;
 
     return (
       <div className="game-view">

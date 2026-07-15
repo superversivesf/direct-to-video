@@ -17,6 +17,7 @@ import {
   endVoting,
   tallyVotes,
 } from "../src/state-machine.js";
+import { createTimer, startTimer, pauseForNote, tickTimer, isTimerExpired, shouldResumeFromNote } from "../src/timer.js";
 import type { Database } from "better-sqlite3";
 
 describe("state machine", () => {
@@ -654,6 +655,143 @@ describe("state machine", () => {
       castVote(store, store.getRoom(room.code)!, "aud1", playerIds[1]);
       const updated = store.getRoom(room.code)!;
       expect(updated.votes["aud1"]).toBe(playerIds[1]);
+    });
+  });
+
+  describe("timer paused for note edge cases", () => {
+    function setupPitching(names: string[]): { room: ReturnType<typeof createRoom>["room"]; playerIds: string[] } {
+      const { room, playerIds } = createGameWithPlayers(names);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      for (let i = 1; i < playerIds.length; i++) {
+        selectDeckType(store, updated, playerIds[i], "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === playerIds[i])!;
+        selectCard(store, updated, playerIds[i], writer.hand[0].id);
+        updated = store.getRoom(room.code)!;
+      }
+      startPitching(store, updated);
+      return { room: store.getRoom(room.code)!, playerIds };
+    }
+
+    it("endPitch while timer is paused for note resets timer correctly", () => {
+      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      let updated = store.getRoom(room.code)!;
+
+      updated = { ...updated, timer: startTimer(updated.timer) };
+      store.saveRoom(updated);
+
+      updated = { ...updated, timer: pauseForNote(updated.timer, 5) };
+      store.saveRoom(updated);
+
+      expect(updated.timer.pausedForNote).toBe(true);
+      expect(updated.timer.running).toBe(false);
+
+      endPitch(store, store.getRoom(room.code)!, updated.currentPitcherId!);
+
+      const after = store.getRoom(room.code)!;
+      expect(after.timer.pausedForNote).toBe(false);
+      expect(after.timer.running).toBe(false);
+      expect(after.timer.secondsRemaining).toBe(45);
+      expect(after.timer.noteResumeAt).toBeNull();
+      expect(after.currentPitcherId).toBe(updated.pitchOrder[1]);
+    });
+
+    it("endPitch on last pitcher while timer paused for note transitions to round-end", () => {
+      const { room, playerIds } = setupPitching(["Jason", "Sarah"]);
+      let updated = store.getRoom(room.code)!;
+
+      updated = { ...updated, timer: startTimer(updated.timer) };
+      store.saveRoom(updated);
+
+      updated = { ...updated, timer: pauseForNote(updated.timer, 5) };
+      store.saveRoom(updated);
+
+      expect(updated.timer.pausedForNote).toBe(true);
+
+      endPitch(store, store.getRoom(room.code)!, updated.currentPitcherId!);
+
+      const after = store.getRoom(room.code)!;
+      expect(after.phase).toBe("round-end");
+      expect(after.timer.pausedForNote).toBe(false);
+      expect(after.timer.running).toBe(false);
+      expect(after.timer.noteResumeAt).toBeNull();
+    });
+
+    it("shouldResumeFromNote returns false after endPitch resets timer", () => {
+      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      let updated = store.getRoom(room.code)!;
+
+      updated = { ...updated, timer: startTimer(updated.timer) };
+      store.saveRoom(updated);
+
+      updated = { ...updated, timer: pauseForNote(updated.timer, 5) };
+      store.saveRoom(updated);
+
+      expect(shouldResumeFromNote(updated.timer)).toBe(false);
+
+      endPitch(store, store.getRoom(room.code)!, updated.currentPitcherId!);
+
+      const after = store.getRoom(room.code)!;
+      expect(shouldResumeFromNote(after.timer)).toBe(false);
+    });
+
+    it("shouldResumeFromNote returns true when note window expires, but false after endPitch", () => {
+      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      let updated = store.getRoom(room.code)!;
+
+      updated = { ...updated, timer: startTimer(updated.timer) };
+      store.saveRoom(updated);
+
+      updated = { ...updated, timer: pauseForNote(updated.timer, 0) };
+      store.saveRoom(updated);
+
+      expect(shouldResumeFromNote(updated.timer)).toBe(true);
+
+      endPitch(store, store.getRoom(room.code)!, updated.currentPitcherId!);
+
+      const after = store.getRoom(room.code)!;
+      expect(shouldResumeFromNote(after.timer)).toBe(false);
+    });
+
+    it("timer tick loop does not resume after endPitch resets paused timer", () => {
+      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      let updated = store.getRoom(room.code)!;
+
+      updated = { ...updated, timer: startTimer(updated.timer) };
+      store.saveRoom(updated);
+
+      updated = { ...updated, timer: pauseForNote(updated.timer, 5) };
+      store.saveRoom(updated);
+
+      endPitch(store, store.getRoom(room.code)!, updated.currentPitcherId!);
+
+      const after = store.getRoom(room.code)!;
+
+      const ticked = tickTimer(after.timer);
+      expect(ticked.secondsRemaining).toBe(45);
+      expect(ticked.running).toBe(false);
+      expect(shouldResumeFromNote(ticked)).toBe(false);
+    });
+
+    it("endPitch while timer running (not paused) still works", () => {
+      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      let updated = store.getRoom(room.code)!;
+
+      updated = { ...updated, timer: startTimer(updated.timer) };
+      store.saveRoom(updated);
+
+      updated = store.getRoom(room.code)!;
+      const ticked = tickTimer(updated.timer);
+      store.saveRoom({ ...updated, timer: ticked });
+      expect(ticked.secondsRemaining).toBe(44);
+
+      endPitch(store, store.getRoom(room.code)!, updated.currentPitcherId!);
+
+      const after = store.getRoom(room.code)!;
+      expect(after.timer.running).toBe(false);
+      expect(after.timer.secondsRemaining).toBe(45);
+      expect(after.currentPitcherId).toBe(updated.pitchOrder[1]);
     });
   });
 });

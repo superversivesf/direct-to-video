@@ -6,6 +6,7 @@ import { initDb, seedCards } from "../src/db.js";
 import { RoomStore } from "../src/rooms.js";
 import { setupSocketHandlers, resetRateLimits } from "../src/sockets.js";
 import { startGame, selectDeckType, selectCard, startPitching, revealMovie, endPitch, startVoting } from "../src/state-machine.js";
+import { startTimer, pauseForNote } from "../src/timer.js";
 import type { Database } from "better-sqlite3";
 import type { PublicRoomState, AudienceRoomState } from "@direct-to-video/shared";
 
@@ -320,5 +321,112 @@ describe("sockets", () => {
       sockets.forEach((s) => s.disconnect());
       audience.socket.disconnect();
     }, 120000);
+  });
+
+  describe("timer paused for note edge cases", () => {
+    async function setupPitchingState(playerNames: string[]) {
+      const { sockets, roomCode, states } = await playToRoundEnd(port, store, playerNames);
+      // playToRoundEnd goes all the way to round-end. We need to set up a fresh pitching state.
+      // Instead, let's create a new game and manually advance to pitching
+      const sockets2: ClientSocket[] = [];
+      const states2 = new Map<ClientSocket, PublicRoomState>();
+      let roomCode2 = "";
+
+      for (let i = 0; i < playerNames.length; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode2, `P${i + 1}`);
+        sockets2.push(result.socket);
+        states2.set(result.socket, result.state);
+        if (i === 0) roomCode2 = result.state.code;
+      }
+      for (const socket of sockets2) {
+        socket.on("room_joined", (state: PublicRoomState) => { states2.set(socket, state); });
+      }
+
+      let room = store.getRoom(roomCode2)!;
+      startGame(store, room);
+      room = store.getRoom(roomCode2)!;
+      const execId = room.executiveId!;
+
+      for (const socket of sockets2) {
+        const playerId = states2.get(socket)!.myPlayerId!;
+        if (playerId === execId) continue;
+        room = store.getRoom(roomCode2)!;
+        selectDeckType(store, room, playerId, "plot");
+        room = store.getRoom(roomCode2)!;
+        const writer = room.players.find((p) => p.id === playerId)!;
+        selectCard(store, store.getRoom(roomCode2)!, playerId, writer.hand[0].id);
+      }
+
+      room = store.getRoom(roomCode2)!;
+      startPitching(store, room);
+
+      // Start the timer then pause for note
+      room = store.getRoom(roomCode2)!;
+      const started = startTimer(room.timer);
+      store.saveRoom({ ...room, timer: started });
+      room = store.getRoom(roomCode2)!;
+      const paused = pauseForNote(room.timer, 5);
+      store.saveRoom({ ...room, timer: paused });
+
+      await new Promise((r) => setTimeout(r, 300));
+
+      const execSocket = sockets2.find((s) => states2.get(s)!.myPlayerId === execId)!;
+      const pitcherSocket = sockets2.find((s) => states2.get(s)!.myPlayerId !== execId)!;
+      return { sockets: sockets2, roomCode: roomCode2, execSocket, pitcherSocket, states: states2 };
+    }
+
+    it("pitcher can end pitch while timer is paused for note", async () => {
+      const { sockets, pitcherSocket } = await setupPitchingState(["Jason", "Sarah", "Mike"]);
+
+      const pitchEndedPromise = waitForEvent(pitcherSocket, "room_joined");
+      pitcherSocket.emit("end_pitch");
+      const state = await pitchEndedPromise;
+
+      expect(state.timer.pausedForNote).toBe(false);
+      expect(state.timer.running).toBe(false);
+      expect(state.timer.noteResumeAt).toBeNull();
+
+      sockets.forEach((s) => s.disconnect());
+    });
+
+    it("executive can end pitch while timer is paused for note", async () => {
+      const { sockets, execSocket } = await setupPitchingState(["Jason", "Sarah", "Mike"]);
+
+      const pitchEndedPromise = waitForEvent(execSocket, "room_joined");
+      execSocket.emit("end_pitch");
+      const state = await pitchEndedPromise;
+
+      expect(state.timer.pausedForNote).toBe(false);
+      expect(state.timer.running).toBe(false);
+
+      sockets.forEach((s) => s.disconnect());
+    });
+
+    it("timer does not auto-resume after endPitch while paused for note", async () => {
+      const { sockets, execSocket } = await setupPitchingState(["Jason", "Sarah", "Mike"]);
+
+      const statePromise = waitForEvent<PublicRoomState>(execSocket, "room_joined");
+      execSocket.emit("end_pitch");
+      const state = await statePromise;
+
+      expect(state.timer.pausedForNote).toBe(false);
+      expect(state.timer.running).toBe(false);
+
+      await new Promise((r) => setTimeout(r, 2000));
+
+      sockets.forEach((s) => s.disconnect());
+    });
+
+    it("player can leave game while timer is paused for note", async () => {
+      const { sockets, pitcherSocket } = await setupPitchingState(["Jason", "Sarah", "Mike"]);
+
+      expect(pitcherSocket.connected).toBe(true);
+      pitcherSocket.disconnect();
+      await new Promise((r) => setTimeout(r, 500));
+      expect(pitcherSocket.connected).toBe(false);
+
+      const remainingSockets = sockets.filter((s) => s !== pitcherSocket);
+      remainingSockets.forEach((s) => s.disconnect());
+    });
   });
 });
