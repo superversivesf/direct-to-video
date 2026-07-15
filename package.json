@@ -12,7 +12,9 @@
     "stress": "tsx stress/stress-test.ts",
     "stress:local": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=10 STRESS_ROUNDS=3 tsx stress/stress-test.ts",
     "stress:small": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=3 STRESS_ROUNDS=2 tsx stress/stress-test.ts",
-    "stress:heavy": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=20 STRESS_ROUNDS=5 tsx stress/stress-test.ts"
+    "stress:heavy": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=20 STRESS_ROUNDS=5 tsx stress/stress-test.ts",
+    "stress:voting": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=10 STRESS_AUDIENCE=30 STRESS_ROUNDS=3 tsx stress/stress-test.ts",
+    "stress:extreme": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=20 STRESS_AUDIENCE=40 STRESS_ROUNDS=5 tsx stress/stress-test.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.45.0",

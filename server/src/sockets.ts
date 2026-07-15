@@ -27,6 +27,12 @@ const connectionsPerIp = new Map<string, number>();
 const joinAttemptsPerIp = new Map<string, { count: number; resetAt: number }>();
 const socketEventCounts = new Map<string, { count: number; resetAt: number }>();
 
+export function resetRateLimits(): void {
+  connectionsPerIp.clear();
+  joinAttemptsPerIp.clear();
+  socketEventCounts.clear();
+}
+
 function getIp(socket: Socket): string {
   return (socket.handshake.address || "unknown").replace(/^::ffff:/, "");
 }
@@ -483,8 +489,10 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       try {
         startVoting(store, ctx.room);
         const updated = store.getRoom(ctx.room.code)!;
-        io.to(`room:${updated.code}`).emit("voting_started", updated.timer.secondsRemaining);
-        broadcastAllStates(io, updated);
+        const started = startTimer(updated.timer);
+        store.saveRoom({ ...updated, timer: started });
+        io.to(`room:${updated.code}`).emit("voting_started", started.secondsRemaining);
+        broadcastAllStates(io, store.getRoom(updated.code)!);
       } catch (err) {
         socket.emit("error", (err as Error).message);
       }
@@ -495,13 +503,15 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       const room = findRoomBySocket(socket, store);
       if (!room) return;
       if (!room.votingActive) return;
-      const voterId = socket.id;
+      const playerCtx = getPlayerContext(socket.id, store);
+      const voterId = playerCtx ? playerCtx.playerId : socket.id;
       if (room.votes[voterId]) return;
       try {
         castVote(store, room, voterId, playerId);
         const updated = store.getRoom(room.code)!;
         const voteCounts = computeVoteCounts(updated);
         io.to(`room:${updated.code}`).emit("vote_update", voteCounts);
+        io.to(`audience:${updated.code}`).emit("vote_update", voteCounts);
         broadcastAllStates(io, updated);
       } catch (err) {
         socket.emit("error", (err as Error).message);

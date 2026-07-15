@@ -1,9 +1,10 @@
 import { io as ioClient, type Socket as ClientSocket } from "socket.io-client";
-import type { PublicRoomState, DeckType } from "@direct-to-video/shared";
+import type { PublicRoomState, AudienceRoomState, DeckType } from "@direct-to-video/shared";
 
 const TARGET = process.env.STRESS_TARGET || "http://localhost:3000";
 const NUM_PLAYERS = parseInt(process.env.STRESS_PLAYERS || "10", 10);
 const NUM_ROUNDS = parseInt(process.env.STRESS_ROUNDS || "3", 10);
+const NUM_AUDIENCE = parseInt(process.env.STRESS_AUDIENCE || "0", 10);
 
 interface Player {
   name: string;
@@ -11,6 +12,12 @@ interface Player {
   playerId: string;
   roomCode: string;
   state: PublicRoomState | null;
+}
+
+interface AudienceMember {
+  name: string;
+  socket: ClientSocket;
+  state: AudienceRoomState | null;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -112,15 +119,40 @@ function connectPlayer(target: string, roomCode: string, name: string): Promise<
   });
 }
 
+function connectAudience(target: string, roomCode: string, name: string): Promise<AudienceMember> {
+  return new Promise((resolve, reject) => {
+    const socket = ioClient(target, { forceNew: true, transports: ["websocket"] });
+    const timer = setTimeout(() => {
+      socket.close();
+      reject(new Error(`Timeout connecting audience ${name}`));
+    }, 15000);
+
+    socket.on("audience_joined", (state: AudienceRoomState) => {
+      clearTimeout(timer);
+      resolve({ name, socket, state });
+    });
+
+    socket.on("connect", () => {
+      socket.emit("join_audience", roomCode);
+    });
+
+    socket.on("error", (msg: string) => {
+      clearTimeout(timer);
+      reject(new Error(`Audience ${name} error: ${msg}`));
+    });
+  });
+}
+
 function printBanner(text: string): void {
   const line = "=".repeat(60);
   console.log(`\n${line}\n${text}\n${line}`);
 }
 
-async function runGame(target: string, numPlayers: number, numRounds: number): Promise<void> {
-  printBanner(`STRESS TEST: ${numPlayers} players, ${numRounds} rounds, target ${target}`);
+async function runGame(target: string, numPlayers: number, numRounds: number, numAudience: number): Promise<void> {
+  printBanner(`STRESS TEST: ${numPlayers} players, ${numAudience} audience, ${numRounds} rounds, target ${target}`);
 
   const players: Player[] = [];
+  const audienceMembers: AudienceMember[] = [];
   let roomCode = "";
 
   // Phase 1: Connect all players
@@ -140,6 +172,23 @@ async function runGame(target: string, numPlayers: number, numRounds: number): P
     await sleep(200);
   }
 
+  // Connect audience members
+  if (numAudience > 0) {
+    printBanner(`PHASE 1b: Connecting ${numAudience} audience members`);
+    for (let i = 0; i < numAudience; i++) {
+      const name = `Audience${i + 1}`;
+      try {
+        const audience = await connectAudience(target, roomCode, name);
+        audienceMembers.push(audience);
+        console.log(`  [OK] ${name} joined room ${roomCode}`);
+      } catch (err) {
+        console.error(`  [FAIL] ${name}: ${(err as Error).message}`);
+        throw err;
+      }
+      await sleep(100);
+    }
+  }
+
   // Subscribe all players to state updates
   for (const p of players) {
     p.socket.on("room_joined", (state: PublicRoomState) => {
@@ -147,7 +196,23 @@ async function runGame(target: string, numPlayers: number, numRounds: number): P
     });
   }
 
-  console.log(`\n  All ${players.length} players connected to room ${roomCode}`);
+  // Subscribe audience to state updates
+  for (const a of audienceMembers) {
+    a.socket.on("audience_update", (state: AudienceRoomState) => {
+      a.state = state;
+    });
+    a.socket.on("vote_update", (voteCounts: { playerId: string; votes: number }[]) => {
+      if (a.state) a.state = { ...a.state, voteCounts };
+    });
+    a.socket.on("voting_started", (secondsRemaining: number) => {
+      if (a.state) a.state = { ...a.state, votingActive: true, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } };
+    });
+    a.socket.on("voting_ended", (_winnerId: string) => {
+      if (a.state) a.state = { ...a.state, votingActive: false };
+    });
+  }
+
+  console.log(`\n  All ${players.length} players and ${audienceMembers.length} audience connected to room ${roomCode}`);
 
   // Phase 2: Start game
   printBanner("PHASE 2: Starting game");
@@ -253,23 +318,48 @@ async function runGame(target: string, numPlayers: number, numRounds: number): P
       }
     }
 
-    // Wait for round-end — give extra time for all 20 state updates
+    // Wait for round-end
     console.log("\n  Waiting for round-end...");
     await sleep(1000);
     await waitForPhaseAll(players, "round-end");
     console.log("  Round-end phase reached");
 
-    // Executive picks a random winner
+    // If audience is present, use voting; otherwise direct pick
     const movies = players[0].state?.movies || [];
     if (movies.length > 0) {
-      const winnerMovie = movies[Math.floor(Math.random() * movies.length)];
-      const winnerName = players.find((p) => p.playerId === winnerMovie.playerId)?.name;
-      console.log(`\n  Executive selecting winner: ${winnerName}`);
+      if (audienceMembers.length > 0) {
+        // Executive starts voting
+        console.log(`\n  Executive starting audience voting...`);
+        executive?.socket.emit("start_voting");
+        await sleep(2000);
 
-      executive?.socket.emit("select_winner", winnerMovie.playerId);
+        // Audience members cast random votes
+        for (const audience of audienceMembers) {
+          const movie = movies[Math.floor(Math.random() * movies.length)];
+          audience.socket.emit("cast_vote", movie.playerId);
+        }
+        console.log(`  ${audienceMembers.length} audience members cast votes`);
 
-      // Wait for next round's setup phase or game-end
-      await sleep(2000);
+        // Executive also votes (2x weight)
+        const execMovie = movies[Math.floor(Math.random() * movies.length)];
+        executive?.socket.emit("cast_vote", execMovie.playerId);
+        console.log(`  Executive cast vote (2x weight)`);
+
+        await sleep(1000);
+
+        // Executive ends voting
+        console.log(`  Executive ending voting...`);
+        executive?.socket.emit("end_voting");
+
+        await sleep(2000);
+      } else {
+        // No audience — direct winner pick
+        const winnerMovie = movies[Math.floor(Math.random() * movies.length)];
+        const winnerName = players.find((p) => p.playerId === winnerMovie.playerId)?.name;
+        console.log(`\n  Executive selecting winner: ${winnerName}`);
+        executive?.socket.emit("select_winner", winnerMovie.playerId);
+        await sleep(2000);
+      }
 
       // Check if game ended
       const postWinState = players[0].state!;
@@ -287,16 +377,20 @@ async function runGame(target: string, numPlayers: number, numRounds: number): P
   }
 
   // Phase 4: Disconnect all
-  printBanner("PHASE 4: Disconnecting all players");
+  printBanner("PHASE 4: Disconnecting all players and audience");
   for (const p of players) {
     p.socket.disconnect();
     console.log(`  [OK] ${p.name} disconnected`);
+  }
+  for (const a of audienceMembers) {
+    a.socket.disconnect();
+    console.log(`  [OK] ${a.name} disconnected`);
   }
 
   printBanner("STRESS TEST PASSED");
 }
 
-runGame(TARGET, NUM_PLAYERS, NUM_ROUNDS).catch((err) => {
+runGame(TARGET, NUM_PLAYERS, NUM_ROUNDS, NUM_AUDIENCE).catch((err) => {
   console.error("\n!!! STRESS TEST FAILED !!!");
   console.error(err);
   process.exit(1);
