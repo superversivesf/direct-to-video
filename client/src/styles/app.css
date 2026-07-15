@@ -761,6 +761,17 @@ button:disabled {
   box-shadow: 0 4px 16px rgba(245,124,0,0.3) !important;
 }
 
+.audience-movie-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(22,33,62,0.4);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
 .btn-vote {
   background: #0f3460;
   color: white;
