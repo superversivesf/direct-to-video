@@ -1,6 +1,7 @@
 {
   "name": "direct-to-video",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "workspaces": ["shared", "server", "client", "stress"],
   "scripts": {
     "dev:server": "tsx watch server/src/index.ts",

@@ -45,6 +45,8 @@ function createEmptyRoom(code: string): Room {
     currentPitchIndex: 0,
     votes: {},
     votingActive: false,
+    roundWinnerId: null,
+    franchiseEnabled: true,
   };
 }
 

@@ -1,17 +1,52 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useAudience } from "../hooks/useRoom.js";
 import { Timer } from "../components/Timer.js";
 import { Scoreboard } from "../components/Scoreboard.js";
 import { MovieReveal } from "../components/MovieReveal.js";
+import type { AudienceRoomState } from "@direct-to-video/shared";
+
+function AudienceRoundWinner({ winnerId, state, onDismiss }: {
+  winnerId: string;
+  state: AudienceRoomState;
+  onDismiss: () => void;
+}) {
+  const winner = state.players.find((p) => p.id === winnerId);
+  const movie = state.movies.find((m) => m.playerId === winnerId);
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+  if (!winner) return null;
+  return (
+    <div className="round-winner-overlay" onClick={onDismiss}>
+      <div className="round-winner-banner">
+        <div className="round-winner-trophy">🏆</div>
+        <div className="round-winner-text">{winner.name} wins this round!</div>
+        {movie && (
+          <div className="round-winner-movie">
+            <MovieReveal movie={movie} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function Audience() {
   const { code } = useParams<{ code: string }>();
   const { audienceState, error, join, castVote } = useAudience();
+  const [showRoundWinner, setShowRoundWinner] = useState(false);
 
   useEffect(() => {
     if (code) join(code.toUpperCase());
   }, [code]);
+
+  useEffect(() => {
+    if (audienceState?.roundWinnerId && audienceState.phase !== "game-end") {
+      setShowRoundWinner(true);
+    }
+  }, [audienceState?.roundWinnerId]);
 
   if (error) {
     return (
@@ -33,6 +68,14 @@ export function Audience() {
 
   return (
     <div className="audience-view">
+      {showRoundWinner && state.roundWinnerId ? (
+        <AudienceRoundWinner
+          key={state.roundWinnerId + state.round.current}
+          winnerId={state.roundWinnerId}
+          state={state}
+          onDismiss={() => setShowRoundWinner(false)}
+        />
+      ) : null}
       <header className="audience-header">
         <h1>DIRECT TO VIDEO</h1>
         <div className="audience-meta">
@@ -66,14 +109,28 @@ export function Audience() {
         <div className="audience-pitching">
           <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} pausedForNote={state.timer.pausedForNote} />
           {pitcher && <h2 className="audience-pitcher-name">Now Pitching: {pitcher.name}</h2>}
-          {currentMovie && <MovieReveal movie={currentMovie} large={true} />}
+          {currentMovie && (
+            <MovieReveal
+              movie={currentMovie}
+              large={true}
+              blindFaceDown={!currentMovie.revealed}
+            />
+          )}
         </div>
       )}
 
       {state.phase === "round-end" && (
         <div className="audience-round-end">
           {state.votingActive ? (
-            <h2>Vote for the Best Movie!</h2>
+            <>
+              <h2>Vote for the Best Movie!</h2>
+              {state.timer.running && (
+                <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} />
+              )}
+              {!state.timer.running && (
+                <p className="audience-vote-hint">Cast your vote now — the Executive hasn't picked yet!</p>
+              )}
+            </>
           ) : (
             <h2>Executive is choosing the winner...</h2>
           )}

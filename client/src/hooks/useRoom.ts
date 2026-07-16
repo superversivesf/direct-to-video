@@ -58,7 +58,8 @@ export function useRoom() {
       setRoomState((prev) => prev ? { ...prev, currentPitcherId: playerId } : prev);
     });
 
-    socket.on("winner_selected", (_playerId: string, _noteCard: Card | null) => {
+    socket.on("winner_selected", (playerId: string, _noteCard: Card | null) => {
+      setRoomState((prev) => prev ? { ...prev, roundWinnerId: playerId } : prev);
     });
 
     socket.on("voting_started", (secondsRemaining: number) => {
@@ -127,6 +128,7 @@ export function useRoom() {
   const castVote = useCallback((playerId: string) => { socket.emit("cast_vote", playerId); }, []);
   const endVoting = useCallback(() => { socket.emit("end_voting"); }, []);
   const playAgain = useCallback(() => { socket.emit("play_again"); }, []);
+  const setFranchiseEnabled = useCallback((enabled: boolean) => { socket.emit("set_franchise_enabled", enabled); }, []);
 
   const leaveGame = useCallback(() => {
     socket.disconnect();
@@ -152,6 +154,7 @@ export function useRoom() {
     castVote,
     endVoting,
     playAgain,
+    setFranchiseEnabled,
     leaveGame,
   };
 }

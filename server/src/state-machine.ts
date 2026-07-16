@@ -24,13 +24,12 @@ function drawCards(deck: Card[], count: number, refillDeck?: Card[]): { drawn: C
 }
 
 function getWriterPlayers(room: Room): Player[] {
-  return room.players.filter((p) => p.id !== room.executiveId);
+  return room.players.filter((p) => p.id !== room.executiveId && !p.isDisconnected);
 }
 
 export function startGame(store: RoomStore, room: Room): void {
   if (room.players.length < 2) throw new Error("Need at least 2 players");
-  const isTwoPlayer = room.players.length === 2;
-  const filterFranchise = (cards: Card[]) => isTwoPlayer ? cards.filter(c => !c.isFranchise) : cards;
+  const filterFranchise = (cards: Card[]) => !room.franchiseEnabled ? cards.filter(c => !c.isFranchise) : cards;
   const plotDeck = filterFranchise(store.getCardsByType("plot"));
   const characterDeck = filterFranchise(store.getCardsByType("character"));
   const noteDeck = store.getCardsByType("note");
@@ -49,7 +48,7 @@ export function startGame(store: RoomStore, room: Room): void {
 }
 
 function getRefillDeck(store: RoomStore, type: CardType, room: Room): Card[] {
-  if (room.players.length === 2) {
+  if (!room.franchiseEnabled) {
     return store.getCardsByType(type).filter(c => !c.isFranchise);
   }
   return store.getCardsByType(type);
@@ -267,10 +266,21 @@ export function playNote(store: RoomStore, room: Room, noteCardId: string, pitch
   });
 }
 
-export function selectWinner(store: RoomStore, room: Room, playerId: string): void {
+export function selectWinner(store: RoomStore, room: Room, playerId: string, hasAudience: boolean = false): void {
   if (room.phase !== "round-end") throw new Error("Can only select winner during round-end");
   const movie = room.movies.find((m) => m.playerId === playerId);
   if (!movie) throw new Error("No movie found for player");
+
+  if (hasAudience && room.votingActive) {
+    const votes = { ...room.votes, [room.executiveId!]: playerId };
+    store.saveRoom({
+      ...room,
+      votes,
+      timer: createTimer(10),
+    });
+    return;
+  }
+
   const noteGiven = movie.notesPlayed.length > 0 ? movie.notesPlayed[movie.notesPlayed.length - 1] : null;
 
   let updated: Room = {
@@ -280,6 +290,7 @@ export function selectWinner(store: RoomStore, room: Room, playerId: string): vo
     ),
     votes: {},
     votingActive: false,
+    roundWinnerId: playerId,
   };
 
   if (!noteGiven && updated.deck.note.length > 0) {
@@ -343,14 +354,17 @@ export function endVoting(store: RoomStore, room: Room): string {
   const winnerId = tallyVotes(room);
   store.saveRoom({ ...room, votingActive: false, timer: createTimer(45) });
   if (winnerId) {
-    selectWinner(store, store.getRoom(room.code)!, winnerId);
+    selectWinner(store, store.getRoom(room.code)!, winnerId, false);
   }
   return winnerId;
 }
 
 export function nextRound(store: RoomStore, room: Room): void {
   const currentExecIndex = room.players.findIndex((p) => p.id === room.executiveId);
-  const nextExecIndex = (currentExecIndex + 1) % room.players.length;
+  let nextExecIndex = (currentExecIndex + 1) % room.players.length;
+  while (nextExecIndex !== currentExecIndex && room.players[nextExecIndex].isDisconnected) {
+    nextExecIndex = (nextExecIndex + 1) % room.players.length;
+  }
   const nextExecId = room.players[nextExecIndex].id;
   const updated: Room = {
     ...room,
@@ -396,5 +410,6 @@ export function playAgain(store: RoomStore, room: Room): void {
     currentPitchIndex: 0,
     votes: {},
     votingActive: false,
+    roundWinnerId: null,
   });
 }

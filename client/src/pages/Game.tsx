@@ -9,7 +9,7 @@ import { WriterControls } from "../components/WriterControls.js";
 import { ExecutiveControls } from "../components/ExecutiveControls.js";
 import { RoundSummary } from "../components/RoundSummary.js";
 import { PhaseIndicator } from "../components/PhaseIndicator.js";
-import type { DeckType } from "@direct-to-video/shared";
+import type { DeckType, PublicRoomState } from "@direct-to-video/shared";
 
 function Confetti() {
   const colors = ["#e94560", "#f57c00", "#ffc107", "#4caf50", "#0f3460", "#e0e0e0"];
@@ -39,12 +39,42 @@ function Confetti() {
   );
 }
 
+function RoundWinnerBanner({ winnerId, players, movies, onDismiss }: {
+  winnerId: string;
+  players: PublicRoomState["players"];
+  movies: PublicRoomState["movies"];
+  onDismiss: () => void;
+}) {
+  const winner = players.find((p) => p.id === winnerId);
+  const movie = movies.find((m) => m.playerId === winnerId);
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(timer);
+  }, [onDismiss]);
+  if (!winner) return null;
+  return (
+    <div className="round-winner-overlay" onClick={onDismiss}>
+      <div className="round-winner-banner">
+        <div className="round-winner-trophy">🏆</div>
+        <div className="round-winner-text">{winner.name} wins this round!</div>
+        {movie && (
+          <div className="round-winner-movie">
+            <MovieReveal movie={movie} />
+          </div>
+        )}
+        <div className="round-winner-hint">Click to continue</div>
+      </div>
+    </div>
+  );
+}
+
 export function Game() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const room = useRoom();
   const joinedRef = useRef(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showRoundWinner, setShowRoundWinner] = useState(false);
 
   useEffect(() => {
     const name = getCookie("playerName") || "";
@@ -67,6 +97,12 @@ export function Game() {
       }
     }
   }, [room.roomState, code, navigate]);
+
+  useEffect(() => {
+    if (room.roomState?.roundWinnerId && room.roomState.phase !== "game-end") {
+      setShowRoundWinner(true);
+    }
+  }, [room.roomState?.roundWinnerId]);
 
   function getCookie(key: string): string | undefined {
     const match = document.cookie.match(new RegExp(`(^| )${key}=([^;]+)`));
@@ -95,6 +131,16 @@ export function Game() {
   const isExecutive = state.myPlayerId === state.executiveId;
   const isHost = myPlayer?.isHost ?? false;
 
+  const roundWinnerOverlay = showRoundWinner && state.roundWinnerId ? (
+    <RoundWinnerBanner
+      key={state.roundWinnerId + state.round.current}
+      winnerId={state.roundWinnerId}
+      players={state.players}
+      movies={state.movies}
+      onDismiss={() => setShowRoundWinner(false)}
+    />
+  ) : null;
+
   if (room.error) {
     return (
       <div className="game-view">
@@ -110,7 +156,22 @@ export function Game() {
       <div className="game-view">
         <h1>Direct to Video — Room {state.code}</h1>
         <PlayerList players={state.players} />
-        {isHost && <button onClick={room.startGame}>Start Game</button>}
+        {isHost && (
+          <div className="lobby-options">
+            <label className="franchise-toggle">
+              <input
+                type="checkbox"
+                checked={state.franchiseEnabled}
+                onChange={(e) => room.setFranchiseEnabled(e.target.checked)}
+              />
+              Include FRANCHISE PITCH cards
+            </label>
+            <button onClick={room.startGame}>Start Game</button>
+          </div>
+        )}
+        {!isHost && (
+          <p className="lobby-waiting">Waiting for host to start the game{state.franchiseEnabled ? "" : " (franchise cards disabled)"}...</p>
+        )}
         <div className="share-link-section">
           <p>Share this link with your friends:</p>
           <div className="share-link-row">
@@ -129,6 +190,7 @@ export function Game() {
   if (state.phase === "setup" && !isExecutive && (!state.myHand || state.myHand.length === 0)) {
     return (
       <div className="game-view">
+        {roundWinnerOverlay}
         <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
         <h2>Round {state.round.current} of {state.round.total}</h2>
         <p>You are a Writer. Choose your deck:</p>
@@ -144,6 +206,7 @@ export function Game() {
     if (isExecutive) {
       return (
         <div className="game-view">
+          {roundWinnerOverlay}
           <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
           <h2>Round {state.round.current} of {state.round.total}</h2>
           <p>You are the Executive. Waiting for writers to prepare their movies...</p>
@@ -156,6 +219,7 @@ export function Game() {
     const hasDrawnBlind = state.myMovieReady;
     return (
       <div className="game-view">
+        {roundWinnerOverlay}
         <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
         <h2>Round {state.round.current} of {state.round.total}</h2>
         <WriterControls
@@ -206,31 +270,32 @@ export function Game() {
     );
   }
 
-  // ROUND END (Executive picks winner or audience voting)
+  // ROUND END (Executive picks winner, audience votes)
   if (state.phase === "round-end") {
+    const timerRunning = state.timer.running;
     return (
       <div className="game-view">
         <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
         <h2>Round {state.round.current} of {state.round.total}</h2>
-        {state.votingActive && (
+        {state.votingActive && timerRunning && (
           <>
             <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} />
-            <p>Audience voting in progress...</p>
+            <p>Audience voting in progress — the Executive's pick counts as 2x!</p>
           </>
+        )}
+        {state.votingActive && !timerRunning && (
+          <p>Audience is voting. Pick a movie to start the final countdown (your pick = 2x)!</p>
         )}
         <RoundSummary
           movies={state.movies}
           players={state.players}
-          isExecutive={isExecutive}
+          isExecutive={isExecutive && !timerRunning}
           onSelectWinner={room.selectWinner}
           votingActive={state.votingActive}
           voteCounts={state.voteCounts}
         />
-        {isExecutive && !state.votingActive && state.audienceCount > 0 && (
-          <button onClick={room.startVoting} className="btn-voting">Start Audience Voting</button>
-        )}
-        {isExecutive && state.votingActive && (
-          <button onClick={room.endVoting} className="btn-voting">End Voting</button>
+        {isExecutive && state.votingActive && timerRunning && (
+          <button onClick={room.endVoting} className="btn-voting">End Voting Now</button>
         )}
         <button onClick={handleLeave} className="btn-leave">Leave Game</button>
       </div>

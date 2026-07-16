@@ -111,11 +111,20 @@ function toPublicRoomState(room: Room, playerId: string | null): PublicRoomState
     voteCounts: computeVoteCounts(room),
     myVote: playerId ? room.votes[playerId] || null : null,
     audienceCount: countAudience(room.code),
+    roundWinnerId: room.roundWinnerId,
+    franchiseEnabled: room.franchiseEnabled,
   };
 }
 
 function toAudienceRoomState(room: Room, audienceSocketId?: string): AudienceRoomState {
   const hasVoted = audienceSocketId ? !!room.votes[audienceSocketId] : false;
+  const visibleMovies = room.movies.filter((m) => m.revealed);
+  if (room.currentPitcherId) {
+    const currentMovie = room.movies.find((m) => m.playerId === room.currentPitcherId && !m.revealed);
+    if (currentMovie && !visibleMovies.some((m) => m.playerId === currentMovie.playerId)) {
+      visibleMovies.push(currentMovie);
+    }
+  }
   return {
     code: room.code,
     phase: room.phase,
@@ -131,11 +140,13 @@ function toAudienceRoomState(room: Room, audienceSocketId?: string): AudienceRoo
     currentPitcherId: room.currentPitcherId,
     timer: room.timer,
     round: room.round,
-    movies: room.movies.filter((m) => m.revealed),
+    movies: visibleMovies,
     scoreboard: room.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score })),
     votingActive: room.votingActive,
     voteCounts: computeVoteCounts(room),
     hasVoted,
+    roundWinnerId: room.roundWinnerId,
+    franchiseEnabled: room.franchiseEnabled,
   };
 }
 
@@ -185,6 +196,38 @@ function computeVoteCounts(room: Room): { playerId: string; votes: number }[] {
     .map((m) => ({ playerId: m.playerId, votes: counts[m.playerId] || 0 }));
 }
 
+function checkAllAudienceVoted(room: Room): boolean {
+  let audienceCount = 0;
+  for (const info of audienceSockets.values()) {
+    if (info.roomCode === room.code) audienceCount++;
+  }
+  if (audienceCount === 0) return true;
+  let audienceVotes = 0;
+  for (const [voterId] of Object.entries(room.votes)) {
+    if (voterId === room.executiveId) continue;
+    const isPlayer = room.players.some((p) => p.id === voterId);
+    if (!isPlayer) audienceVotes++;
+  }
+  return audienceVotes >= audienceCount;
+}
+
+function emitWinnerSelected(io: Server, room: Room, winnerId: string): void {
+  const winnerNote = room.movies.find((m) => m.playerId === winnerId)?.notesPlayed.slice(-1)[0] || null;
+  const winnerPlayer = room.players.find((p) => p.id === winnerId);
+  io.to(`room:${room.code}`).emit("winner_selected", winnerId, winnerNote);
+  io.to(`audience:${room.code}`).emit("winner_selected", winnerId, winnerNote);
+  if (room.phase === "game-end") {
+    const scoreboard = room.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score }));
+    io.to(`room:${room.code}`).emit("game_ended", scoreboard);
+    io.to(`audience:${room.code}`).emit("game_ended", scoreboard);
+    logger.endGame(room.code, scoreboard);
+  } else if (room.phase === "setup") {
+    io.to(`room:${room.code}`).emit("round_started", room.round.current);
+    io.to(`audience:${room.code}`).emit("round_started", room.round.current);
+    logger.roundEnd(room.code, room.round.current, room.round.total, winnerPlayer?.name || "unknown");
+  }
+}
+
 export function setupSocketHandlers(io: Server, store: RoomStore): void {
   const timerInterval = setInterval(() => {
     for (const room of allRooms(store)) {
@@ -200,14 +243,8 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
             const winnerId = endVoting(store, updated);
             const postVote = store.getRoom(room.code)!;
             io.to(`room:${postVote.code}`).emit("voting_ended", winnerId);
-            if (postVote.phase === "game-end") {
-              const scoreboard = postVote.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score }));
-              io.to(`room:${postVote.code}`).emit("game_ended", scoreboard);
-              io.to(`audience:${postVote.code}`).emit("game_ended", scoreboard);
-              logger.endGame(postVote.code, scoreboard);
-            } else if (postVote.phase === "setup") {
-              io.to(`room:${postVote.code}`).emit("round_started", postVote.round.current);
-            }
+            io.to(`audience:${postVote.code}`).emit("voting_ended", winnerId);
+            emitWinnerSelected(io, postVote, winnerId);
             broadcastAllStates(io, postVote);
           } else if (room.currentPitcherId) {
             endPitch(store, store.getRoom(room.code)!, room.currentPitcherId);
@@ -315,6 +352,21 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         const updated = store.getRoom(ctx.room.code)!;
         logger.startGame(updated.code, updated.players.length);
         broadcastAllStates(io, updated);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
+    });
+
+    socket.on("set_franchise_enabled", (enabled: boolean) => {
+      if (!checkSocketEventRate(socket)) return;
+      const ctx = getPlayerContext(socket.id, store);
+      if (!ctx) return;
+      const player = ctx.room.players.find((p) => p.id === ctx.playerId);
+      if (!player?.isHost) return;
+      if (ctx.room.phase !== "lobby") return;
+      try {
+        store.saveRoom({ ...ctx.room, franchiseEnabled: !!enabled });
+        broadcastAllStates(io, store.getRoom(ctx.room.code)!);
       } catch (err) {
         socket.emit("error", (err as Error).message);
       }
@@ -440,12 +492,18 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       if (!isExecutive && !isCurrentPitcher) return;
       try {
         endPitch(store, ctx.room, ctx.room.currentPitcherId!);
-        const updated = store.getRoom(ctx.room.code)!;
+        let updated = store.getRoom(ctx.room.code)!;
         io.to(`room:${updated.code}`).emit("pitch_ended", ctx.room.currentPitcherId!);
         io.to(`audience:${updated.code}`).emit("pitch_ended", ctx.room.currentPitcherId!);
         if (updated.currentPitcherId) {
           io.to(`room:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
           io.to(`audience:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
+        }
+        if (updated.phase === "round-end" && countAudience(updated.code) > 0) {
+          updated = { ...updated, votingActive: true, votes: {} };
+          store.saveRoom(updated);
+          io.to(`room:${updated.code}`).emit("voting_started", 0);
+          io.to(`audience:${updated.code}`).emit("voting_started", 0);
         }
         broadcastAllStates(io, updated);
       } catch (err) {
@@ -459,22 +517,28 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.executiveId) return;
       try {
-        selectWinner(store, ctx.room, playerId);
+        const hasAudience = countAudience(ctx.room.code) > 0;
+        selectWinner(store, ctx.room, playerId, hasAudience);
         const updated = store.getRoom(ctx.room.code)!;
-        const winnerNote = updated.movies.find((m) => m.playerId === playerId)?.notesPlayed.slice(-1)[0] || null;
-        const winnerPlayer = updated.players.find((p) => p.id === playerId);
-        io.to(`room:${updated.code}`).emit("winner_selected", playerId, winnerNote);
-        io.to(`audience:${updated.code}`).emit("winner_selected", playerId, winnerNote);
-        if (updated.phase === "game-end") {
-          const scoreboard = updated.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score }));
-          io.to(`room:${updated.code}`).emit("game_ended", scoreboard);
-          io.to(`audience:${updated.code}`).emit("game_ended", scoreboard);
-          logger.endGame(updated.code, scoreboard);
-        } else if (updated.phase === "setup" && updated.round.current > ctx.room.round.current) {
-          io.to(`room:${updated.code}`).emit("round_started", updated.round.current);
-          io.to(`audience:${updated.code}`).emit("round_started", updated.round.current);
-          logger.roundEnd(updated.code, updated.round.current, updated.round.total, winnerPlayer?.name || "unknown");
+
+        if (updated.votingActive && updated.timer.secondsRemaining === 10) {
+          const allAudienceVoted = checkAllAudienceVoted(updated);
+          if (allAudienceVoted) {
+            const winnerId = endVoting(store, updated);
+            const postVote = store.getRoom(updated.code)!;
+            emitWinnerSelected(io, postVote, winnerId);
+            broadcastAllStates(io, postVote);
+            return;
+          }
+          const started = startTimer(updated.timer);
+          store.saveRoom({ ...updated, timer: started });
+          io.to(`room:${updated.code}`).emit("voting_started", started.secondsRemaining);
+          io.to(`audience:${updated.code}`).emit("voting_started", started.secondsRemaining);
+          broadcastAllStates(io, store.getRoom(updated.code)!);
+          return;
         }
+
+        emitWinnerSelected(io, updated, playerId);
         broadcastAllStates(io, updated);
       } catch (err) {
         socket.emit("error", (err as Error).message);
@@ -512,7 +576,17 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         const voteCounts = computeVoteCounts(updated);
         io.to(`room:${updated.code}`).emit("vote_update", voteCounts);
         io.to(`audience:${updated.code}`).emit("vote_update", voteCounts);
-        broadcastAllStates(io, updated);
+
+        if (checkAllAudienceVoted(updated) && updated.votes[updated.executiveId || ""]) {
+          const winnerId = endVoting(store, updated);
+          const postVote = store.getRoom(updated.code)!;
+          io.to(`room:${postVote.code}`).emit("voting_ended", winnerId);
+          io.to(`audience:${postVote.code}`).emit("voting_ended", winnerId);
+          emitWinnerSelected(io, postVote, winnerId);
+          broadcastAllStates(io, postVote);
+        } else {
+          broadcastAllStates(io, updated);
+        }
       } catch (err) {
         socket.emit("error", (err as Error).message);
       }
@@ -528,20 +602,9 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         const winnerId = endVoting(store, ctx.room);
         const updated = store.getRoom(ctx.room.code)!;
         io.to(`room:${updated.code}`).emit("voting_ended", winnerId);
-        const winnerNote = updated.movies.find((m) => m.playerId === winnerId)?.notesPlayed.slice(-1)[0] || null;
-        const winnerPlayer = updated.players.find((p) => p.id === winnerId);
-        io.to(`room:${updated.code}`).emit("winner_selected", winnerId, winnerNote);
-        io.to(`audience:${updated.code}`).emit("winner_selected", winnerId, winnerNote);
-        if (updated.phase === "game-end") {
-          const scoreboard = updated.players.map((p) => ({ playerId: p.id, name: p.name, score: p.score }));
-          io.to(`room:${updated.code}`).emit("game_ended", scoreboard);
-          io.to(`audience:${updated.code}`).emit("game_ended", scoreboard);
-          logger.endGame(updated.code, scoreboard);
-        } else if (updated.phase === "setup" && updated.round.current > ctx.room.round.current) {
-          io.to(`room:${updated.code}`).emit("round_started", updated.round.current);
-          io.to(`audience:${updated.code}`).emit("round_started", updated.round.current);
-          logger.roundEnd(updated.code, updated.round.current, updated.round.total, winnerPlayer?.name || "unknown");
-        }
+        io.to(`audience:${updated.code}`).emit("voting_ended", winnerId);
+        emitWinnerSelected(io, updated, winnerId);
+        broadcastAllStates(io, updated);
         broadcastAllStates(io, updated);
       } catch (err) {
         socket.emit("error", (err as Error).message);

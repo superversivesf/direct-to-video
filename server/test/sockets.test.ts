@@ -5,7 +5,7 @@ import { createServer } from "http";
 import { initDb, seedCards } from "../src/db.js";
 import { RoomStore } from "../src/rooms.js";
 import { setupSocketHandlers, resetRateLimits } from "../src/sockets.js";
-import { startGame, selectDeckType, selectCard, startPitching, revealMovie, endPitch, startVoting } from "../src/state-machine.js";
+import { startGame, selectDeckType, selectCard, startPitching, revealMovie, endPitch, startVoting, selectWinner } from "../src/state-machine.js";
 import { startTimer, pauseForNote } from "../src/timer.js";
 import type { Database } from "better-sqlite3";
 import type { PublicRoomState, AudienceRoomState } from "@direct-to-video/shared";
@@ -428,5 +428,166 @@ describe("sockets", () => {
       const remainingSockets = sockets.filter((s) => s !== pitcherSocket);
       remainingSockets.forEach((s) => s.disconnect());
     });
+  });
+
+  describe("4-player round 2 soft-lock", () => {
+    it("does not soft-lock when writer selects card before all writers draw in round 2", async () => {
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
+
+      for (let i = 0; i < 4; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
+      }
+
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
+      }
+
+      let room = store.getRoom(roomCode)!;
+      startGame(store, room);
+
+      const execId = store.getRoom(roomCode)!.executiveId!;
+      const writerSockets = sockets.filter((s) => states.get(s)!.myPlayerId !== execId);
+
+      for (const ws of writerSockets) {
+        const writerId = states.get(ws)!.myPlayerId!;
+        room = store.getRoom(roomCode)!;
+        selectDeckType(store, room, writerId, "plot");
+        room = store.getRoom(roomCode)!;
+        const writer = room.players.find((p) => p.id === writerId)!;
+        selectCard(store, room, writerId, writer.hand[0].id);
+      }
+
+      room = store.getRoom(roomCode)!;
+      expect(room.phase).toBe("pitching");
+
+      for (const pitcherId of room.pitchOrder) {
+        revealMovie(store, store.getRoom(roomCode)!, pitcherId);
+        endPitch(store, store.getRoom(roomCode)!, pitcherId);
+      }
+
+      room = store.getRoom(roomCode)!;
+      selectWinner(store, room, room.movies[0].playerId);
+      room = store.getRoom(roomCode)!;
+      expect(room.round.current).toBe(2);
+
+      const r2ExecId = room.executiveId!;
+      const r2WriterSockets = sockets.filter((s) => states.get(s)!.myPlayerId !== r2ExecId);
+      const r2WriterIds = r2WriterSockets.map((s) => states.get(s)!.myPlayerId!);
+
+      const w0 = r2WriterSockets[0];
+      const w0Id = r2WriterIds[0];
+
+      const w0StatePromise = waitForEvent<PublicRoomState>(w0, "room_joined");
+      w0.emit("select_deck_type", "plot");
+      await w0StatePromise;
+      await new Promise((r) => setTimeout(r, 300));
+      const w0Hand = store.getRoom(roomCode)!.players.find((p) => p.id === w0Id)!.hand;
+      const w0CardId = w0Hand[0].id;
+
+      const w0CardPromise = waitForEvent<PublicRoomState>(w0, "room_joined");
+      w0.emit("select_card", w0CardId);
+      await w0CardPromise;
+      await new Promise((r) => setTimeout(r, 300));
+
+      for (let i = 1; i < r2WriterSockets.length; i++) {
+        const ws = r2WriterSockets[i];
+        const writerId = r2WriterIds[i];
+
+        const drawPromise = waitForEvent<PublicRoomState>(ws, "room_joined");
+        ws.emit("select_deck_type", "plot");
+        await drawPromise;
+        await new Promise((r) => setTimeout(r, 300));
+
+        const hand = store.getRoom(roomCode)!.players.find((p) => p.id === writerId)!.hand;
+        const cardPromise = waitForEvent<PublicRoomState>(ws, "room_joined");
+        ws.emit("select_card", hand[0].id);
+        await cardPromise;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      await new Promise((r) => setTimeout(r, 500));
+      const finalRoom = store.getRoom(roomCode)!;
+      expect(finalRoom.phase).toBe("pitching");
+
+      sockets.forEach((s) => s.disconnect());
+    }, 30000);
+
+    it("does not soft-lock when writer selects card via socket before others draw", async () => {
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
+
+      for (let i = 0; i < 3; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
+      }
+
+      const stateReceived = new Map<ClientSocket, Promise<PublicRoomState>>();
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
+        socket.on("error", (msg: string) => {
+          console.error(`Socket error for ${states.get(socket)?.myPlayerId}: ${msg}`);
+        });
+      }
+
+      const room = store.getRoom(roomCode)!;
+      startGame(store, room);
+
+      await new Promise((r) => setTimeout(r, 500));
+
+      const execId = store.getRoom(roomCode)!.executiveId!;
+      const writerSockets = sockets.filter((s) => states.get(s)!.myPlayerId !== execId);
+      const writerIds = writerSockets.map((s) => states.get(s)!.myPlayerId!);
+
+      const w0 = writerSockets[0];
+      const w0Id = writerIds[0];
+
+      const w0Draw = waitForEvent<PublicRoomState>(w0, "room_joined");
+      w0.emit("select_deck_type", "plot");
+      await w0Draw;
+      await new Promise((r) => setTimeout(r, 300));
+
+      let w0Hand = store.getRoom(roomCode)!.players.find((p) => p.id === w0Id)!.hand;
+      expect(w0Hand.length).toBe(3);
+
+      const w0Card = waitForEvent<PublicRoomState>(w0, "room_joined");
+      w0.emit("select_card", w0Hand[0].id);
+      await w0Card;
+      await new Promise((r) => setTimeout(r, 300));
+
+      for (let i = 1; i < writerSockets.length; i++) {
+        const ws = writerSockets[i];
+        const writerId = writerIds[i];
+
+        const draw = waitForEvent<PublicRoomState>(ws, "room_joined");
+        ws.emit("select_deck_type", "character");
+        await draw;
+        await new Promise((r) => setTimeout(r, 300));
+
+        const hand = store.getRoom(roomCode)!.players.find((p) => p.id === writerId)!.hand;
+        expect(hand.length).toBe(3);
+        const card = waitForEvent<PublicRoomState>(ws, "room_joined");
+        ws.emit("select_card", hand[0].id);
+        await card;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      await new Promise((r) => setTimeout(r, 500));
+      const finalRoom = store.getRoom(roomCode)!;
+      expect(finalRoom.phase).toBe("pitching");
+
+      sockets.forEach((s) => s.disconnect());
+    }, 30000);
   });
 });

@@ -794,4 +794,121 @@ describe("state machine", () => {
       expect(after.currentPitcherId).toBe(updated.pitchOrder[1]);
     });
   });
+
+  describe("writer selects card before all writers have drawn", () => {
+    it("transitions to pitching when all writers have movies even if one selected during setup", () => {
+      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie", "Dave"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      expect(updated.phase).toBe("setup");
+
+      const execId = updated.executiveId!;
+      const writerIds = playerIds.filter((id) => id !== execId);
+
+      const writer1 = writerIds[0];
+      const writer2 = writerIds[1];
+      const writer3 = writerIds[2];
+
+      selectDeckType(store, updated, writer1, "plot");
+      updated = store.getRoom(room.code)!;
+
+      const writer1Hand = updated.players.find((p) => p.id === writer1)!;
+      const cardId = writer1Hand.hand[0].id;
+      selectCard(store, updated, writer1, cardId);
+      updated = store.getRoom(room.code)!;
+
+      expect(updated.movies.find((m) => m.playerId === writer1)).toBeDefined();
+      expect(updated.players.find((p) => p.id === writer1)!.hand).toHaveLength(2);
+      expect(updated.phase).toBe("setup");
+
+      selectDeckType(store, updated, writer2, "plot");
+      updated = store.getRoom(room.code)!;
+
+      expect(updated.phase).toBe("setup");
+
+      const writer2Hand = updated.players.find((p) => p.id === writer2)!;
+      selectCard(store, updated, writer2, writer2Hand.hand[0].id);
+      updated = store.getRoom(room.code)!;
+
+      selectDeckType(store, updated, writer3, "plot");
+      updated = store.getRoom(room.code)!;
+
+      const writer3Hand = updated.players.find((p) => p.id === writer3)!;
+      selectCard(store, updated, writer3, writer3Hand.hand[0].id);
+      updated = store.getRoom(room.code)!;
+
+      expect(updated.phase).toBe("pitching");
+    });
+
+    it("game does not soft-lock when a writer disconnects — disconnected writers skipped", () => {
+      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie", "Dave"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+
+      const execId = updated.executiveId!;
+      const writerIds = playerIds.filter((id) => id !== execId);
+
+      for (const writerId of writerIds) {
+        updated = store.getRoom(room.code)!;
+        selectDeckType(store, updated, writerId, "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
+      }
+
+      updated = store.getRoom(room.code)!;
+      for (const pitcherId of updated.pitchOrder) {
+        revealMovie(store, store.getRoom(room.code)!, pitcherId);
+        endPitch(store, store.getRoom(room.code)!, pitcherId);
+      }
+
+      updated = store.getRoom(room.code)!;
+      selectWinner(store, updated, updated.movies[0].playerId);
+      updated = store.getRoom(room.code)!;
+      expect(updated.round.current).toBe(2);
+
+      const disconnectedWriter = playerIds.find((id) => id !== updated.executiveId && id !== playerIds[0])!;
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === disconnectedWriter ? { ...p, isDisconnected: true } : p
+        ),
+      };
+      store.saveRoom(updated);
+
+      const round2Writers = playerIds.filter((id) => id !== updated.executiveId);
+      const connectedWriters = round2Writers.filter((id) => id !== disconnectedWriter);
+
+      for (const writerId of connectedWriters) {
+        updated = store.getRoom(room.code)!;
+        selectDeckType(store, updated, writerId, "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
+      }
+
+      updated = store.getRoom(room.code)!;
+      expect(updated.phase).toBe("pitching");
+    });
+
+    it("nextRound skips disconnected player when rotating executive", () => {
+      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      expect(updated.executiveId).toBe(playerIds[0]);
+
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === playerIds[1] ? { ...p, isDisconnected: true } : p
+        ),
+      };
+      store.saveRoom(updated);
+
+      nextRound(store, updated);
+      updated = store.getRoom(room.code)!;
+      expect(updated.executiveId).toBe(playerIds[2]);
+      expect(updated.players.find((p) => p.id === playerIds[2])!.isExecutive).toBe(true);
+    });
+  });
 });

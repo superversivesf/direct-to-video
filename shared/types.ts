@@ -1,4 +1,4 @@
-export const VERSION = "1.1.0";
+export const VERSION = "1.2.1";
 
 export type Phase = "lobby" | "setup" | "card-selection" | "pitching" | "round-end" | "game-end";
 
@@ -73,6 +73,8 @@ export interface Room {
   currentPitchIndex: number;
   votes: Record<string, string>;
   votingActive: boolean;
+  roundWinnerId: string | null;
+  franchiseEnabled: boolean;
 }
 
 export interface PublicPlayer {
@@ -104,6 +106,8 @@ export interface PublicRoomState {
   voteCounts: { playerId: string; votes: number }[];
   myVote: string | null;
   audienceCount: number;
+  roundWinnerId: string | null;
+  franchiseEnabled: boolean;
 }
 
 export interface AudienceRoomState {
@@ -119,6 +123,8 @@ export interface AudienceRoomState {
   votingActive: boolean;
   voteCounts: { playerId: string; votes: number }[];
   hasVoted: boolean;
+  roundWinnerId: string | null;
+  franchiseEnabled: boolean;
 }
 
 export interface ClientToServerEvents {
@@ -132,6 +138,7 @@ export interface ClientToServerEvents {
   end_pitch: () => void;
   select_winner: (playerId: string) => void;
   start_game: () => void;
+  set_franchise_enabled: (enabled: boolean) => void;
   play_again: () => void;
   join_audience: (code: string) => void;
   start_voting: () => void;
