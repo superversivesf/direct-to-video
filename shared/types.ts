@@ -1,4 +1,4 @@
-export const VERSION = "1.2.2";
+export const VERSION = "2.0.0";
 
 export type Phase = "lobby" | "setup" | "card-selection" | "pitching" | "round-end" | "game-end";
 
@@ -27,7 +27,7 @@ export interface Player {
   id: string;
   name: string;
   socketId: string | null;
-  isExecutive: boolean;
+  isNoteGiver: boolean;
   isHost: boolean;
   score: number;
   hand: Card[];
@@ -55,20 +55,22 @@ export interface Room {
   code: string;
   phase: Phase;
   players: Player[];
-  executiveId: string | null;
+  noteGiverId: string | null;
   currentPitcherId: string | null;
   deck: {
     plot: Card[];
     character: Card[];
     note: Card[];
   };
-  executiveNotes: Card[];
+  noteGiverNotes: Card[];
   movies: Movie[];
   timer: TimerState;
   round: {
     current: number;
-    total: number;
   };
+  totalRounds: number;
+  noteGiverOrder: string[];
+  noteGiverIndex: number;
   pitchOrder: string[];
   currentPitchIndex: number;
   votes: Record<string, string>;
@@ -80,7 +82,7 @@ export interface Room {
 export interface PublicPlayer {
   id: string;
   name: string;
-  isExecutive: boolean;
+  isNoteGiver: boolean;
   isHost: boolean;
   score: number;
   isDisconnected: boolean;
@@ -90,10 +92,11 @@ export interface PublicRoomState {
   code: string;
   phase: Phase;
   players: PublicPlayer[];
-  executiveId: string | null;
+  noteGiverId: string | null;
   currentPitcherId: string | null;
   timer: TimerState;
-  round: { current: number; total: number };
+  round: { current: number };
+  totalRounds: number;
   movies: Movie[];
   myPlayerId: string | null;
   myHand: Card[] | null;
@@ -101,7 +104,7 @@ export interface PublicRoomState {
   myMovieReady: boolean;
   myMovieRevealed: boolean;
   myBlindCard: Card | null;
-  myExecutiveNotes: Card[] | null;
+  myNoteGiverNotes: Card[] | null;
   votingActive: boolean;
   voteCounts: { playerId: string; votes: number }[];
   myVote: string | null;
@@ -114,10 +117,11 @@ export interface AudienceRoomState {
   code: string;
   phase: Phase;
   players: PublicPlayer[];
-  executiveId: string | null;
+  noteGiverId: string | null;
   currentPitcherId: string | null;
   timer: TimerState;
-  round: { current: number; total: number };
+  round: { current: number };
+  totalRounds: number;
   movies: Movie[];
   scoreboard: { playerId: string; name: string; score: number }[];
   votingActive: boolean;
@@ -136,14 +140,13 @@ export interface ClientToServerEvents {
   pause_timer: () => void;
   play_note: (noteCardId: string) => void;
   end_pitch: () => void;
-  select_winner: (playerId: string) => void;
   start_game: () => void;
   set_franchise_enabled: (enabled: boolean) => void;
+  set_total_rounds: (rounds: number) => void;
+  kick_player: (playerId: string) => void;
   play_again: () => void;
   join_audience: (code: string) => void;
-  start_voting: () => void;
   cast_vote: (playerId: string) => void;
-  end_voting: () => void;
 }
 
 export interface ServerToClientEvents {
@@ -157,7 +160,6 @@ export interface ServerToClientEvents {
   note_played: (noteCard: Card, playerId: string) => void;
   pitch_ended: (playerId: string) => void;
   next_pitcher: (playerId: string) => void;
-  winner_selected: (playerId: string, noteCard: Card | null) => void;
   round_started: (roundNumber: number) => void;
   game_ended: (scoreboard: { playerId: string; name: string; score: number }[]) => void;
   error: (message: string) => void;
@@ -165,5 +167,6 @@ export interface ServerToClientEvents {
   audience_update: (state: AudienceRoomState) => void;
   voting_started: (secondsRemaining: number) => void;
   vote_update: (voteCounts: { playerId: string; votes: number }[]) => void;
-  voting_ended: (winnerId: string) => void;
+  voting_ended: (roundWinnerId: string) => void;
+  kicked: () => void;
 }
