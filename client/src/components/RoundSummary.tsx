@@ -9,12 +9,13 @@ interface RoundSummaryProps {
   onSelectWinner: (playerId: string) => void;
   votingActive?: boolean;
   voteCounts?: { playerId: string; votes: number }[];
+  canPick?: boolean;
 }
 
-export function RoundSummary({ movies, players, isExecutive, onSelectWinner, votingActive, voteCounts }: RoundSummaryProps) {
+export function RoundSummary({ movies, players, isExecutive, onSelectWinner, votingActive, voteCounts, canPick = true }: RoundSummaryProps) {
   return (
     <div className="round-summary">
-      {isExecutive && !votingActive ? (
+      {isExecutive && canPick ? (
         <h2>Select the Best Movie!</h2>
       ) : votingActive ? (
         <h2>Voting in Progress</h2>
@@ -32,7 +33,7 @@ export function RoundSummary({ movies, players, isExecutive, onSelectWinner, vot
             {votingActive && voteCount > 0 && (
               <div className="vote-tally">{voteCount} vote{voteCount > 1 ? "s" : ""}</div>
             )}
-            {isExecutive && !votingActive && (
+            {isExecutive && canPick && (
               <button onClick={() => onSelectWinner(movie.playerId)}>
                 Pick This Movie
               </button>

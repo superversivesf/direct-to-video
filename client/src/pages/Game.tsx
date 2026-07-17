@@ -289,10 +289,11 @@ export function Game() {
         <RoundSummary
           movies={state.movies}
           players={state.players}
-          isExecutive={isExecutive && !timerRunning}
+          isExecutive={isExecutive}
           onSelectWinner={room.selectWinner}
           votingActive={state.votingActive}
           voteCounts={state.voteCounts}
+          canPick={isExecutive && !timerRunning}
         />
         {isExecutive && state.votingActive && timerRunning && (
           <button onClick={room.endVoting} className="btn-voting">End Voting Now</button>
