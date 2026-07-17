@@ -58,10 +58,6 @@ export function useRoom() {
       setRoomState((prev) => prev ? { ...prev, currentPitcherId: playerId } : prev);
     });
 
-    socket.on("winner_selected", (playerId: string, _noteCard: Card | null) => {
-      setRoomState((prev) => prev ? { ...prev, roundWinnerId: playerId } : prev);
-    });
-
     socket.on("voting_started", (secondsRemaining: number) => {
       setRoomState((prev) => prev ? { ...prev, votingActive: true, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } } : prev);
     });
@@ -70,8 +66,8 @@ export function useRoom() {
       setRoomState((prev) => prev ? { ...prev, voteCounts } : prev);
     });
 
-    socket.on("voting_ended", (winnerId: string) => {
-      setRoomState((prev) => prev ? { ...prev, votingActive: false } : prev);
+    socket.on("voting_ended", (roundWinnerId: string | null) => {
+      setRoomState((prev) => prev ? { ...prev, votingActive: false, roundWinnerId } : prev);
     });
 
     socket.on("round_started", (roundNumber: number) => {
@@ -86,6 +82,10 @@ export function useRoom() {
       setError(msg);
     });
 
+    socket.on("kicked", () => {
+      setError("You have been removed from the room");
+    });
+
     return () => {
       socket.off("room_joined");
       socket.off("player_list_updated");
@@ -97,13 +97,13 @@ export function useRoom() {
       socket.off("note_played");
       socket.off("pitch_ended");
       socket.off("next_pitcher");
-      socket.off("winner_selected");
       socket.off("voting_started");
       socket.off("vote_update");
       socket.off("voting_ended");
       socket.off("round_started");
       socket.off("game_ended");
       socket.off("error");
+      socket.off("kicked");
     };
   }, []);
 
@@ -123,12 +123,11 @@ export function useRoom() {
   const pauseTimer = useCallback(() => { socket.emit("pause_timer"); }, []);
   const playNote = useCallback((noteCardId: string) => { socket.emit("play_note", noteCardId); }, []);
   const endPitch = useCallback(() => { socket.emit("end_pitch"); }, []);
-  const selectWinner = useCallback((playerId: string) => { socket.emit("select_winner", playerId); }, []);
-  const startVoting = useCallback(() => { socket.emit("start_voting"); }, []);
   const castVote = useCallback((playerId: string) => { socket.emit("cast_vote", playerId); }, []);
-  const endVoting = useCallback(() => { socket.emit("end_voting"); }, []);
   const playAgain = useCallback(() => { socket.emit("play_again"); }, []);
   const setFranchiseEnabled = useCallback((enabled: boolean) => { socket.emit("set_franchise_enabled", enabled); }, []);
+  const setTotalRounds = useCallback((rounds: number) => { socket.emit("set_total_rounds", rounds); }, []);
+  const kickPlayer = useCallback((playerId: string) => { socket.emit("kick_player", playerId); }, []);
 
   const leaveGame = useCallback(() => {
     socket.disconnect();
@@ -149,12 +148,11 @@ export function useRoom() {
     pauseTimer,
     playNote,
     endPitch,
-    selectWinner,
-    startVoting,
     castVote,
-    endVoting,
     playAgain,
     setFranchiseEnabled,
+    setTotalRounds,
+    kickPlayer,
     leaveGame,
   };
 }
@@ -220,8 +218,8 @@ export function useAudience() {
       setAudienceState((prev) => prev ? { ...prev, voteCounts } : prev);
     });
 
-    socket.on("voting_ended", (_winnerId: string) => {
-      setAudienceState((prev) => prev ? { ...prev, votingActive: false } : prev);
+    socket.on("voting_ended", (roundWinnerId: string | null) => {
+      setAudienceState((prev) => prev ? { ...prev, votingActive: false, roundWinnerId } : prev);
     });
 
     socket.on("game_ended", () => {
