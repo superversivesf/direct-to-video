@@ -40,7 +40,7 @@ describe("MovieReveal", () => {
 
   it("shows notes section when notes have been played", () => {
     render(<MovieReveal movie={movieWithNotes} />);
-    expect(screen.getByText(/notes from executive/i)).toBeTruthy();
+    expect(screen.getByText(/notes from note giver/i)).toBeTruthy();
     expect(screen.getByText("Add a musical number")).toBeTruthy();
   });
 

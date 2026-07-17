@@ -2,16 +2,16 @@ import type { Phase } from "@direct-to-video/shared";
 
 interface PhaseIndicatorProps {
   phase: Phase;
-  isExecutive: boolean;
+  isNoteGiver: boolean;
 }
 
-export function PhaseIndicator({ phase, isExecutive }: PhaseIndicatorProps) {
-  const steps = isExecutive
+export function PhaseIndicator({ phase, isNoteGiver }: PhaseIndicatorProps) {
+  const steps = isNoteGiver
     ? [
         { key: "setup", label: "Setup" },
         { key: "card-selection", label: "Writers Prep" },
         { key: "pitching", label: "Pitching" },
-        { key: "round-end", label: "Pick Winner" },
+        { key: "round-end", label: "Voting" },
       ]
     : [
         { key: "setup", label: "Choose Deck" },

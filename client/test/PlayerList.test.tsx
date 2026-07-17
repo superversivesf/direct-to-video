@@ -4,9 +4,9 @@ import { PlayerList } from "../src/components/PlayerList.js";
 import type { PublicPlayer } from "@direct-to-video/shared";
 
 const players: PublicPlayer[] = [
-  { id: "1", name: "Jason", isExecutive: true, isHost: true, score: 0, isDisconnected: false },
-  { id: "2", name: "Sarah", isExecutive: false, isHost: false, score: 0, isDisconnected: false },
-  { id: "3", name: "Mike", isExecutive: false, isHost: false, score: 0, isDisconnected: true },
+  { id: "1", name: "Jason", isNoteGiver: true, isHost: true, score: 0, isDisconnected: false },
+  { id: "2", name: "Sarah", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false },
+  { id: "3", name: "Mike", isNoteGiver: false, isHost: false, score: 0, isDisconnected: true },
 ];
 
 describe("PlayerList", () => {
@@ -22,10 +22,10 @@ describe("PlayerList", () => {
     expect(screen.getByText("Players")).toBeTruthy();
   });
 
-  it("shows executive icon for executive player", () => {
+  it("shows note-giver icon for note-giver player", () => {
     render(<PlayerList players={players} />);
     const execPlayer = screen.getByText(/Jason/).closest("li");
-    expect(execPlayer!.textContent).toContain("🎬");
+    expect(execPlayer!.textContent).toContain("📝");
   });
 
   it("shows host icon for host player", () => {

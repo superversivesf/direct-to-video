@@ -4,9 +4,9 @@ import { Scoreboard } from "../src/components/Scoreboard.js";
 import type { PublicPlayer } from "@direct-to-video/shared";
 
 const players: PublicPlayer[] = [
-  { id: "1", name: "Jason", isExecutive: false, isHost: true, score: 3, isDisconnected: false },
-  { id: "2", name: "Sarah", isExecutive: false, isHost: false, score: 5, isDisconnected: false },
-  { id: "3", name: "Mike", isExecutive: false, isHost: false, score: 1, isDisconnected: false },
+  { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 3, isDisconnected: false },
+  { id: "2", name: "Sarah", isNoteGiver: false, isHost: false, score: 5, isDisconnected: false },
+  { id: "3", name: "Mike", isNoteGiver: false, isHost: false, score: 1, isDisconnected: false },
 ];
 
 describe("Scoreboard", () => {

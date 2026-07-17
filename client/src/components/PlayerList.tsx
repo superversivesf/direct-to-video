@@ -11,7 +11,7 @@ export function PlayerList({ players }: PlayerListProps) {
       <ul>
         {players.map((p) => (
           <li key={p.id} className={p.isDisconnected ? "player-disconnected" : ""}>
-            {p.isExecutive && "🎬 "}
+            {p.isNoteGiver && "📝 "}
             {p.isHost && "👑 "}
             {p.name}
             {p.isDisconnected && " (disconnected)"}

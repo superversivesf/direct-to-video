@@ -29,7 +29,7 @@ export function MovieReveal({ movie, large = false, blindFaceDown = false }: Mov
       </div>
       {movie.notesPlayed.length > 0 && (
         <div className="movie-notes">
-          <h4>Notes from Executive:</h4>
+          <h4>Notes from Note Giver:</h4>
           {movie.notesPlayed.map((note) => (
             <Card key={note.id} card={note} />
           ))}

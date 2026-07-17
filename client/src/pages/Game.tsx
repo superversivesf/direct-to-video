@@ -6,8 +6,7 @@ import { Timer } from "../components/Timer.js";
 import { Scoreboard } from "../components/Scoreboard.js";
 import { MovieReveal } from "../components/MovieReveal.js";
 import { WriterControls } from "../components/WriterControls.js";
-import { ExecutiveControls } from "../components/ExecutiveControls.js";
-import { RoundSummary } from "../components/RoundSummary.js";
+import { NoteGiverControls } from "../components/NoteGiverControls.js";
 import { PhaseIndicator } from "../components/PhaseIndicator.js";
 import type { DeckType, PublicRoomState } from "@direct-to-video/shared";
 
@@ -128,7 +127,7 @@ export function Game() {
 
   const state = room.roomState;
   const myPlayer = state.players.find((p) => p.id === state.myPlayerId);
-  const isExecutive = state.myPlayerId === state.executiveId;
+  const isNoteGiver = state.myPlayerId === state.noteGiverId;
   const isHost = myPlayer?.isHost ?? false;
 
   const roundWinnerOverlay = showRoundWinner && state.roundWinnerId ? (
@@ -142,10 +141,15 @@ export function Game() {
   ) : null;
 
   if (room.error) {
+    const isKicked = room.error === "You have been removed from the room";
     return (
       <div className="game-view">
         <div className="error-banner">{room.error}</div>
-        <button onClick={() => window.location.reload()}>Reload</button>
+        {isKicked ? (
+          <button onClick={() => navigate("/", { replace: true })}>Reload</button>
+        ) : (
+          <button onClick={() => window.location.reload()}>Reload</button>
+        )}
       </div>
     );
   }
@@ -165,6 +169,18 @@ export function Game() {
                 onChange={(e) => room.setFranchiseEnabled(e.target.checked)}
               />
               Include FRANCHISE PITCH cards
+            </label>
+            <label className="round-count-toggle">
+              Rounds:
+              <select
+                value={state.totalRounds}
+                onChange={(e) => room.setTotalRounds(parseInt(e.target.value))}
+              >
+                <option value={3}>3</option>
+                <option value={5}>5</option>
+                <option value={7}>7</option>
+                <option value={10}>10</option>
+              </select>
             </label>
             <button onClick={room.startGame}>Start Game</button>
           </div>
@@ -186,13 +202,13 @@ export function Game() {
     );
   }
 
-  // SETUP (choose deck type)
-  if (state.phase === "setup" && !isExecutive && (!state.myHand || state.myHand.length === 0)) {
+  // SETUP (choose deck type) — note-giver also draws cards since they pitch last
+  if (state.phase === "setup" && !isNoteGiver && (!state.myHand || state.myHand.length === 0)) {
     return (
       <div className="game-view">
         {roundWinnerOverlay}
-        <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
-        <h2>Round {state.round.current} of {state.round.total}</h2>
+        <PhaseIndicator phase={state.phase} isNoteGiver={isNoteGiver} />
+        <h2>Round {state.round.current} of {state.totalRounds}</h2>
         <p>You are a Writer. Choose your deck:</p>
         <button onClick={() => room.selectDeckType("plot" as DeckType)}>Draw PLOT cards</button>
         <button onClick={() => room.selectDeckType("character" as DeckType)}>Draw CHARACTER cards</button>
@@ -203,14 +219,38 @@ export function Game() {
 
   // CARD SELECTION
   if (state.phase === "setup" || state.phase === "card-selection") {
-    if (isExecutive) {
+    if (isNoteGiver && (!state.myHand || state.myHand.length === 0)) {
       return (
         <div className="game-view">
           {roundWinnerOverlay}
-          <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
-          <h2>Round {state.round.current} of {state.round.total}</h2>
-          <p>You are the Executive. Waiting for writers to prepare their movies...</p>
+          <PhaseIndicator phase={state.phase} isNoteGiver={isNoteGiver} />
+          <h2>Round {state.round.current} of {state.totalRounds}</h2>
+          <p>You are the Note Giver. Choose your deck (you also pitch last):</p>
+          <button onClick={() => room.selectDeckType("plot" as DeckType)}>Draw PLOT cards</button>
+          <button onClick={() => room.selectDeckType("character" as DeckType)}>Draw CHARACTER cards</button>
           <PlayerList players={state.players} />
+          <button onClick={handleLeave} className="btn-leave">Leave Game</button>
+        </div>
+      );
+    }
+    if (isNoteGiver && state.myHand && state.myHand.length > 0) {
+      return (
+        <div className="game-view">
+          {roundWinnerOverlay}
+          <PhaseIndicator phase={state.phase} isNoteGiver={isNoteGiver} />
+          <h2>Round {state.round.current} of {state.totalRounds}</h2>
+          <p>You are the Note Giver. Waiting for writers to prepare their movies...</p>
+          <PlayerList players={state.players} />
+          <WriterControls
+            hand={state.myHand}
+            selectedCard={state.myChosenCard}
+            hasSelectedCard={!!state.myChosenCard}
+            hasDrawnBlind={state.myMovieReady}
+            blindCard={state.myBlindCard}
+            blindRevealed={false}
+            onSelectCard={room.selectCard}
+            onReady={room.revealMovie}
+          />
           <button onClick={handleLeave} className="btn-leave">Leave Game</button>
         </div>
       );
@@ -220,8 +260,8 @@ export function Game() {
     return (
       <div className="game-view">
         {roundWinnerOverlay}
-        <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
-        <h2>Round {state.round.current} of {state.round.total}</h2>
+        <PhaseIndicator phase={state.phase} isNoteGiver={isNoteGiver} />
+        <h2>Round {state.round.current} of {state.totalRounds}</h2>
         <WriterControls
           hand={state.myHand || []}
           selectedCard={state.myChosenCard}
@@ -246,16 +286,16 @@ export function Game() {
 
     return (
       <div className="game-view">
-        <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
+        <PhaseIndicator phase={state.phase} isNoteGiver={isNoteGiver} />
         <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} pausedForNote={state.timer.pausedForNote} />
-        {isMyPitch && !timerStarted && <p>Your cards are ready — waiting for the Executive to start the timer...</p>}
+        {isMyPitch && !timerStarted && <p>Your cards are ready — waiting for the Note Giver to start the timer...</p>}
         {isMyPitch && timerStarted && <p>YOUR TURN TO PITCH!</p>}
         {!isMyPitch && !timerStarted && <p>Waiting for {pitcher?.name} to start pitching...</p>}
         {!isMyPitch && timerStarted && <p>{pitcher?.name} is pitching...</p>}
         {currentMovie && <MovieReveal movie={currentMovie} large={true} blindFaceDown={!timerStarted} />}
-        {isExecutive && (
-          <ExecutiveControls
-            notes={state.myExecutiveNotes || []}
+        {isNoteGiver && (
+          <NoteGiverControls
+            notes={state.myNoteGiverNotes || []}
             timerRunning={state.timer.running}
             timerStarted={timerStarted}
             onStartTimer={room.startTimer}
@@ -270,33 +310,47 @@ export function Game() {
     );
   }
 
-  // ROUND END (Executive picks winner, audience votes)
+  // ROUND END — voting on all movies except own
   if (state.phase === "round-end") {
-    const timerRunning = state.timer.running;
+    const otherMovies = state.movies.filter((m) => m.playerId !== state.myPlayerId);
+    const myVote = state.myVote;
+    const hasVoted = !!myVote;
     return (
       <div className="game-view">
-        <PhaseIndicator phase={state.phase} isExecutive={isExecutive} />
-        <h2>Round {state.round.current} of {state.round.total}</h2>
-        {state.votingActive && timerRunning && (
+        {roundWinnerOverlay}
+        <PhaseIndicator phase={state.phase} isNoteGiver={isNoteGiver} />
+        <h2>Round {state.round.current} of {state.totalRounds}</h2>
+        {state.votingActive ? (
           <>
             <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} />
-            <p>Audience voting in progress — the Executive's pick counts as 2x!</p>
+            <p>Vote for the best movie! {hasVoted ? "Thanks for voting — waiting for others." : ""}</p>
+            {otherMovies.length === 0 && <p>Waiting for movies to be revealed...</p>}
+            {otherMovies.map((movie) => {
+              const player = state.players.find((p) => p.id === movie.playerId);
+              const voteCount = state.voteCounts.find((v) => v.playerId === movie.playerId)?.votes || 0;
+              const votedThis = myVote === movie.playerId;
+              return (
+                <div key={movie.playerId} className="round-summary-movie">
+                  <h3>{player?.name}'s Movie</h3>
+                  <MovieReveal movie={movie} />
+                  {voteCount > 0 && (
+                    <div className="vote-tally">{voteCount} vote{voteCount > 1 ? "s" : ""}</div>
+                  )}
+                  {!hasVoted && (
+                    <button
+                      onClick={() => room.castVote(movie.playerId)}
+                      className="btn-vote"
+                    >
+                      Vote
+                    </button>
+                  )}
+                  {votedThis && <p className="vote-marked">✓ You voted for this movie</p>}
+                </div>
+              );
+            })}
           </>
-        )}
-        {state.votingActive && !timerRunning && (
-          <p>Audience is voting. Pick a movie to start the final countdown (your pick = 2x)!</p>
-        )}
-        <RoundSummary
-          movies={state.movies}
-          players={state.players}
-          isExecutive={isExecutive}
-          onSelectWinner={room.selectWinner}
-          votingActive={state.votingActive}
-          voteCounts={state.voteCounts}
-          canPick={isExecutive && !timerRunning}
-        />
-        {isExecutive && state.votingActive && timerRunning && (
-          <button onClick={room.endVoting} className="btn-voting">End Voting Now</button>
+        ) : (
+          <p>Voting has ended. Next round starting...</p>
         )}
         <button onClick={handleLeave} className="btn-leave">Leave Game</button>
       </div>

@@ -18,22 +18,23 @@ const mockFns = {
   pauseTimer: vi.fn(),
   playNote: vi.fn(),
   endPitch: vi.fn(),
-  selectWinner: vi.fn(),
-  startVoting: vi.fn(),
   castVote: vi.fn(),
-  endVoting: vi.fn(),
   playAgain: vi.fn(),
+  setFranchiseEnabled: vi.fn(),
+  setTotalRounds: vi.fn(),
+  kickPlayer: vi.fn(),
   leaveGame: vi.fn(),
 };
 
 const baseState: PublicRoomState = {
   code: "ABCD",
   phase: "lobby",
-  players: [{ id: "1", name: "Jason", isExecutive: false, isHost: true, score: 0, isDisconnected: false }],
-  executiveId: null,
+  players: [{ id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false }],
+  noteGiverId: null,
   currentPitcherId: null,
   timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
-  round: { current: 0, total: 0 },
+  round: { current: 0 },
+  totalRounds: 5,
   movies: [],
   myPlayerId: "1",
   myHand: null,
@@ -41,11 +42,13 @@ const baseState: PublicRoomState = {
   myMovieReady: false,
   myMovieRevealed: false,
   myBlindCard: null,
-  myExecutiveNotes: null,
+  myNoteGiverNotes: null,
   votingActive: false,
   voteCounts: [],
   myVote: null,
   audienceCount: 0,
+  roundWinnerId: null,
+  franchiseEnabled: false,
 };
 
 let mockState: PublicRoomState = { ...baseState };
@@ -78,7 +81,7 @@ describe("Game", () => {
   it("does not render start game button for non-host in lobby", () => {
     setState({
       phase: "lobby",
-      players: [{ id: "2", name: "Bob", isExecutive: false, isHost: false, score: 0, isDisconnected: false }],
+      players: [{ id: "2", name: "Bob", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false }],
       myPlayerId: "2",
     });
     renderGame();
@@ -94,8 +97,9 @@ describe("Game", () => {
   it("renders deck choice buttons for writer in setup with empty hand", () => {
     setState({
       phase: "setup",
-      round: { current: 1, total: 3 },
-      executiveId: "9",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "9",
       myPlayerId: "1",
       myHand: null,
     });
@@ -107,8 +111,9 @@ describe("Game", () => {
   it("renders writer controls with hand during card-selection", () => {
     setState({
       phase: "card-selection",
-      round: { current: 1, total: 3 },
-      executiveId: "9",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "9",
       myPlayerId: "1",
       myHand: [
         { id: "c1", type: "plot", text: "Plot A" },
@@ -125,8 +130,9 @@ describe("Game", () => {
   it("calls selectCard when a hand card is clicked", () => {
     setState({
       phase: "card-selection",
-      round: { current: 1, total: 3 },
-      executiveId: "9",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "9",
       myPlayerId: "1",
       myHand: [
         { id: "c1", type: "plot", text: "Plot A" },
@@ -142,8 +148,9 @@ describe("Game", () => {
   it("renders movie preview with face-down blind card after selecting", () => {
     setState({
       phase: "card-selection",
-      round: { current: 1, total: 3 },
-      executiveId: "9",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "9",
       myPlayerId: "1",
       myHand: [],
       myChosenCard: { id: "c2", type: "plot", text: "Plot B" },
@@ -156,22 +163,24 @@ describe("Game", () => {
     expect(screen.getByText(/blind card will be revealed/i)).toBeTruthy();
   });
 
-  it("renders executive waiting view during setup when player is executive", () => {
+  it("renders note-giver waiting view during setup when player is note-giver", () => {
     setState({
       phase: "setup",
-      round: { current: 1, total: 3 },
-      executiveId: "1",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "1",
       myPlayerId: "1",
     });
     renderGame();
-    expect(screen.getByText(/you are the executive/i)).toBeTruthy();
+    expect(screen.getByText(/you are the note giver/i)).toBeTruthy();
   });
 
   it("renders pitching phase with timer and movie reveal", () => {
     setState({
       phase: "pitching",
-      round: { current: 1, total: 3 },
-      executiveId: "9",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "9",
       myPlayerId: "1",
       currentPitcherId: "1",
       timer: { running: true, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
@@ -191,14 +200,15 @@ describe("Game", () => {
   it("renders pitching phase from audience perspective with pitcher name", () => {
     setState({
       phase: "pitching",
-      round: { current: 1, total: 3 },
-      executiveId: "9",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "9",
       myPlayerId: "2",
       currentPitcherId: "1",
       players: [
-        { id: "1", name: "Jason", isExecutive: false, isHost: true, score: 0, isDisconnected: false },
-        { id: "2", name: "Bob", isExecutive: false, isHost: false, score: 0, isDisconnected: false },
-        { id: "9", name: "Exec", isExecutive: true, isHost: false, score: 0, isDisconnected: false },
+        { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
+        { id: "2", name: "Bob", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false },
+        { id: "9", name: "NoteGiver", isNoteGiver: true, isHost: false, score: 0, isDisconnected: false },
       ],
       timer: { running: true, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
       movies: [{
@@ -213,16 +223,17 @@ describe("Game", () => {
     expect(screen.getByText(/jason is pitching/i)).toBeTruthy();
   });
 
-  it("renders executive controls for executive during pitching", () => {
+  it("renders note-giver controls for note-giver during pitching", () => {
     setState({
       phase: "pitching",
-      round: { current: 1, total: 3 },
-      executiveId: "1",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "1",
       myPlayerId: "1",
       currentPitcherId: "2",
       players: [
-        { id: "1", name: "Exec", isExecutive: true, isHost: false, score: 0, isDisconnected: false },
-        { id: "2", name: "Writer", isExecutive: false, isHost: true, score: 0, isDisconnected: false },
+        { id: "1", name: "NoteGiver", isNoteGiver: true, isHost: false, score: 0, isDisconnected: false },
+        { id: "2", name: "Writer", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
       ],
       timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
       movies: [{
@@ -232,7 +243,7 @@ describe("Game", () => {
         notesPlayed: [],
         revealed: true,
       }],
-      myExecutiveNotes: [{ id: "n1", type: "note", text: "Note A" }],
+      myNoteGiverNotes: [{ id: "n1", type: "note", text: "Note A" }],
     });
     renderGame();
     expect(screen.getByText(/Start the timer to enable Note cards/i)).toBeTruthy();
@@ -243,13 +254,14 @@ describe("Game", () => {
   it("calls startTimer when start timer button clicked", () => {
     setState({
       phase: "pitching",
-      round: { current: 1, total: 3 },
-      executiveId: "1",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "1",
       myPlayerId: "1",
       currentPitcherId: "2",
       players: [
-        { id: "1", name: "Exec", isExecutive: true, isHost: false, score: 0, isDisconnected: false },
-        { id: "2", name: "Writer", isExecutive: false, isHost: true, score: 0, isDisconnected: false },
+        { id: "1", name: "NoteGiver", isNoteGiver: true, isHost: false, score: 0, isDisconnected: false },
+        { id: "2", name: "Writer", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
       ],
       timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
       movies: [{
@@ -259,67 +271,90 @@ describe("Game", () => {
         notesPlayed: [],
         revealed: true,
       }],
-      myExecutiveNotes: [{ id: "n1", type: "note", text: "Note A" }],
+      myNoteGiverNotes: [{ id: "n1", type: "note", text: "Note A" }],
     });
     renderGame();
     fireEvent.click(screen.getByText("Start Timer"));
     expect(mockFns.startTimer).toHaveBeenCalled();
   });
 
-  it("renders round-end with pick buttons for executive", () => {
+  it("renders round-end with vote buttons", () => {
     setState({
       phase: "round-end",
-      round: { current: 1, total: 3 },
-      executiveId: "1",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "9",
       myPlayerId: "1",
+      votingActive: true,
+      voteCounts: [],
+      timer: { running: true, secondsRemaining: 15, pausedAt: null, pausedForNote: false, noteResumeAt: null },
       players: [
-        { id: "1", name: "Exec", isExecutive: true, isHost: false, score: 0, isDisconnected: false },
-        { id: "2", name: "Writer", isExecutive: false, isHost: true, score: 0, isDisconnected: false },
+        { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
+        { id: "2", name: "Writer", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false },
+        { id: "9", name: "NoteGiver", isNoteGiver: true, isHost: false, score: 0, isDisconnected: false },
       ],
-      movies: [{
-        playerId: "2",
-        chosenCard: { id: "c1", type: "plot", text: "Plot A" },
-        randomCard: { id: "r1", type: "character", text: "Char A" },
-        notesPlayed: [],
-        revealed: true,
-      }],
+      movies: [
+        {
+          playerId: "2",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+        },
+        {
+          playerId: "9",
+          chosenCard: { id: "c2", type: "plot", text: "Plot B" },
+          randomCard: { id: "r2", type: "character", text: "Char B" },
+          notesPlayed: [],
+          revealed: true,
+        },
+      ],
     });
     renderGame();
-    expect(screen.getByText(/select the best movie/i)).toBeTruthy();
-    expect(screen.getByText("Pick This Movie")).toBeTruthy();
+    expect(screen.getByText(/vote for the best movie/i)).toBeTruthy();
+    const voteButtons = screen.getAllByText("Vote");
+    expect(voteButtons.length).toBe(2);
   });
 
-  it("calls selectWinner when pick button clicked", () => {
+  it("calls castVote when vote button clicked", () => {
     setState({
       phase: "round-end",
-      round: { current: 1, total: 3 },
-      executiveId: "1",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "9",
       myPlayerId: "1",
+      votingActive: true,
+      voteCounts: [],
+      myVote: null,
+      timer: { running: true, secondsRemaining: 15, pausedAt: null, pausedForNote: false, noteResumeAt: null },
       players: [
-        { id: "1", name: "Exec", isExecutive: true, isHost: false, score: 0, isDisconnected: false },
-        { id: "2", name: "Writer", isExecutive: false, isHost: true, score: 0, isDisconnected: false },
+        { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
+        { id: "2", name: "Writer", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false },
       ],
-      movies: [{
-        playerId: "2",
-        chosenCard: { id: "c1", type: "plot", text: "Plot A" },
-        randomCard: { id: "r1", type: "character", text: "Char A" },
-        notesPlayed: [],
-        revealed: true,
-      }],
+      movies: [
+        {
+          playerId: "2",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+        },
+      ],
     });
     renderGame();
-    fireEvent.click(screen.getByText("Pick This Movie"));
-    expect(mockFns.selectWinner).toHaveBeenCalledWith("2");
+    fireEvent.click(screen.getByText("Vote"));
+    expect(mockFns.castVote).toHaveBeenCalledWith("2");
   });
 
   it("renders game-end with scoreboard and play again for host", () => {
     setState({
       phase: "game-end",
-      round: { current: 3, total: 3 },
+      round: { current: 3 },
+      totalRounds: 3,
       myPlayerId: "1",
       players: [
-        { id: "1", name: "Jason", isExecutive: false, isHost: true, score: 5, isDisconnected: false },
-        { id: "2", name: "Bob", isExecutive: true, isHost: false, score: 3, isDisconnected: false },
+        { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 5, isDisconnected: false },
+        { id: "2", name: "Bob", isNoteGiver: true, isHost: false, score: 3, isDisconnected: false },
       ],
     });
     renderGame();

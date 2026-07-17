@@ -1,7 +1,7 @@
 import type { Card as CardType } from "@direct-to-video/shared";
 import { Card } from "./Card.js";
 
-interface ExecutiveControlsProps {
+interface NoteGiverControlsProps {
   notes: CardType[];
   timerRunning: boolean;
   timerStarted: boolean;
@@ -11,9 +11,9 @@ interface ExecutiveControlsProps {
   onEndPitch: () => void;
 }
 
-export function ExecutiveControls({ notes, timerRunning, timerStarted, onStartTimer, onPauseTimer, onPlayNote, onEndPitch }: ExecutiveControlsProps) {
+export function NoteGiverControls({ notes, timerRunning, timerStarted, onStartTimer, onPauseTimer, onPlayNote, onEndPitch }: NoteGiverControlsProps) {
   return (
-    <div className="executive-controls">
+    <div className="note-giver-controls">
       <div className="timer-controls">
         {!timerStarted && <button onClick={onStartTimer}>Start Timer</button>}
         {timerStarted && timerRunning && <button onClick={onPauseTimer}>Pause Timer</button>}
