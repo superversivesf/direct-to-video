@@ -10,7 +10,7 @@ import { setupSocketHandlers } from "./sockets/handlers.js";
 import { logger } from "./logger.js";
 import type { DbHandle } from "./db.js";
 
-const VERSION = "2.0.0";
+const VERSION = "2.1.0";
 
 const PORT = process.env.PORT || 3000;
 const DB_PATH = process.env.DB_PATH || resolve(process.cwd(), "data", "directtovideo.db");

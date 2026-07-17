@@ -159,7 +159,7 @@ export function Game() {
     return (
       <div className="game-view">
         <h1>Direct to Video — Room {state.code}</h1>
-        <PlayerList players={state.players} />
+        <PlayerList players={state.players} canKick={isHost} onKick={room.kickPlayer} />
         {isHost && (
           <div className="lobby-options">
             <label className="franchise-toggle">
@@ -228,7 +228,7 @@ export function Game() {
           <p>You are the Note Giver. Choose your deck (you also pitch last):</p>
           <button onClick={() => room.selectDeckType("plot" as DeckType)}>Draw PLOT cards</button>
           <button onClick={() => room.selectDeckType("character" as DeckType)}>Draw CHARACTER cards</button>
-          <PlayerList players={state.players} />
+          <PlayerList players={state.players} movies={state.movies} />
           <button onClick={handleLeave} className="btn-leave">Leave Game</button>
         </div>
       );
@@ -240,7 +240,7 @@ export function Game() {
           <PhaseIndicator phase={state.phase} isNoteGiver={isNoteGiver} />
           <h2>Round {state.round.current} of {state.totalRounds}</h2>
           <p>You are the Note Giver. Waiting for writers to prepare their movies...</p>
-          <PlayerList players={state.players} />
+          <PlayerList players={state.players} movies={state.movies} />
           <WriterControls
             hand={state.myHand}
             selectedCard={state.myChosenCard}

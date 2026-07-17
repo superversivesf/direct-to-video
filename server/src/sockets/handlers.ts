@@ -44,6 +44,9 @@ import {
 
 export { resetRateLimits };
 
+const STALE_DISCONNECT_MS = 60 * 1000;
+const staleDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 export function setupSocketHandlers(io: Server, store: RoomStore): void {
   const timerInterval = setInterval(() => {
     for (const room of allRooms(store)) {
@@ -125,6 +128,11 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         }
         socket.join(`room:${room.code}`);
         setPlayerSocket(playerId, socket.id, room.code);
+        const staleTimer = staleDisconnectTimers.get(playerId);
+        if (staleTimer) {
+          clearTimeout(staleTimer);
+          staleDisconnectTimers.delete(playerId);
+        }
         room = store.getRoom(room.code)!;
         room = {
           ...room,
@@ -481,6 +489,50 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
             store.saveRoom(updated);
             broadcastPlayerList(io, updated);
             broadcastAllStates(io, updated);
+
+            staleDisconnectTimers.set(playerId, setTimeout(() => {
+              staleDisconnectTimers.delete(playerId);
+              const currentRoom = store.getRoom(socketInfo.roomCode);
+              if (!currentRoom) return;
+              const stillDisconnected = currentRoom.players.find(
+                (p) => p.id === playerId && p.isDisconnected
+              );
+              if (!stillDisconnected) return;
+
+              const wasNoteGiver = currentRoom.noteGiverId === playerId;
+              let cleared = {
+                ...currentRoom,
+                players: currentRoom.players.filter((p) => p.id !== playerId),
+              };
+              if (wasNoteGiver && cleared.phase !== "round-end" && cleared.phase !== "game-end") {
+                const nextGiver = cleared.players.find((p) => !p.isDisconnected);
+                if (nextGiver) {
+                  cleared = {
+                    ...cleared,
+                    noteGiverId: nextGiver.id,
+                    noteGiverNotes: cleared.noteGiverNotes,
+                    players: cleared.players.map((p) =>
+                      p.id === nextGiver.id ? { ...p, isNoteGiver: true } : { ...p, isNoteGiver: false }
+                    ),
+                  };
+                }
+              }
+              if (cleared.players.length > 0 && !cleared.players.some((p) => p.isHost)) {
+                const nextHost = cleared.players.find((p) => !p.isDisconnected);
+                if (nextHost) {
+                  cleared = {
+                    ...cleared,
+                    players: cleared.players.map((p) =>
+                      p.id === nextHost.id ? { ...p, isHost: true } : p
+                    ),
+                  };
+                }
+              }
+              store.saveRoom(cleared);
+              broadcastPlayerList(io, cleared);
+              broadcastAllStates(io, cleared);
+              deletePlayerSocket(playerId);
+            }, STALE_DISCONNECT_MS));
           }
           deletePlayerSocket(playerId);
         }
