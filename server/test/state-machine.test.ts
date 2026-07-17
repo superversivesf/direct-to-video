@@ -448,7 +448,7 @@ describe("state machine", () => {
       selectDeckType(store, updated, writerId, "plot");
       updated = store.getRoom(room.code)!;
       const writer = updated.players.find((p) => p.id === writerId)!;
-      const normalCard = writer.hand[0];
+      const normalCard = writer.hand.find((c) => !c.draws || c.draws.length === 0)!;
       selectCard(store, updated, writerId, normalCard.id);
       const after = store.getRoom(room.code)!;
       const chosen = after.players.find((p) => p.id === writerId)!.chosenCard!;

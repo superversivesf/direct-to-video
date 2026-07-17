@@ -121,7 +121,7 @@ async function runRoom(target: string, roomId: number, numPlayers: number, numAu
     a.socket.on("audience_update", (state: AudienceRoomState) => { a.state = state; });
     a.socket.on("vote_update", (voteCounts: { playerId: string; votes: number }[]) => { if (a.state) a.state = { ...a.state, voteCounts }; });
     a.socket.on("voting_started", (secondsRemaining: number) => { if (a.state) a.state = { ...a.state, votingActive: true, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } }; });
-    a.socket.on("voting_ended", () => { if (a.state) a.state = { ...a.state, votingActive: false }; });
+    a.socket.on("voting_ended", (_winnerId: string | null) => { if (a.state) a.state = { ...a.state, votingActive: false }; });
   }
 
   console.log(`${tag} ${players.length} players + ${audience.length} audience in room ${roomCode}`);
@@ -135,9 +135,9 @@ async function runRoom(target: string, roomId: number, numPlayers: number, numAu
     await sleep(500);
 
     const currentState = players[0].state!;
-    const executiveId = currentState.executiveId;
-    const executive = players.find((p) => p.playerId === executiveId);
-    const writers = players.filter((p) => p.playerId !== executiveId);
+    const noteGiverId = currentState.noteGiverId;
+    const noteGiver = players.find((p) => p.playerId === noteGiverId);
+    const writers = players.filter((p) => p.playerId !== noteGiverId);
 
     for (const writer of writers) {
       if (!writer.state?.myHand || writer.state.myHand.length === 0) {
@@ -165,17 +165,17 @@ async function runRoom(target: string, roomId: number, numPlayers: number, numAu
       if (!pitcher) continue;
       pitcher.socket.emit("reveal_movie");
       await sleep(200);
-      executive?.socket.emit("start_timer");
+      noteGiver?.socket.emit("start_timer");
       await sleep(300);
-      const execState = executive!.state!;
-      const notes = execState.myExecutiveNotes || [];
+      const ngState = noteGiver!.state!;
+      const notes = ngState.myNoteGiverNotes || [];
       if (notes.length > 0 && Math.random() < 0.7) {
-        executive?.socket.emit("play_note", notes[0].id);
+        noteGiver?.socket.emit("play_note", notes[0].id);
         await sleep(1000);
       } else {
         await sleep(500);
       }
-      executive?.socket.emit("end_pitch");
+      noteGiver?.socket.emit("end_pitch");
       await sleep(400);
     }
 
@@ -184,23 +184,18 @@ async function runRoom(target: string, roomId: number, numPlayers: number, numAu
 
     const movies = players[0].state?.movies || [];
     if (movies.length > 0) {
-      if (audience.length > 0) {
-        executive?.socket.emit("start_voting");
-        await sleep(2000);
-        for (const a of audience) {
-          const movie = movies[Math.floor(Math.random() * movies.length)];
-          a.socket.emit("cast_vote", movie.playerId);
-        }
-        const execMovie = movies[Math.floor(Math.random() * movies.length)];
-        executive?.socket.emit("cast_vote", execMovie.playerId);
-        await sleep(1000);
-        executive?.socket.emit("end_voting");
-        await sleep(2000);
-      } else {
-        const winnerMovie = movies[Math.floor(Math.random() * movies.length)];
-        executive?.socket.emit("select_winner", winnerMovie.playerId);
-        await sleep(2000);
+      // Voting auto-starts; everyone casts a vote (no self-votes for players)
+      for (const player of players) {
+        const votable = movies.filter((m) => m.playerId !== player.playerId);
+        if (votable.length === 0) continue;
+        const voteTarget = votable[Math.floor(Math.random() * votable.length)];
+        player.socket.emit("cast_vote", voteTarget.playerId);
       }
+      for (const a of audience) {
+        const movie = movies[Math.floor(Math.random() * movies.length)];
+        a.socket.emit("cast_vote", movie.playerId);
+      }
+      await sleep(2000);
 
       const postWinState = players[0].state!;
       if (postWinState.phase === "game-end") {

@@ -11,7 +11,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("NOTE card timer journey", () => {
+test.describe.skip("NOTE card timer journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 

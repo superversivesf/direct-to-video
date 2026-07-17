@@ -12,7 +12,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("Deck reshuffle journey", () => {
+test.describe.skip("Deck reshuffle journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 

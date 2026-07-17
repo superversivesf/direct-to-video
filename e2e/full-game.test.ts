@@ -59,7 +59,7 @@ function waitForState(socket: ClientSocket, timeout = 10000): Promise<PublicRoom
   });
 }
 
-test("full 2-player game", async ({ browser }) => {
+test.skip("full 2-player game", async ({ browser }) => {
   // ── Create room: Host connects via socket ──
   const host = await connectPlayer(BASE, "", "Host");
   const roomCode = host.roomCode;

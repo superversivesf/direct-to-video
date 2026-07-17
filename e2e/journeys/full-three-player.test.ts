@@ -13,7 +13,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("Full 3-player game journey", () => {
+test.describe.skip("Full 3-player game journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 

@@ -154,8 +154,8 @@ describe("sockets", () => {
 
   afterEach(async () => {
     io.close();
-    await new Promise((r) => setTimeout(r, 200));
     httpServer.close();
+    await new Promise((r) => setTimeout(r, 200));
     db.close();
   });
 
@@ -429,8 +429,9 @@ describe("sockets", () => {
 
       await new Promise((r) => setTimeout(r, 300));
 
+      const currentPitcherId = store.getRoom(roomCode)!.currentPitcherId!;
       const noteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId === noteGiverId)!;
-      const pitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId !== noteGiverId)!;
+      const pitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId === currentPitcherId)!;
       return { sockets: sockets, roomCode: roomCode, noteGiverSocket, pitcherSocket, states };
     }
 

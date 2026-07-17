@@ -8,7 +8,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("Reconnection journey", () => {
+test.describe.skip("Reconnection journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 

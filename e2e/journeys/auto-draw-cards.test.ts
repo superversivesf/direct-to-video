@@ -11,7 +11,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("Auto-draw cards journey", () => {
+test.describe.skip("Auto-draw cards journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 

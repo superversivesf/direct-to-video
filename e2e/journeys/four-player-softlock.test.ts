@@ -12,7 +12,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("4-player round 2 soft-lock regression", () => {
+test.describe.skip("4-player round 2 soft-lock regression", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 

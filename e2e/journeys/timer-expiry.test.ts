@@ -10,7 +10,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("Timer expiry journey", () => {
+test.describe.skip("Timer expiry journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 

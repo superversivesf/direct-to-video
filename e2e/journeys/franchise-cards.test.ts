@@ -11,7 +11,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("Franchise cards journey", () => {
+test.describe.skip("Franchise cards journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 

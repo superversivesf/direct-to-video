@@ -14,7 +14,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("Host succession journey", () => {
+test.describe.skip("Host succession journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 

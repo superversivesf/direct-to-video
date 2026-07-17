@@ -207,7 +207,7 @@ async function runGame(target: string, numPlayers: number, numRounds: number, nu
     a.socket.on("voting_started", (secondsRemaining: number) => {
       if (a.state) a.state = { ...a.state, votingActive: true, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } };
     });
-    a.socket.on("voting_ended", (_winnerId: string) => {
+    a.socket.on("voting_ended", (_winnerId: string | null) => {
       if (a.state) a.state = { ...a.state, votingActive: false };
     });
   }
@@ -232,13 +232,13 @@ async function runGame(target: string, numPlayers: number, numRounds: number, nu
     await waitForPhaseAll(players, "setup").catch(() => null);
     await sleep(500);
 
-    // Re-read state to get current executive
+    // Re-read state to get current note-giver
     const currentState = players[0].state!;
-    const executiveId = currentState.executiveId;
-    const executive = players.find((p) => p.playerId === executiveId);
-    const writers = players.filter((p) => p.playerId !== executiveId);
+    const noteGiverId = currentState.noteGiverId;
+    const noteGiver = players.find((p) => p.playerId === noteGiverId);
+    const writers = players.filter((p) => p.playerId !== noteGiverId);
 
-    console.log(`  Executive: ${executive?.name}`);
+    console.log(`  Note Giver: ${noteGiver?.name}`);
     console.log(`  Writers: ${writers.map((w) => w.name).join(", ")}`);
 
     // Writers select deck type and cards
@@ -274,8 +274,8 @@ async function runGame(target: string, numPlayers: number, numRounds: number, nu
     console.log("  Pitching phase reached");
 
     const pitchState = players[0].state!;
-    // All writers are pitchers; use currentPitcherId to determine order
-    const pitcherIds = writers.map((w) => w.playerId);
+    // All writers are pitchers (note-giver pitches last, included in pitchOrder)
+    const pitcherIds = pitchState.movies?.map((m) => m.playerId) || writers.map((w) => w.playerId);
     console.log(`  Pitchers: ${pitcherIds.map((id) => players.find((p) => p.playerId === id)?.name).join(", ")}`);
 
     // Play through each pitcher
@@ -290,26 +290,26 @@ async function runGame(target: string, numPlayers: number, numRounds: number, nu
       pitcher.socket.emit("reveal_movie");
       await sleep(300);
 
-      // Executive starts timer
+      // Note Giver starts timer
       console.log(`    Starting timer...`);
-      executive?.socket.emit("start_timer");
+      noteGiver?.socket.emit("start_timer");
       await sleep(500);
 
-      // Executive plays a note card 70% of the time
-      const execState = executive!.state!;
-      const notes = execState.myExecutiveNotes || [];
+      // Note Giver plays a note card 70% of the time
+      const ngState = noteGiver!.state!;
+      const notes = ngState.myNoteGiverNotes || [];
       if (notes.length > 0 && Math.random() < 0.7) {
         const noteId = notes[0].id;
-        console.log(`    Exec playing note card`);
-        executive?.socket.emit("play_note", noteId);
+        console.log(`    Note Giver playing note card`);
+        noteGiver?.socket.emit("play_note", noteId);
         await sleep(1500);
       } else {
         await sleep(1000);
       }
 
-      // Executive ends pitch
+      // Note Giver ends pitch
       console.log(`    Ending pitch...`);
-      executive?.socket.emit("end_pitch");
+      noteGiver?.socket.emit("end_pitch");
       await sleep(500);
 
       // If there are more pitchers, wait for next_pitcher or state update
@@ -318,48 +318,37 @@ async function runGame(target: string, numPlayers: number, numRounds: number, nu
       }
     }
 
-    // Wait for round-end
-    console.log("\n  Waiting for round-end...");
+    // Wait for round-end (voting starts automatically)
+    console.log("\n  Waiting for round-end + voting...");
     await sleep(1000);
     await waitForPhaseAll(players, "round-end");
-    console.log("  Round-end phase reached");
+    console.log("  Round-end phase reached (voting auto-started)");
 
-    // If audience is present, use voting; otherwise direct pick
+    // All players + audience cast votes automatically
     const movies = players[0].state?.movies || [];
     if (movies.length > 0) {
-      if (audienceMembers.length > 0) {
-        // Executive starts voting
-        console.log(`\n  Executive starting audience voting...`);
-        executive?.socket.emit("start_voting");
-        await sleep(2000);
-
-        // Audience members cast random votes
-        for (const audience of audienceMembers) {
-          const movie = movies[Math.floor(Math.random() * movies.length)];
-          audience.socket.emit("cast_vote", movie.playerId);
-        }
-        console.log(`  ${audienceMembers.length} audience members cast votes`);
-
-        // Executive also votes (2x weight)
-        const execMovie = movies[Math.floor(Math.random() * movies.length)];
-        executive?.socket.emit("cast_vote", execMovie.playerId);
-        console.log(`  Executive cast vote (2x weight)`);
-
-        await sleep(1000);
-
-        // Executive ends voting
-        console.log(`  Executive ending voting...`);
-        executive?.socket.emit("end_voting");
-
-        await sleep(2000);
-      } else {
-        // No audience — direct winner pick
-        const winnerMovie = movies[Math.floor(Math.random() * movies.length)];
-        const winnerName = players.find((p) => p.playerId === winnerMovie.playerId)?.name;
-        console.log(`\n  Executive selecting winner: ${winnerName}`);
-        executive?.socket.emit("select_winner", winnerMovie.playerId);
-        await sleep(2000);
+      // Each player votes for a random OTHER movie (cannot self-vote)
+      for (const player of players) {
+        const myMovie = movies.find((m) => m.playerId === player.playerId);
+        const votableMovies = movies.filter((m) => m.playerId !== player.playerId);
+        if (votableMovies.length === 0) continue;
+        const voteTarget = votableMovies[Math.floor(Math.random() * votableMovies.length)];
+        player.socket.emit("cast_vote", voteTarget.playerId);
       }
+      console.log(`  ${players.length} players cast votes`);
+
+      // Audience members cast random votes (can vote for anyone)
+      for (const audience of audienceMembers) {
+        const movie = movies[Math.floor(Math.random() * movies.length)];
+        audience.socket.emit("cast_vote", movie.playerId);
+      }
+      if (audienceMembers.length > 0) {
+        console.log(`  ${audienceMembers.length} audience members cast votes`);
+      }
+
+      await sleep(2000);
+
+      // Voting ends automatically (all voted or timer expired)
 
       // Check if game ended
       const postWinState = players[0].state!;

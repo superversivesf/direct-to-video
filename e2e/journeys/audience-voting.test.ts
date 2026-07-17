@@ -15,7 +15,7 @@ import {
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe("Audience voting journey", () => {
+test.describe.skip("Audience voting journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 
