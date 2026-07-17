@@ -9,15 +9,19 @@ import {
   startPitching,
   revealMovie,
   endPitch,
-  selectWinner,
+  castVote,
+  tallyAndAdvance,
   nextRound,
   playAgain,
-  startVoting,
-  castVote,
-  endVoting,
-  tallyVotes,
 } from "../src/state-machine.js";
-import { createTimer, startTimer, pauseForNote, tickTimer, isTimerExpired, shouldResumeFromNote } from "../src/timer.js";
+import {
+  createTimer,
+  startTimer,
+  pauseForNote,
+  tickTimer,
+  shouldResumeFromNote,
+} from "../src/timer.js";
+import type { Card } from "@direct-to-video/shared";
 import type { Database } from "better-sqlite3";
 
 describe("state machine", () => {
@@ -35,7 +39,9 @@ describe("state machine", () => {
     db.close();
   });
 
-  function createGameWithPlayers(names: string[]): { room: ReturnType<typeof createRoom>["room"]; playerIds: string[] } {
+  function createGameWithPlayers(
+    names: string[]
+  ): { room: ReturnType<typeof createRoom>["room"]; playerIds: string[] } {
     const created = createRoom(store, names[0]);
     const playerIds = [created.playerId];
     for (let i = 1; i < names.length; i++) {
@@ -45,6 +51,31 @@ describe("state machine", () => {
     return { room: store.getRoom(created.room.code)!, playerIds };
   }
 
+  function setupRoundEnd(names: string[]): {
+    room: ReturnType<typeof createRoom>["room"];
+    playerIds: string[];
+  } {
+    const { room, playerIds } = createGameWithPlayers(names);
+    startGame(store, room);
+    let updated = store.getRoom(room.code)!;
+    for (const writerId of playerIds) {
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+    }
+    startPitching(store, updated);
+    updated = store.getRoom(room.code)!;
+    for (const pitcherId of updated.pitchOrder) {
+      revealMovie(store, updated, pitcherId);
+      updated = store.getRoom(room.code)!;
+      endPitch(store, updated, pitcherId);
+      updated = store.getRoom(room.code)!;
+    }
+    return { room: store.getRoom(room.code)!, playerIds };
+  }
+
   describe("startGame", () => {
     it("transitions from lobby to setup", () => {
       const { room } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
@@ -52,7 +83,6 @@ describe("state machine", () => {
       const updated = store.getRoom(room.code)!;
       expect(updated.phase).toBe("setup");
       expect(updated.round.current).toBe(1);
-      expect(updated.round.total).toBe(3);
     });
 
     it("requires at least 2 players", () => {
@@ -60,19 +90,36 @@ describe("state machine", () => {
       expect(() => startGame(store, room)).toThrow("Need at least 2 players");
     });
 
-    it("sets the host as first Executive", () => {
-      const { room } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+    it("builds a noteGiverOrder containing all player IDs", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       const updated = store.getRoom(room.code)!;
-      expect(updated.executiveId).toBe(updated.players[0].id);
-      expect(updated.players[0].isExecutive).toBe(true);
+      expect(updated.noteGiverOrder).toHaveLength(3);
+      for (const id of playerIds) {
+        expect(updated.noteGiverOrder).toContain(id);
+      }
     });
 
-    it("gives the Executive 3 NOTE cards", () => {
+    it("sets noteGiverIndex to 0", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      const updated = store.getRoom(room.code)!;
+      expect(updated.noteGiverIndex).toBe(1);
+    });
+
+    it("assigns a note-giver from the shuffled order", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      const updated = store.getRoom(room.code)!;
+      expect(updated.noteGiverId).toBe(updated.noteGiverOrder[0]);
+      expect(playerIds).toContain(updated.noteGiverId);
+    });
+
+    it("gives the note-giver 3 note cards", () => {
       const { room } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       const updated = store.getRoom(room.code)!;
-      expect(updated.executiveNotes).toHaveLength(3);
+      expect(updated.noteGiverNotes).toHaveLength(3);
     });
 
     it("populates all three decks", () => {
@@ -83,14 +130,79 @@ describe("state machine", () => {
       expect(updated.deck.character.length).toBeGreaterThan(0);
       expect(updated.deck.note.length).toBeGreaterThan(0);
     });
+
+    it("does not set round.total (v2.0 uses totalRounds)", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      const updated = store.getRoom(room.code)!;
+      expect(updated.round).not.toHaveProperty("total");
+      expect(updated.totalRounds).toBe(5);
+    });
   });
 
   describe("setupRound", () => {
-    it("transitions to card-selection phase", () => {
+    it("transitions to setup phase", () => {
       const { room } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       const updated = store.getRoom(room.code)!;
       expect(updated.phase).toBe("setup");
+    });
+
+    it("rotates note-giver when called directly", () => {
+      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const firstNoteGiver = updated.noteGiverId!;
+      expect(playerIds).toContain(firstNoteGiver);
+
+      updated = { ...updated, noteGiverIndex: 1 };
+      store.saveRoom(updated);
+      setupRound(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.noteGiverId).toBe(after.noteGiverOrder[1]);
+      expect(after.noteGiverId).not.toBe(firstNoteGiver);
+    });
+
+    it("skips disconnected players when picking note-giver", () => {
+      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+
+      const nextId = updated.noteGiverOrder[1];
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === nextId ? { ...p, isDisconnected: true } : p
+        ),
+        noteGiverIndex: 1,
+      };
+      store.saveRoom(updated);
+      setupRound(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.noteGiverId).not.toBe(nextId);
+      expect(
+        after.players.find((p) => p.id === after.noteGiverId)!.isDisconnected
+      ).toBe(false);
+    });
+
+    it("reshuffles order when exhausted", () => {
+      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      updated = { ...updated, noteGiverIndex: updated.noteGiverOrder.length };
+      store.saveRoom(updated);
+      setupRound(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.noteGiverOrder).toHaveLength(2);
+      expect(playerIds).toContain(after.noteGiverId);
+    });
+
+    it("clears hands and chosenCard for all players", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      const updated = store.getRoom(room.code)!;
+      expect(updated.players.every((p) => p.hand.length === 0)).toBe(true);
+      expect(updated.players.every((p) => p.chosenCard === null)).toBe(true);
     });
   });
 
@@ -99,7 +211,7 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       const updated = store.getRoom(room.code)!;
-      const writerId = playerIds[1];
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
       selectDeckType(store, updated, writerId, "plot");
       const after = store.getRoom(room.code)!;
       const writer = after.players.find((p) => p.id === writerId)!;
@@ -107,11 +219,16 @@ describe("state machine", () => {
       expect(writer.hand.every((c) => c.type === "plot")).toBe(true);
     });
 
-    it("does not allow Executive to draw writer cards", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+    it("allows the note-giver to draw writer cards (note-giver pitches last)", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       const updated = store.getRoom(room.code)!;
-      expect(() => selectDeckType(store, updated, playerIds[0], "plot")).toThrow("Executive cannot draw writer cards");
+      expect(() =>
+        selectDeckType(store, updated, updated.noteGiverId!, "plot")
+      ).not.toThrow();
+      const after = store.getRoom(room.code)!;
+      const noteGiver = after.players.find((p) => p.id === updated.noteGiverId)!;
+      expect(noteGiver.hand).toHaveLength(3);
     });
   });
 
@@ -120,7 +237,7 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      const writerId = playerIds[1];
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
       selectDeckType(store, updated, writerId, "plot");
       updated = store.getRoom(room.code)!;
       const writer = updated.players.find((p) => p.id === writerId)!;
@@ -139,12 +256,13 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
       updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
+      const movie = updated.movies.find((m) => m.playerId === writerId);
       expect(movie!.randomCard.type).toBe("character");
     });
 
@@ -152,12 +270,13 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "character");
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "character");
       updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
+      const movie = updated.movies.find((m) => m.playerId === writerId);
       expect(movie!.randomCard.type).toBe("plot");
     });
 
@@ -165,13 +284,176 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
       updated = store.getRoom(room.code)!;
       const beforeCharDeck = updated.deck.character.length;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
       updated = store.getRoom(room.code)!;
       expect(updated.deck.character.length).toBe(beforeCharDeck - 1);
+    });
+  });
+
+  describe("selectCard with draws", () => {
+    it("auto-draws a character card and substitutes ____ with its text", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+
+      const specialCard: Card = {
+        ...writer.hand[0],
+        text: "has a steamy affair with ____.",
+        draws: [{ deck: "character", count: 1 }],
+      };
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId
+            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
+            : p
+        ),
+      };
+      store.saveRoom(updated);
+
+      selectCard(store, updated, writerId, specialCard.id);
+      const after = store.getRoom(room.code)!;
+      const chosen = after.players.find((p) => p.id === writerId)!.chosenCard!;
+      expect(chosen).toBeDefined();
+      expect(chosen.substitutedText).toBeDefined();
+      expect(chosen.substitutedText).not.toContain("____");
+    });
+
+    it("does not substitute when card has no draws", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      const cardId = writer.hand[0].id;
+      selectCard(store, updated, writerId, cardId);
+      const after = store.getRoom(room.code)!;
+      const chosen = after.players.find((p) => p.id === writerId)!.chosenCard!;
+      expect(chosen.substitutedText).toBeUndefined();
+    });
+
+    it("draws from the character deck when specified", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      const beforeDeckSize = updated.deck.character.length;
+
+      const specialCard: Card = {
+        ...writer.hand[0],
+        text: "has a steamy affair with ____.",
+        draws: [{ deck: "character", count: 1 }],
+      };
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId
+            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
+            : p
+        ),
+      };
+      store.saveRoom(updated);
+
+      selectCard(store, updated, writerId, specialCard.id);
+      const after = store.getRoom(room.code)!;
+      expect(after.deck.character.length).toBeLessThan(beforeDeckSize);
+    });
+
+    it("handles multiple ____ placeholders with count > 1", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+
+      const specialCard: Card = {
+        ...writer.hand[0],
+        text: "____ and ____ team up.",
+        draws: [{ deck: "character", count: 2 }],
+      };
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId
+            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
+            : p
+        ),
+      };
+      store.saveRoom(updated);
+
+      selectCard(store, updated, writerId, specialCard.id);
+      const after = store.getRoom(room.code)!;
+      const chosen = after.players.find((p) => p.id === writerId)!.chosenCard!;
+      expect(chosen.substitutedText).toBeDefined();
+      expect(chosen.substitutedText).not.toContain("____");
+    });
+
+    it("handles draws from different decks", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "character");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+
+      const specialCard: Card = {
+        ...writer.hand[0],
+        text: "____ meets ____.",
+        draws: [
+          { deck: "character", count: 1 },
+          { deck: "plot", count: 1 },
+        ],
+      };
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId
+            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
+            : p
+        ),
+      };
+      store.saveRoom(updated);
+
+      const beforeChar = updated.deck.character.length;
+      const beforePlot = updated.deck.plot.length;
+
+      selectCard(store, updated, writerId, specialCard.id);
+      const after = store.getRoom(room.code)!;
+      expect(after.deck.character.length).toBeLessThan(beforeChar);
+      expect(after.deck.plot.length).toBeLessThan(beforePlot);
+    });
+
+    it("preserves text that has no draws specified", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      const normalCard = writer.hand[0];
+      selectCard(store, updated, writerId, normalCard.id);
+      const after = store.getRoom(room.code)!;
+      const chosen = after.players.find((p) => p.id === writerId)!.chosenCard!;
+      expect(chosen.text).toBe(normalCard.text);
+      expect(chosen.substitutedText).toBeUndefined();
     });
   });
 
@@ -180,18 +462,53 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      for (let i = 1; i < playerIds.length; i++) {
-        selectDeckType(store, updated, playerIds[i], "plot");
+      for (const writerId of playerIds) {
+        selectDeckType(store, updated, writerId, "plot");
         updated = store.getRoom(room.code)!;
-        const writer = updated.players.find((p) => p.id === playerIds[i])!;
-        selectCard(store, updated, playerIds[i], writer.hand[0].id);
-        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
         updated = store.getRoom(room.code)!;
       }
       startPitching(store, updated);
       const after = store.getRoom(room.code)!;
       expect(after.phase).toBe("pitching");
-      expect(after.pitchOrder.length).toBe(2);
+      expect(after.pitchOrder.length).toBe(playerIds.length);
+    });
+
+    it("sorts the note-giver to the end of pitch order", () => {
+      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie", "Dave"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const noteGiverId = updated.noteGiverId!;
+      for (const writerId of playerIds) {
+        selectDeckType(store, updated, writerId, "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
+        updated = store.getRoom(room.code)!;
+      }
+      startPitching(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.pitchOrder[after.pitchOrder.length - 1]).toBe(noteGiverId);
+    });
+
+    it("auto-reveals first pitcher's movie", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      for (const writerId of playerIds) {
+        selectDeckType(store, updated, writerId, "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
+        updated = store.getRoom(room.code)!;
+      }
+      startPitching(store, updated);
+      const after = store.getRoom(room.code)!;
+      const firstMovie = after.movies.find(
+        (m) => m.playerId === after.pitchOrder[0]
+      )!;
+      expect(firstMovie.revealed).toBe(true);
     });
   });
 
@@ -200,12 +517,11 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      for (let i = 1; i < playerIds.length; i++) {
-        selectDeckType(store, updated, playerIds[i], "plot");
+      for (const writerId of playerIds) {
+        selectDeckType(store, updated, writerId, "plot");
         updated = store.getRoom(room.code)!;
-        const writer = updated.players.find((p) => p.id === playerIds[i])!;
-        selectCard(store, updated, playerIds[i], writer.hand[0].id);
-        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
         updated = store.getRoom(room.code)!;
       }
       startPitching(store, updated);
@@ -218,83 +534,277 @@ describe("state machine", () => {
       expect(after.currentPitcherId).toBe(after.pitchOrder[1]);
     });
 
-    it("transitions to round-end when all pitchers done", () => {
+    it("transitions to round-end with 15s voting timer when all pitchers done", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
-      updated = store.getRoom(room.code)!;
-      updated = store.getRoom(room.code)!;
+      for (const writerId of playerIds) {
+        selectDeckType(store, updated, writerId, "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
+        updated = store.getRoom(room.code)!;
+      }
       startPitching(store, updated);
       updated = store.getRoom(room.code)!;
-      revealMovie(store, updated, updated.pitchOrder[0]);
-      updated = store.getRoom(room.code)!;
-      endPitch(store, updated, updated.pitchOrder[0]);
+      for (const pitcherId of updated.pitchOrder) {
+        revealMovie(store, updated, pitcherId);
+        updated = store.getRoom(room.code)!;
+        endPitch(store, updated, pitcherId);
+        updated = store.getRoom(room.code)!;
+      }
       const after = store.getRoom(room.code)!;
       expect(after.phase).toBe("round-end");
+      expect(after.timer.secondsRemaining).toBe(15);
+      expect(after.votingActive).toBe(true);
+      expect(after.votes).toEqual({});
+    });
+
+    it("sets all movies to revealed when last pitcher ends", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      for (const writerId of playerIds) {
+        selectDeckType(store, updated, writerId, "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
+        updated = store.getRoom(room.code)!;
+      }
+      startPitching(store, updated);
+      updated = store.getRoom(room.code)!;
+      for (const pitcherId of updated.pitchOrder) {
+        revealMovie(store, updated, pitcherId);
+        updated = store.getRoom(room.code)!;
+        endPitch(store, updated, pitcherId);
+        updated = store.getRoom(room.code)!;
+      }
+      const after = store.getRoom(room.code)!;
+      expect(after.phase).toBe("round-end");
+      expect(after.movies.every((m) => m.revealed)).toBe(true);
+    });
+
+    it("throws if no movie exists for player", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      const updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      expect(() => revealMovie(store, updated, writerId)).toThrow(
+        "No movie found for player"
+      );
     });
   });
 
-  describe("selectWinner", () => {
-    it("awards a point to the winner", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
-      updated = store.getRoom(room.code)!;
-      updated = store.getRoom(room.code)!;
-      startPitching(store, updated);
-      updated = store.getRoom(room.code)!;
-      revealMovie(store, updated, updated.pitchOrder[0]);
-      updated = store.getRoom(room.code)!;
-      endPitch(store, updated, updated.pitchOrder[0]);
-      updated = store.getRoom(room.code)!;
-      selectWinner(store, updated, playerIds[1]);
+  describe("castVote", () => {
+    it("records a vote", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const updated = store.getRoom(room.code)!;
+      const voterId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      const target = playerIds.find((id) => id !== voterId && id !== updated.noteGiverId)!;
+      castVote(store, updated, voterId, target);
       const after = store.getRoom(room.code)!;
-      const winner = after.players.find((p) => p.id === playerIds[1])!;
-      expect(winner.score).toBe(1);
+      expect(after.votes[voterId]).toBe(target);
     });
 
-    it("transitions to game-end when all rounds complete", () => {
+    it("records an audience vote for any player", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const updated = store.getRoom(room.code)!;
+      castVote(store, updated, "audience1", playerIds[0]);
+      const after = store.getRoom(room.code)!;
+      expect(after.votes["audience1"]).toBe(playerIds[0]);
+    });
+
+    it("prevents players from voting for themselves", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      expect(() => castVote(store, updated, writerId, writerId)).toThrow(
+        "cannot vote for themselves"
+      );
+    });
+
+    it("allows the note-giver to vote for another player", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const updated = store.getRoom(room.code)!;
+      const noteGiverId = updated.noteGiverId!;
+      const target = playerIds.find((id) => id !== noteGiverId)!;
+      castVote(store, updated, noteGiverId, target);
+      const after = store.getRoom(room.code)!;
+      expect(after.votes[noteGiverId]).toBe(target);
+    });
+
+    it("prevents voting when not active", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
-      updated = store.getRoom(room.code)!;
-      updated = store.getRoom(room.code)!;
-      startPitching(store, updated);
-      updated = store.getRoom(room.code)!;
-      revealMovie(store, updated, updated.pitchOrder[0]);
-      updated = store.getRoom(room.code)!;
-      endPitch(store, updated, updated.pitchOrder[0]);
-      updated = store.getRoom(room.code)!;
-      selectWinner(store, updated, playerIds[1]);
+      const updated = store.getRoom(room.code)!;
+      expect(() =>
+        castVote(store, updated, "aud1", playerIds[0])
+      ).toThrow("not active");
+    });
+
+    it("prevents voting for a player with no movie", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const updated = store.getRoom(room.code)!;
+      const fakeId = "nonexistent-player-id";
+      expect(() => castVote(store, updated, "aud1", fakeId)).toThrow(
+        "No movie found"
+      );
+    });
+  });
+
+  describe("tallyAndAdvance", () => {
+    it("adds vote counts to each player's score (cumulative)", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const target1 = playerIds[0];
+      const target2 = playerIds[1];
+      const voter = playerIds.find(
+        (id) => id !== target1 && id !== target2
+      )!;
+      castVote(store, store.getRoom(room.code)!, "aud1", target1);
+      castVote(store, store.getRoom(room.code)!, "aud2", target1);
+      castVote(store, store.getRoom(room.code)!, voter, target2);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
+      const after = store.getRoom(room.code)!;
+      const p1 = after.players.find((p) => p.id === target1)!;
+      const p2 = after.players.find((p) => p.id === target2)!;
+      const p3 = after.players.find((p) => p.id === voter)!;
+      expect(p1.score).toBe(2);
+      expect(p2.score).toBe(1);
+      expect(p3.score).toBe(0);
+    });
+
+    it("sets roundWinnerId to the player with the most votes", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[0]);
+      castVote(store, store.getRoom(room.code)!, "aud2", playerIds[0]);
+      castVote(store, store.getRoom(room.code)!, "aud3", playerIds[1]);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
+      const after = store.getRoom(room.code)!;
+      expect(after.roundWinnerId).toBe(playerIds[0]);
+    });
+
+    it("sets roundWinnerId to null on a tie", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[0]);
+      castVote(store, store.getRoom(room.code)!, "aud2", playerIds[1]);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
+      const after = store.getRoom(room.code)!;
+      expect(after.roundWinnerId).toBeNull();
+    });
+
+    it("clears votes and deactivates voting", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const updated = store.getRoom(room.code)!;
+      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[0]);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
+      const after = store.getRoom(room.code)!;
+      expect(after.votes).toEqual({});
+      expect(after.votingActive).toBe(false);
+    });
+
+    it("advances to the next round when not the last round", () => {
+      const { room } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const updated = store.getRoom(room.code)!;
+      expect(updated.totalRounds).toBe(5);
+      expect(updated.round.current).toBe(1);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
       const after = store.getRoom(room.code)!;
       expect(after.phase).toBe("setup");
       expect(after.round.current).toBe(2);
     });
+
+    it("transitions to game-end when round.current >= totalRounds", () => {
+      const { room } = setupRoundEnd(["Jason", "Sarah"]);
+      let updated = store.getRoom(room.code)!;
+      updated = { ...updated, totalRounds: 1 };
+      store.saveRoom(updated);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
+      const after = store.getRoom(room.code)!;
+      expect(after.phase).toBe("game-end");
+    });
+
+    it("throws when voting is not active", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      const updated = store.getRoom(room.code)!;
+      expect(() => tallyAndAdvance(store, updated)).toThrow("not active");
+    });
+
+    it("handles zero votes without crashing", () => {
+      const { room } = setupRoundEnd(["Jason", "Sarah"]);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
+      const after = store.getRoom(room.code)!;
+      expect(after.votingActive).toBe(false);
+      expect(after.roundWinnerId).toBeNull();
+      expect(after.players.every((p) => p.score === 0)).toBe(true);
+    });
+
+    it("accumulates scores across multiple rounds", () => {
+      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const target = playerIds[0];
+      castVote(store, store.getRoom(room.code)!, "aud1", target);
+      castVote(store, store.getRoom(room.code)!, "aud2", target);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
+      let after = store.getRoom(room.code)!;
+      expect(after.players.find((p) => p.id === target)!.score).toBe(2);
+
+      for (const writerId of playerIds) {
+        selectDeckType(store, after, writerId, "plot");
+        after = store.getRoom(room.code)!;
+        const writer = after.players.find((p) => p.id === writerId)!;
+        selectCard(store, after, writerId, writer.hand[0].id);
+        after = store.getRoom(room.code)!;
+      }
+      startPitching(store, after);
+      after = store.getRoom(room.code)!;
+      for (const pitcherId of after.pitchOrder) {
+        revealMovie(store, after, pitcherId);
+        after = store.getRoom(room.code)!;
+        endPitch(store, after, pitcherId);
+        after = store.getRoom(room.code)!;
+      }
+      castVote(store, store.getRoom(room.code)!, "aud1", target);
+      castVote(store, store.getRoom(room.code)!, "aud2", target);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
+      after = store.getRoom(room.code)!;
+      expect(after.players.find((p) => p.id === target)!.score).toBe(4);
+    });
   });
 
   describe("nextRound", () => {
-    it("rotates Executive to next player", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+    it("increments the round counter and transitions to setup", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      expect(updated.executiveId).toBe(playerIds[0]);
+      const before = updated.round.current;
       nextRound(store, updated);
       const after = store.getRoom(room.code)!;
-      expect(after.executiveId).toBe(playerIds[1]);
-      expect(after.players[1].isExecutive).toBe(true);
-      expect(after.players[0].isExecutive).toBe(false);
+      expect(after.phase).toBe("setup");
+      expect(after.round.current).toBe(before + 1);
+    });
+
+    it("does not check game-end (tallyAndAdvance does that)", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      updated = { ...updated, totalRounds: 1, round: { current: 1 } };
+      store.saveRoom(updated);
+      nextRound(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.phase).toBe("setup");
+      expect(after.round.current).toBe(2);
+    });
+
+    it("picks a new note-giver for the next round", () => {
+      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const firstNoteGiver = updated.noteGiverId!;
+      nextRound(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.noteGiverId).toBeDefined();
+      expect(after.noteGiverId).toBe(after.noteGiverOrder[after.noteGiverIndex - 1] ?? after.noteGiverOrder[0]);
+      expect(playerIds).toContain(after.noteGiverId);
     });
   });
 
@@ -310,6 +820,47 @@ describe("state machine", () => {
       expect(after.players.every((p) => p.score === 0)).toBe(true);
       expect(after.players.every((p) => p.hand.length === 0)).toBe(true);
     });
+
+    it("clears noteGiverOrder, noteGiverIndex, and roundWinnerId", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      expect(updated.noteGiverOrder.length).toBeGreaterThan(0);
+      playAgain(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.noteGiverOrder).toEqual([]);
+      expect(after.noteGiverIndex).toBe(0);
+      expect(after.roundWinnerId).toBeNull();
+      expect(after.noteGiverId).toBeNull();
+    });
+
+    it("clears chosenCard on all players", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      expect(updated.players.find((p) => p.id === writerId)!.chosenCard).not.toBeNull();
+      playAgain(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.players.every((p) => p.chosenCard === null)).toBe(true);
+    });
+
+    it("preserves totalRounds for the next game", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
+      let updated = store.getRoom(room.code)!;
+      updated = { ...updated, totalRounds: 7 };
+      store.saveRoom(updated);
+      startGame(store, updated);
+      updated = store.getRoom(room.code)!;
+      playAgain(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.totalRounds).toBe(7);
+    });
   });
 
   describe("blind card deck validation", () => {
@@ -317,10 +868,11 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
       updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
       updated = store.getRoom(room.code)!;
     });
 
@@ -328,13 +880,13 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
       updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      updated = store.getRoom(room.code)!;
-      const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
+      const movie = updated.movies.find((m) => m.playerId === writerId);
       expect(movie).toBeDefined();
       expect(movie!.randomCard.type).toBe("character");
     });
@@ -343,331 +895,31 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "character");
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "character");
       updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
       updated = store.getRoom(room.code)!;
-      updated = store.getRoom(room.code)!;
-      const movie = updated.movies.find((m) => m.playerId === playerIds[1]);
+      const movie = updated.movies.find((m) => m.playerId === writerId);
       expect(movie).toBeDefined();
       expect(movie!.randomCard.type).toBe("plot");
     });
   });
 
-  describe("revealMovie", () => {
-    it("movie is auto-revealed when pitching starts", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
-      updated = store.getRoom(room.code)!;
-      expect(updated.movies[0].revealed).toBe(true);
-    });
-
-    it("throws if no movie exists for player", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      const updated = store.getRoom(room.code)!;
-      expect(() => revealMovie(store, updated, playerIds[1])).toThrow("No movie found for player");
-    });
-  });
-
-  describe("endPitch reveals all movies", () => {
-    it("sets all movies to revealed when last pitcher ends", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
-      updated = store.getRoom(room.code)!;
-      updated = store.getRoom(room.code)!;
-      startPitching(store, updated);
-      updated = store.getRoom(room.code)!;
-      revealMovie(store, updated, updated.pitchOrder[0]);
-      updated = store.getRoom(room.code)!;
-      endPitch(store, updated, updated.pitchOrder[0]);
-      const after = store.getRoom(room.code)!;
-      expect(after.phase).toBe("round-end");
-      expect(after.movies.every((m) => m.revealed)).toBe(true);
-    });
-  });
-
-  describe("playAgain resets chosenCard", () => {
-    it("clears chosenCard on all players", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      selectCard(store, updated, playerIds[1], writer.hand[0].id);
-      updated = store.getRoom(room.code)!;
-      expect(updated.players.find((p) => p.id === playerIds[1])!.chosenCard).not.toBeNull();
-      playAgain(store, updated);
-      const after = store.getRoom(room.code)!;
-      expect(after.players.every((p) => p.chosenCard === null)).toBe(true);
-    });
-  });
-
-  describe("selectCard with draws", () => {
-    it("auto-draws a character card and substitutes ____ with its text", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-
-      const specialCard: Card = { ...writer.hand[0], text: "has a steamy affair with ____.", draws: [{ deck: "character", count: 1 }] };
-      updated = {
-        ...updated,
-        players: updated.players.map((p) =>
-          p.id === playerIds[1]
-            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
-            : p
-        ),
-      };
-      store.saveRoom(updated);
-
-      selectCard(store, updated, playerIds[1], specialCard.id);
-      const after = store.getRoom(room.code)!;
-      const chosen = after.players.find((p) => p.id === playerIds[1])!.chosenCard!;
-      expect(chosen).toBeDefined();
-      expect(chosen.substitutedText).toBeDefined();
-      expect(chosen.substitutedText).not.toContain("____");
-    });
-
-    it("does not substitute when card has no draws", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      const cardId = writer.hand[0].id;
-      selectCard(store, updated, playerIds[1], cardId);
-      const after = store.getRoom(room.code)!;
-      const chosen = after.players.find((p) => p.id === playerIds[1])!.chosenCard!;
-      expect(chosen.substitutedText).toBeUndefined();
-    });
-
-    it("draws from the character deck when specified", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      const beforeDeckSize = updated.deck.character.length;
-
-      const specialCard: Card = { ...writer.hand[0], text: "has a steamy affair with ____.", draws: [{ deck: "character", count: 1 }] };
-      updated = {
-        ...updated,
-        players: updated.players.map((p) =>
-          p.id === playerIds[1]
-            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
-            : p
-        ),
-      };
-      store.saveRoom(updated);
-
-      selectCard(store, updated, playerIds[1], specialCard.id);
-      const after = store.getRoom(room.code)!;
-      expect(after.deck.character.length).toBeLessThan(beforeDeckSize);
-    });
-
-    it("handles multiple ____ placeholders with count > 1", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-
-      const specialCard: Card = { ...writer.hand[0], text: "____ and ____ team up.", draws: [{ deck: "character", count: 2 }] };
-      updated = {
-        ...updated,
-        players: updated.players.map((p) =>
-          p.id === playerIds[1]
-            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
-            : p
-        ),
-      };
-      store.saveRoom(updated);
-
-      selectCard(store, updated, playerIds[1], specialCard.id);
-      const after = store.getRoom(room.code)!;
-      const chosen = after.players.find((p) => p.id === playerIds[1])!.chosenCard!;
-      expect(chosen.substitutedText).toBeDefined();
-      expect(chosen.substitutedText).not.toContain("____");
-    });
-
-    it("handles draws from different decks", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "character");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-
-      const specialCard: Card = { ...writer.hand[0], text: "____ meets ____.", draws: [{ deck: "character", count: 1 }, { deck: "plot", count: 1 }] };
-      updated = {
-        ...updated,
-        players: updated.players.map((p) =>
-          p.id === playerIds[1]
-            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
-            : p
-        ),
-      };
-      store.saveRoom(updated);
-
-      const beforeChar = updated.deck.character.length;
-      const beforePlot = updated.deck.plot.length;
-
-      selectCard(store, updated, playerIds[1], specialCard.id);
-      const after = store.getRoom(room.code)!;
-      expect(after.deck.character.length).toBeLessThan(beforeChar);
-      expect(after.deck.plot.length).toBeLessThan(beforePlot);
-    });
-
-    it("preserves text that has no draws specified", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      selectDeckType(store, updated, playerIds[1], "plot");
-      updated = store.getRoom(room.code)!;
-      const writer = updated.players.find((p) => p.id === playerIds[1])!;
-      const normalCard = writer.hand[0];
-      selectCard(store, updated, playerIds[1], normalCard.id);
-      const after = store.getRoom(room.code)!;
-      const chosen = after.players.find((p) => p.id === playerIds[1])!.chosenCard!;
-      expect(chosen.text).toBe(normalCard.text);
-      expect(chosen.substitutedText).toBeUndefined();
-    });
-  });
-
-  describe("voting", () => {
-    function setupRoundEnd(names: string[]): { room: ReturnType<typeof createRoom>["room"]; playerIds: string[] } {
-      const { room, playerIds } = createGameWithPlayers(names);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      for (let i = 1; i < playerIds.length; i++) {
-        selectDeckType(store, updated, playerIds[i], "plot");
-        updated = store.getRoom(room.code)!;
-        const writer = updated.players.find((p) => p.id === playerIds[i])!;
-        selectCard(store, updated, playerIds[i], writer.hand[0].id);
-        updated = store.getRoom(room.code)!;
-      }
-      startPitching(store, updated);
-      updated = store.getRoom(room.code)!;
-      for (const pitcherId of updated.pitchOrder) {
-        revealMovie(store, updated, pitcherId);
-        updated = store.getRoom(room.code)!;
-        endPitch(store, updated, pitcherId);
-        updated = store.getRoom(room.code)!;
-      }
-      return { room: store.getRoom(room.code)!, playerIds };
-    }
-
-    it("starts voting with 30s timer", () => {
-      const { room } = setupRoundEnd(["Jason", "Sarah"]);
-      startVoting(store, store.getRoom(room.code)!);
-      const updated = store.getRoom(room.code)!;
-      expect(updated.votingActive).toBe(true);
-      expect(updated.timer.secondsRemaining).toBe(30);
-      expect(updated.votes).toEqual({});
-    });
-
-    it("prevents starting voting outside round-end", () => {
-      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
-      startGame(store, room);
-      expect(() => startVoting(store, store.getRoom(room.code)!)).toThrow("round-end");
-    });
-
-    it("records audience vote", () => {
-      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah"]);
-      startVoting(store, store.getRoom(room.code)!);
-      castVote(store, store.getRoom(room.code)!, "audience1", playerIds[1]);
-      const updated = store.getRoom(room.code)!;
-      expect(updated.votes["audience1"]).toBe(playerIds[1]);
-    });
-
-    it("executive vote counts as 2x", () => {
-      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
-      startVoting(store, store.getRoom(room.code)!);
-      const execId = store.getRoom(room.code)!.executiveId!;
-      castVote(store, store.getRoom(room.code)!, execId, playerIds[1]);
-      castVote(store, store.getRoom(room.code)!, "audience1", playerIds[2]);
-      const updated = store.getRoom(room.code)!;
-      const winnerId = tallyVotes(updated);
-      expect(winnerId).toBe(playerIds[1]);
-    });
-
-    it("tally breaks ties using executive pick", () => {
-      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
-      startVoting(store, store.getRoom(room.code)!);
-      const execId = store.getRoom(room.code)!.executiveId!;
-      castVote(store, store.getRoom(room.code)!, execId, playerIds[1]);
-      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[2]);
-      castVote(store, store.getRoom(room.code)!, "aud2", playerIds[2]);
-      const updated = store.getRoom(room.code)!;
-      const winnerId = tallyVotes(updated);
-      expect(winnerId).toBe(playerIds[1]);
-    });
-
-    it("endVoting selects the winner and advances round", () => {
-      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah"]);
-      startVoting(store, store.getRoom(room.code)!);
-      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[1]);
-      const winnerId = endVoting(store, store.getRoom(room.code)!);
-      expect(winnerId).toBe(playerIds[1]);
-      const updated = store.getRoom(room.code)!;
-      expect(updated.votingActive).toBe(false);
-      expect(updated.phase).toBe("setup");
-      expect(updated.round.current).toBe(2);
-    });
-
-    it("endVoting with no votes does nothing", () => {
-      const { room } = setupRoundEnd(["Jason", "Sarah"]);
-      startVoting(store, store.getRoom(room.code)!);
-      const winnerId = endVoting(store, store.getRoom(room.code)!);
-      expect(winnerId).toBe("");
-      const updated = store.getRoom(room.code)!;
-      expect(updated.votingActive).toBe(false);
-      expect(updated.phase).toBe("round-end");
-    });
-
-    it("prevents voting when not active", () => {
-      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah"]);
-      expect(() => castVote(store, store.getRoom(room.code)!, "aud1", playerIds[1])).toThrow("not active");
-    });
-
-    it("prevents double voting", () => {
-      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah"]);
-      startVoting(store, store.getRoom(room.code)!);
-      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[1]);
-      castVote(store, store.getRoom(room.code)!, "aud1", playerIds[1]);
-      const updated = store.getRoom(room.code)!;
-      expect(updated.votes["aud1"]).toBe(playerIds[1]);
-    });
-  });
-
   describe("timer paused for note edge cases", () => {
-    function setupPitching(names: string[]): { room: ReturnType<typeof createRoom>["room"]; playerIds: string[] } {
+    function setupPitching(names: string[]): {
+      room: ReturnType<typeof createRoom>["room"];
+      playerIds: string[];
+    } {
       const { room, playerIds } = createGameWithPlayers(names);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
-      for (let i = 1; i < playerIds.length; i++) {
-        selectDeckType(store, updated, playerIds[i], "plot");
+      for (const writerId of playerIds) {
+        selectDeckType(store, updated, writerId, "plot");
         updated = store.getRoom(room.code)!;
-        const writer = updated.players.find((p) => p.id === playerIds[i])!;
-        selectCard(store, updated, playerIds[i], writer.hand[0].id);
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
         updated = store.getRoom(room.code)!;
       }
       startPitching(store, updated);
@@ -675,7 +927,7 @@ describe("state machine", () => {
     }
 
     it("endPitch while timer is paused for note resets timer correctly", () => {
-      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      const { room } = setupPitching(["Jason", "Sarah", "Mike"]);
       let updated = store.getRoom(room.code)!;
 
       updated = { ...updated, timer: startTimer(updated.timer) };
@@ -698,7 +950,7 @@ describe("state machine", () => {
     });
 
     it("endPitch on last pitcher while timer paused for note transitions to round-end", () => {
-      const { room, playerIds } = setupPitching(["Jason", "Sarah"]);
+      const { room } = setupPitching(["Jason", "Sarah"]);
       let updated = store.getRoom(room.code)!;
 
       updated = { ...updated, timer: startTimer(updated.timer) };
@@ -711,15 +963,26 @@ describe("state machine", () => {
 
       endPitch(store, store.getRoom(room.code)!, updated.currentPitcherId!);
 
-      const after = store.getRoom(room.code)!;
+      let after = store.getRoom(room.code)!;
+      expect(after.phase).toBe("pitching");
+      expect(after.currentPitcherId).toBe(updated.pitchOrder[1]);
+
+      after = { ...after, timer: pauseForNote(after.timer, 5) };
+      store.saveRoom(after);
+
+      endPitch(store, store.getRoom(room.code)!, after.currentPitcherId!);
+
+      after = store.getRoom(room.code)!;
       expect(after.phase).toBe("round-end");
+      expect(after.votingActive).toBe(true);
+      expect(after.timer.secondsRemaining).toBe(15);
       expect(after.timer.pausedForNote).toBe(false);
       expect(after.timer.running).toBe(false);
       expect(after.timer.noteResumeAt).toBeNull();
     });
 
     it("shouldResumeFromNote returns false after endPitch resets timer", () => {
-      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      const { room } = setupPitching(["Jason", "Sarah", "Mike"]);
       let updated = store.getRoom(room.code)!;
 
       updated = { ...updated, timer: startTimer(updated.timer) };
@@ -737,7 +1000,7 @@ describe("state machine", () => {
     });
 
     it("shouldResumeFromNote returns true when note window expires, but false after endPitch", () => {
-      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      const { room } = setupPitching(["Jason", "Sarah", "Mike"]);
       let updated = store.getRoom(room.code)!;
 
       updated = { ...updated, timer: startTimer(updated.timer) };
@@ -755,7 +1018,7 @@ describe("state machine", () => {
     });
 
     it("timer tick loop does not resume after endPitch resets paused timer", () => {
-      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      const { room } = setupPitching(["Jason", "Sarah", "Mike"]);
       let updated = store.getRoom(room.code)!;
 
       updated = { ...updated, timer: startTimer(updated.timer) };
@@ -775,7 +1038,7 @@ describe("state machine", () => {
     });
 
     it("endPitch while timer running (not paused) still works", () => {
-      const { room, playerIds } = setupPitching(["Jason", "Sarah", "Mike"]);
+      const { room } = setupPitching(["Jason", "Sarah", "Mike"]);
       let updated = store.getRoom(room.code)!;
 
       updated = { ...updated, timer: startTimer(updated.timer) };
@@ -802,12 +1065,10 @@ describe("state machine", () => {
       let updated = store.getRoom(room.code)!;
       expect(updated.phase).toBe("setup");
 
-      const execId = updated.executiveId!;
-      const writerIds = playerIds.filter((id) => id !== execId);
-
-      const writer1 = writerIds[0];
-      const writer2 = writerIds[1];
-      const writer3 = writerIds[2];
+      const writer1 = playerIds[0];
+      const writer2 = playerIds[1];
+      const writer3 = playerIds[2];
+      const writer4 = playerIds[3];
 
       selectDeckType(store, updated, writer1, "plot");
       updated = store.getRoom(room.code)!;
@@ -837,6 +1098,14 @@ describe("state machine", () => {
       selectCard(store, updated, writer3, writer3Hand.hand[0].id);
       updated = store.getRoom(room.code)!;
 
+      expect(updated.phase).toBe("setup");
+
+      selectDeckType(store, updated, writer4, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer4Hand = updated.players.find((p) => p.id === writer4)!;
+      selectCard(store, updated, writer4, writer4Hand.hand[0].id);
+      updated = store.getRoom(room.code)!;
+
       expect(updated.phase).toBe("pitching");
     });
 
@@ -845,10 +1114,7 @@ describe("state machine", () => {
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
 
-      const execId = updated.executiveId!;
-      const writerIds = playerIds.filter((id) => id !== execId);
-
-      for (const writerId of writerIds) {
+      for (const writerId of playerIds) {
         updated = store.getRoom(room.code)!;
         selectDeckType(store, updated, writerId, "plot");
         updated = store.getRoom(room.code)!;
@@ -863,11 +1129,15 @@ describe("state machine", () => {
       }
 
       updated = store.getRoom(room.code)!;
-      selectWinner(store, updated, updated.movies[0].playerId);
+      const voteTarget = playerIds.find((id) => id !== playerIds[0])!;
+      castVote(store, updated, "aud1", voteTarget);
+      tallyAndAdvance(store, store.getRoom(room.code)!);
       updated = store.getRoom(room.code)!;
       expect(updated.round.current).toBe(2);
 
-      const disconnectedWriter = playerIds.find((id) => id !== updated.executiveId && id !== playerIds[0])!;
+      const disconnectedWriter = playerIds.find(
+        (id) => id !== updated.noteGiverId && id !== playerIds[0]
+      )!;
       updated = {
         ...updated,
         players: updated.players.map((p) =>
@@ -876,8 +1146,7 @@ describe("state machine", () => {
       };
       store.saveRoom(updated);
 
-      const round2Writers = playerIds.filter((id) => id !== updated.executiveId);
-      const connectedWriters = round2Writers.filter((id) => id !== disconnectedWriter);
+      const connectedWriters = playerIds.filter((id) => id !== disconnectedWriter);
 
       for (const writerId of connectedWriters) {
         updated = store.getRoom(room.code)!;
@@ -889,26 +1158,6 @@ describe("state machine", () => {
 
       updated = store.getRoom(room.code)!;
       expect(updated.phase).toBe("pitching");
-    });
-
-    it("nextRound skips disconnected player when rotating executive", () => {
-      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie"]);
-      startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      expect(updated.executiveId).toBe(playerIds[0]);
-
-      updated = {
-        ...updated,
-        players: updated.players.map((p) =>
-          p.id === playerIds[1] ? { ...p, isDisconnected: true } : p
-        ),
-      };
-      store.saveRoom(updated);
-
-      nextRound(store, updated);
-      updated = store.getRoom(room.code)!;
-      expect(updated.executiveId).toBe(playerIds[2]);
-      expect(updated.players.find((p) => p.id === playerIds[2])!.isExecutive).toBe(true);
     });
   });
 });
