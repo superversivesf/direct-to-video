@@ -167,6 +167,6 @@ export interface ServerToClientEvents {
   audience_update: (state: AudienceRoomState) => void;
   voting_started: (secondsRemaining: number) => void;
   vote_update: (voteCounts: { playerId: string; votes: number }[]) => void;
-  voting_ended: (roundWinnerId: string) => void;
+  voting_ended: (roundWinnerId: string | null) => void;
   kicked: () => void;
 }

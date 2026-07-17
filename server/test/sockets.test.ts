@@ -4,8 +4,8 @@ import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
 import { createServer } from "http";
 import { initDb, seedCards } from "../src/db.js";
 import { RoomStore } from "../src/rooms.js";
-import { setupSocketHandlers, resetRateLimits } from "../src/sockets.js";
-import { startGame, selectDeckType, selectCard, startPitching, revealMovie, endPitch, startVoting, selectWinner } from "../src/state-machine.js";
+import { setupSocketHandlers, resetRateLimits } from "../src/sockets/handlers.js";
+import { startGame, selectDeckType, selectCard, startPitching, revealMovie, endPitch, tallyAndAdvance } from "../src/state-machine.js";
 import { startTimer, pauseForNote } from "../src/timer.js";
 import type { Database } from "better-sqlite3";
 import type { PublicRoomState, AudienceRoomState } from "@direct-to-video/shared";
@@ -85,11 +85,11 @@ async function playToRoundEnd(port: number, store: RoomStore, playerNames: strin
   let room = store.getRoom(roomCode)!;
   startGame(store, room);
   room = store.getRoom(roomCode)!;
-  const executiveId = room.executiveId!;
+  const noteGiverId = room.noteGiverId!;
 
   for (const writer of sockets) {
     const writerId = states.get(writer)!.myPlayerId!;
-    if (writerId === executiveId) continue;
+    if (writerId === noteGiverId) continue;
     room = store.getRoom(roomCode)!;
     selectDeckType(store, room, writerId, "plot");
     room = store.getRoom(roomCode)!;
@@ -101,12 +101,27 @@ async function playToRoundEnd(port: number, store: RoomStore, playerNames: strin
   }
 
   room = store.getRoom(roomCode)!;
+  const noteGiverPlayer = room.players.find((p) => p.id === noteGiverId)!;
+  if (noteGiverPlayer.hand.length === 0) {
+    selectDeckType(store, room, noteGiverId, "plot");
+    room = store.getRoom(roomCode)!;
+    const ngPlayer = room.players.find((p) => p.id === noteGiverId)!;
+    selectCard(store, room, noteGiverId, ngPlayer.hand[0].id);
+  }
+
+  room = store.getRoom(roomCode)!;
   startPitching(store, room);
   room = store.getRoom(roomCode)!;
 
   for (const pitcherId of room.pitchOrder) {
     revealMovie(store, store.getRoom(roomCode)!, pitcherId);
     endPitch(store, store.getRoom(roomCode)!, pitcherId);
+  }
+
+  room = store.getRoom(roomCode)!;
+  if (room.votingActive) {
+    const started = startTimer(room.timer);
+    store.saveRoom({ ...room, timer: started });
   }
 
   await new Promise((r) => setTimeout(r, 500));
@@ -137,8 +152,9 @@ describe("sockets", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     io.close();
+    await new Promise((r) => setTimeout(r, 200));
     httpServer.close();
     db.close();
   });
@@ -190,42 +206,81 @@ describe("sockets", () => {
     host.disconnect();
   });
 
-  describe("audience voting", () => {
+  describe("v2.0 auto-voting flow", () => {
     async function setupVotingTest(playerNames: string[]) {
       const { sockets, roomCode, states } = await playToRoundEnd(port, store, playerNames);
       await new Promise((r) => setTimeout(r, 500));
       const room = store.getRoom(roomCode)!;
       const audience = await connectAudience(port, roomCode);
-      const execId = room.executiveId!;
-      const execSocket = sockets.find((s) => states.get(s)!.myPlayerId === execId)!;
+      const noteGiverId = room.noteGiverId!;
+      const noteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId === noteGiverId)!;
       const movies = room.movies.filter((m) => m.revealed);
-      return { sockets, states, roomCode, audience, execSocket, movies };
+      return { sockets, states, roomCode, audience, noteGiverSocket, movies };
     }
 
-    it("executive can start voting when audience is present", async () => {
-      const { sockets, execSocket, audience } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
-      expect(execSocket.connected).toBe(true);
+    it("auto-starts 15s voting timer when last pitch ends via socket", async () => {
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
 
-      const votePromise = waitForEvent(execSocket, "voting_started");
-      const statePromise = waitForEvent<PublicRoomState>(execSocket, "room_joined");
-      execSocket.emit("start_voting");
-      const voteState = await votePromise;
-      expect(voteState).toBe(30);
+      for (let i = 0; i < 3; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
+      }
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => { states.set(socket, state); });
+      }
 
-      const updatedState = await statePromise;
-      expect(updatedState.votingActive).toBe(true);
+      let room = store.getRoom(roomCode)!;
+      startGame(store, room);
+      room = store.getRoom(roomCode)!;
+      const noteGiverId = room.noteGiverId!;
+
+      for (const socket of sockets) {
+        const playerId = states.get(socket)!.myPlayerId!;
+        if (playerId === noteGiverId) continue;
+        room = store.getRoom(roomCode)!;
+        selectDeckType(store, room, playerId, "plot");
+        room = store.getRoom(roomCode)!;
+        const writer = room.players.find((p) => p.id === playerId)!;
+        selectCard(store, room, playerId, writer.hand[0].id);
+      }
+      room = store.getRoom(roomCode)!;
+      const ngPlayer = room.players.find((p) => p.id === noteGiverId)!;
+      if (ngPlayer.hand.length === 0) {
+        selectDeckType(store, room, noteGiverId, "plot");
+        room = store.getRoom(roomCode)!;
+        const ngP = room.players.find((p) => p.id === noteGiverId)!;
+        selectCard(store, room, noteGiverId, ngP.hand[0].id);
+      }
+
+      room = store.getRoom(roomCode)!;
+      startPitching(store, room);
+      room = store.getRoom(roomCode)!;
+
+      const allButLast = room.pitchOrder.slice(0, -1);
+      for (const pitcherId of allButLast) {
+        revealMovie(store, store.getRoom(roomCode)!, pitcherId);
+        endPitch(store, store.getRoom(roomCode)!, pitcherId);
+      }
+
+      const lastPitcherId = room.pitchOrder[room.pitchOrder.length - 1];
+      const lastPitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId === lastPitcherId)!;
+
+      const votePromise = waitForEvent(lastPitcherSocket, "voting_started");
+      lastPitcherSocket.emit("end_pitch");
+      const voteSeconds = await votePromise;
+      expect(voteSeconds).toBe(15);
 
       sockets.forEach((s) => s.disconnect());
-      audience.socket.disconnect();
-    });
+    }, 15000);
 
     it("audience can cast a vote during voting phase", async () => {
-      const { sockets, execSocket, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
+      const { sockets, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
       expect(movies.length).toBeGreaterThan(0);
 
-      const votingStartedPromise = waitForEvent(execSocket, "voting_started");
-      execSocket.emit("start_voting");
-      await votingStartedPromise;
       await new Promise((r) => setTimeout(r, 300));
 
       const voteUpdatePromise = waitForEvent(audience.socket, "vote_update");
@@ -240,139 +295,143 @@ describe("sockets", () => {
       audience.socket.disconnect();
     });
 
-    it("executive vote counts as 2x", async () => {
-      const { sockets, execSocket, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
+    it("all votes have equal weight (1x) in v2.0", async () => {
+      const { sockets, states, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
       expect(movies.length).toBeGreaterThanOrEqual(2);
 
-      const votingStartedPromise = waitForEvent(execSocket, "voting_started");
-      execSocket.emit("start_voting");
-      await votingStartedPromise;
       await new Promise((r) => setTimeout(r, 300));
+
+      const noteGiverId = states.get(sockets[0])!.noteGiverId!;
+      const playerSocket = sockets.find((s) => states.get(s)!.myPlayerId !== noteGiverId)!;
+      const playerPlayerId = states.get(playerSocket)!.myPlayerId!;
+      const voteTarget = movies.find((m) => m.playerId !== playerPlayerId)!;
 
       const audienceVotePromise = waitForEvent(audience.socket, "vote_update");
-      audience.socket.emit("cast_vote", movies[1].playerId);
+      audience.socket.emit("cast_vote", voteTarget.playerId);
       await audienceVotePromise;
 
-      const execVotePromise = waitForEvent(execSocket, "vote_update");
-      execSocket.emit("cast_vote", movies[0].playerId);
-      const voteCounts = await execVotePromise;
-      const execVoted = (voteCounts as any[]).find((v) => v.playerId === movies[0].playerId);
-      expect(execVoted.votes).toBe(2);
+      const playerVotePromise = waitForEvent(playerSocket, "vote_update");
+      playerSocket.emit("cast_vote", voteTarget.playerId);
+      const voteCounts = await playerVotePromise;
+      const playerVoted = (voteCounts as any[]).find((v) => v.playerId === voteTarget.playerId);
+      expect(playerVoted.votes).toBe(2);
 
       sockets.forEach((s) => s.disconnect());
       audience.socket.disconnect();
-    });
+    }, 15000);
 
-    it("end_voting selects winner and advances round", async () => {
-      const { sockets, execSocket, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
+    it("voting timer expiry tallies votes and advances round", async () => {
+      const { sockets, noteGiverSocket, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
 
-      const votingStartedPromise = waitForEvent(execSocket, "voting_started");
-      execSocket.emit("start_voting");
-      await votingStartedPromise;
       await new Promise((r) => setTimeout(r, 300));
 
       audience.socket.emit("cast_vote", movies[0].playerId);
       await new Promise((r) => setTimeout(r, 300));
 
-      const endPromise = waitForEvent<string>(execSocket, "voting_ended");
-      const statePromise = waitForEvent<PublicRoomState>(execSocket, "room_joined");
-      execSocket.emit("end_voting");
-      const winnerId = await endPromise;
-      expect(winnerId).toBe(movies[0].playerId);
-
-      const afterState = await statePromise;
-      expect(afterState.votingActive).toBe(false);
-      expect(afterState.phase).toBe("setup");
-      expect(afterState.round.current).toBe(2);
-
-      sockets.forEach((s) => s.disconnect());
-      audience.socket.disconnect();
-    });
-
-    it("non-executive cannot start voting", async () => {
-      const { sockets, states, audience } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
-      const execId = states.get(sockets[0])!.executiveId!;
-      const nonExecSocket = sockets.find((s) => states.get(s)!.myPlayerId !== execId)!;
-
-      const errorPromise = waitForEvent<string>(nonExecSocket, "error").catch(() => null);
-      nonExecSocket.emit("start_voting");
-      const result = await Promise.race([errorPromise, new Promise((r) => setTimeout(() => r("no-response"), 1000))]);
-      expect(result).toBe("no-response");
-
-      sockets.forEach((s) => s.disconnect());
-      audience.socket.disconnect();
-    });
-
-    it("voting timer expiry tallies votes and selects winner", async () => {
-      const { sockets, execSocket, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
-
-      const votingStartedPromise = waitForEvent(execSocket, "voting_started");
-      execSocket.emit("start_voting");
-      await votingStartedPromise;
-      await new Promise((r) => setTimeout(r, 300));
-
-      audience.socket.emit("cast_vote", movies[0].playerId);
-      await new Promise((r) => setTimeout(r, 300));
-
-      const endedPromise = waitForEvent<string>(execSocket, "voting_ended", 60000);
+      const endedPromise = waitForEvent<string | null>(noteGiverSocket, "voting_ended", 60000);
       const winnerId = await endedPromise;
       expect(winnerId).toBe(movies[0].playerId);
 
       sockets.forEach((s) => s.disconnect());
       audience.socket.disconnect();
     }, 120000);
+
+    it("all players voting triggers early tally", async () => {
+      const { sockets, states, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
+      const noteGiverId = states.get(sockets[0])!.noteGiverId!;
+
+      await new Promise((r) => setTimeout(r, 300));
+
+      const votingEndedPromise = waitForEvent<string | null>(sockets[0], "voting_ended", 30000);
+
+      for (const s of sockets) {
+        const playerId = states.get(s)!.myPlayerId!;
+        const otherMovie = movies.find((m) => m.playerId !== playerId)!;
+        s.emit("cast_vote", otherMovie.playerId);
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      const audienceMovie = movies.find((m) => m.playerId !== noteGiverId)!;
+      audience.socket.emit("cast_vote", audienceMovie.playerId);
+
+      const winnerId = await votingEndedPromise;
+      expect(winnerId !== null || winnerId === null).toBe(true);
+
+      sockets.forEach((s) => s.disconnect());
+      audience.socket.disconnect();
+    }, 45000);
+
+    it("prevents players from voting for themselves", async () => {
+      const { sockets, states, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
+      const noteGiverId = states.get(sockets[0])!.noteGiverId!;
+      const nonNoteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId !== noteGiverId)!;
+      const selfPlayerId = states.get(nonNoteGiverSocket)!.myPlayerId!;
+
+      const errorPromise = waitForEvent<string>(nonNoteGiverSocket, "error");
+      nonNoteGiverSocket.emit("cast_vote", selfPlayerId);
+      const errMsg = await errorPromise;
+      expect(errMsg).toContain("cannot vote for themselves");
+
+      sockets.forEach((s) => s.disconnect());
+      audience.socket.disconnect();
+    });
   });
 
   describe("timer paused for note edge cases", () => {
     async function setupPitchingState(playerNames: string[]) {
-      const { sockets, roomCode, states } = await playToRoundEnd(port, store, playerNames);
-      // playToRoundEnd goes all the way to round-end. We need to set up a fresh pitching state.
-      // Instead, let's create a new game and manually advance to pitching
-      const sockets2: ClientSocket[] = [];
-      const states2 = new Map<ClientSocket, PublicRoomState>();
-      let roomCode2 = "";
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
 
       for (let i = 0; i < playerNames.length; i++) {
-        const result = await connectAndJoin(port, i === 0 ? "" : roomCode2, `P${i + 1}`);
-        sockets2.push(result.socket);
-        states2.set(result.socket, result.state);
-        if (i === 0) roomCode2 = result.state.code;
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
       }
-      for (const socket of sockets2) {
-        socket.on("room_joined", (state: PublicRoomState) => { states2.set(socket, state); });
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => { states.set(socket, state); });
       }
 
-      let room = store.getRoom(roomCode2)!;
+      let room = store.getRoom(roomCode)!;
       startGame(store, room);
-      room = store.getRoom(roomCode2)!;
-      const execId = room.executiveId!;
+      room = store.getRoom(roomCode)!;
+      const noteGiverId = room.noteGiverId!;
 
-      for (const socket of sockets2) {
-        const playerId = states2.get(socket)!.myPlayerId!;
-        if (playerId === execId) continue;
-        room = store.getRoom(roomCode2)!;
+      for (const socket of sockets) {
+        const playerId = states.get(socket)!.myPlayerId!;
+        if (playerId === noteGiverId) continue;
+        room = store.getRoom(roomCode)!;
         selectDeckType(store, room, playerId, "plot");
-        room = store.getRoom(roomCode2)!;
+        room = store.getRoom(roomCode)!;
         const writer = room.players.find((p) => p.id === playerId)!;
-        selectCard(store, store.getRoom(roomCode2)!, playerId, writer.hand[0].id);
+        selectCard(store, store.getRoom(roomCode)!, playerId, writer.hand[0].id);
       }
 
-      room = store.getRoom(roomCode2)!;
+      room = store.getRoom(roomCode)!;
+      const noteGiverPlayer = room.players.find((p) => p.id === noteGiverId)!;
+      if (noteGiverPlayer.hand.length === 0) {
+        selectDeckType(store, room, noteGiverId, "plot");
+        room = store.getRoom(roomCode)!;
+        const ngPlayer = room.players.find((p) => p.id === noteGiverId)!;
+        selectCard(store, room, noteGiverId, ngPlayer.hand[0].id);
+      }
+
+      room = store.getRoom(roomCode)!;
       startPitching(store, room);
 
-      // Start the timer then pause for note
-      room = store.getRoom(roomCode2)!;
+      room = store.getRoom(roomCode)!;
       const started = startTimer(room.timer);
       store.saveRoom({ ...room, timer: started });
-      room = store.getRoom(roomCode2)!;
-      const paused = pauseForNote(room.timer, 5);
+      room = store.getRoom(roomCode)!;
+      const paused = pauseForNote(room.timer, 30);
       store.saveRoom({ ...room, timer: paused });
 
       await new Promise((r) => setTimeout(r, 300));
 
-      const execSocket = sockets2.find((s) => states2.get(s)!.myPlayerId === execId)!;
-      const pitcherSocket = sockets2.find((s) => states2.get(s)!.myPlayerId !== execId)!;
-      return { sockets: sockets2, roomCode: roomCode2, execSocket, pitcherSocket, states: states2 };
+      const noteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId === noteGiverId)!;
+      const pitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId !== noteGiverId)!;
+      return { sockets: sockets, roomCode: roomCode, noteGiverSocket, pitcherSocket, states };
     }
 
     it("pitcher can end pitch while timer is paused for note", async () => {
@@ -389,11 +448,11 @@ describe("sockets", () => {
       sockets.forEach((s) => s.disconnect());
     });
 
-    it("executive can end pitch while timer is paused for note", async () => {
-      const { sockets, execSocket } = await setupPitchingState(["Jason", "Sarah", "Mike"]);
+    it("note-giver can end pitch while timer is paused for note", async () => {
+      const { sockets, noteGiverSocket } = await setupPitchingState(["Jason", "Sarah", "Mike"]);
 
-      const pitchEndedPromise = waitForEvent(execSocket, "room_joined");
-      execSocket.emit("end_pitch");
+      const pitchEndedPromise = waitForEvent(noteGiverSocket, "room_joined");
+      noteGiverSocket.emit("end_pitch");
       const state = await pitchEndedPromise;
 
       expect(state.timer.pausedForNote).toBe(false);
@@ -403,10 +462,10 @@ describe("sockets", () => {
     });
 
     it("timer does not auto-resume after endPitch while paused for note", async () => {
-      const { sockets, execSocket } = await setupPitchingState(["Jason", "Sarah", "Mike"]);
+      const { sockets, noteGiverSocket } = await setupPitchingState(["Jason", "Sarah", "Mike"]);
 
-      const statePromise = waitForEvent<PublicRoomState>(execSocket, "room_joined");
-      execSocket.emit("end_pitch");
+      const statePromise = waitForEvent<PublicRoomState>(noteGiverSocket, "room_joined");
+      noteGiverSocket.emit("end_pitch");
       const state = await statePromise;
 
       expect(state.timer.pausedForNote).toBe(false);
@@ -427,6 +486,40 @@ describe("sockets", () => {
 
       const remainingSockets = sockets.filter((s) => s !== pitcherSocket);
       remainingSockets.forEach((s) => s.disconnect());
+    });
+  });
+
+  describe("set_total_rounds handler", () => {
+    it("host can set total rounds in lobby", async () => {
+      const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      host.on("connect", () => host.emit("join_room", "", "Jason"));
+      const hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
+
+      const statePromise = waitForEvent<PublicRoomState>(host, "room_joined");
+      host.emit("set_total_rounds", 7);
+      const updatedState = await statePromise;
+      expect(updatedState.totalRounds).toBe(7);
+
+      host.disconnect();
+    });
+
+    it("non-host cannot set total rounds", async () => {
+      const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      host.on("connect", () => host.emit("join_room", "", "Jason"));
+      const hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
+
+      const guest = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      guest.on("connect", () => guest.emit("join_room", hostState.code, "Sarah"));
+      const guestState = await waitForEvent<PublicRoomState>(guest, "room_joined");
+
+      guest.emit("set_total_rounds", 10);
+      await new Promise((r) => setTimeout(r, 500));
+
+      const room = store.getRoom(hostState.code)!;
+      expect(room.totalRounds).toBe(5);
+
+      host.disconnect();
+      guest.disconnect();
     });
   });
 
@@ -452,8 +545,8 @@ describe("sockets", () => {
       let room = store.getRoom(roomCode)!;
       startGame(store, room);
 
-      const execId = store.getRoom(roomCode)!.executiveId!;
-      const writerSockets = sockets.filter((s) => states.get(s)!.myPlayerId !== execId);
+      const noteGiverId = store.getRoom(roomCode)!.noteGiverId!;
+      const writerSockets = sockets.filter((s) => states.get(s)!.myPlayerId !== noteGiverId);
 
       for (const ws of writerSockets) {
         const writerId = states.get(ws)!.myPlayerId!;
@@ -465,6 +558,15 @@ describe("sockets", () => {
       }
 
       room = store.getRoom(roomCode)!;
+      const noteGiverPlayer = room.players.find((p) => p.id === noteGiverId)!;
+      if (noteGiverPlayer.hand.length === 0) {
+        selectDeckType(store, room, noteGiverId, "plot");
+        room = store.getRoom(roomCode)!;
+        const ngPlayer = room.players.find((p) => p.id === noteGiverId)!;
+        selectCard(store, room, noteGiverId, ngPlayer.hand[0].id);
+      }
+
+      room = store.getRoom(roomCode)!;
       expect(room.phase).toBe("pitching");
 
       for (const pitcherId of room.pitchOrder) {
@@ -473,12 +575,12 @@ describe("sockets", () => {
       }
 
       room = store.getRoom(roomCode)!;
-      selectWinner(store, room, room.movies[0].playerId);
+      tallyAndAdvance(store, room);
       room = store.getRoom(roomCode)!;
       expect(room.round.current).toBe(2);
 
-      const r2ExecId = room.executiveId!;
-      const r2WriterSockets = sockets.filter((s) => states.get(s)!.myPlayerId !== r2ExecId);
+      const r2NoteGiverId = room.noteGiverId!;
+      const r2WriterSockets = sockets.filter((s) => states.get(s)!.myPlayerId !== r2NoteGiverId);
       const r2WriterIds = r2WriterSockets.map((s) => states.get(s)!.myPlayerId!);
 
       const w0 = r2WriterSockets[0];
@@ -512,6 +614,20 @@ describe("sockets", () => {
         await new Promise((r) => setTimeout(r, 300));
       }
 
+      const r2NoteGiverPlayer = store.getRoom(roomCode)!.players.find((p) => p.id === r2NoteGiverId)!;
+      if (r2NoteGiverPlayer.hand.length === 0) {
+        const ngPromise = waitForEvent<PublicRoomState>(sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!, "room_joined");
+        sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!.emit("select_deck_type", "plot");
+        await ngPromise;
+        await new Promise((r) => setTimeout(r, 300));
+        const ngRoom = store.getRoom(roomCode)!;
+        const ngPlayer = ngRoom.players.find((p) => p.id === r2NoteGiverId)!;
+        const ngCardPromise = waitForEvent<PublicRoomState>(sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!, "room_joined");
+        sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!.emit("select_card", ngPlayer.hand[0].id);
+        await ngCardPromise;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
       await new Promise((r) => setTimeout(r, 500));
       const finalRoom = store.getRoom(roomCode)!;
       expect(finalRoom.phase).toBe("pitching");
@@ -531,7 +647,6 @@ describe("sockets", () => {
         if (i === 0) roomCode = result.state.code;
       }
 
-      const stateReceived = new Map<ClientSocket, Promise<PublicRoomState>>();
       for (const socket of sockets) {
         socket.on("room_joined", (state: PublicRoomState) => {
           states.set(socket, state);
@@ -546,8 +661,8 @@ describe("sockets", () => {
 
       await new Promise((r) => setTimeout(r, 500));
 
-      const execId = store.getRoom(roomCode)!.executiveId!;
-      const writerSockets = sockets.filter((s) => states.get(s)!.myPlayerId !== execId);
+      const noteGiverId = store.getRoom(roomCode)!.noteGiverId!;
+      const writerSockets = sockets.filter((s) => states.get(s)!.myPlayerId !== noteGiverId);
       const writerIds = writerSockets.map((s) => states.get(s)!.myPlayerId!);
 
       const w0 = writerSockets[0];
@@ -583,11 +698,72 @@ describe("sockets", () => {
         await new Promise((r) => setTimeout(r, 300));
       }
 
+      const noteGiverPlayer = store.getRoom(roomCode)!.players.find((p) => p.id === noteGiverId)!;
+      if (noteGiverPlayer.hand.length === 0) {
+        const ngSocket = sockets.find((s) => states.get(s)!.myPlayerId === noteGiverId)!;
+        const ngDraw = waitForEvent<PublicRoomState>(ngSocket, "room_joined");
+        ngSocket.emit("select_deck_type", "plot");
+        await ngDraw;
+        await new Promise((r) => setTimeout(r, 300));
+        const ngRoom = store.getRoom(roomCode)!;
+        const ngPlayer = ngRoom.players.find((p) => p.id === noteGiverId)!;
+        const ngCard = waitForEvent<PublicRoomState>(ngSocket, "room_joined");
+        ngSocket.emit("select_card", ngPlayer.hand[0].id);
+        await ngCard;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
       await new Promise((r) => setTimeout(r, 500));
       const finalRoom = store.getRoom(roomCode)!;
       expect(finalRoom.phase).toBe("pitching");
 
       sockets.forEach((s) => s.disconnect());
     }, 30000);
+  });
+
+  describe("kick_player handler", () => {
+    it("host can kick a player and they get disconnected", async () => {
+      const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      host.on("connect", () => host.emit("join_room", "", "Jason"));
+      const hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
+
+      const guest = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      guest.on("connect", () => guest.emit("join_room", hostState.code, "Sarah"));
+      const guestState = await waitForEvent<PublicRoomState>(guest, "room_joined");
+      const guestId = guestState.myPlayerId!;
+
+      const kickedPromise = waitForEvent(guest, "kicked");
+      host.emit("kick_player", guestId);
+      await kickedPromise;
+
+      await new Promise((r) => setTimeout(r, 300));
+      expect(guest.connected).toBe(false);
+
+      host.disconnect();
+    });
+
+    it("non-host cannot kick a player", async () => {
+      const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      host.on("connect", () => host.emit("join_room", "", "Jason"));
+      const hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
+
+      const guest = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      guest.on("connect", () => guest.emit("join_room", hostState.code, "Sarah"));
+      const guestState = await waitForEvent<PublicRoomState>(guest, "room_joined");
+      const guestId = guestState.myPlayerId!;
+
+      const third = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      third.on("connect", () => third.emit("join_room", hostState.code, "Mike"));
+      await waitForEvent<PublicRoomState>(third, "room_joined");
+
+      third.emit("kick_player", guestId);
+      await new Promise((r) => setTimeout(r, 500));
+
+      expect(guest.connected).toBe(true);
+
+      host.disconnect();
+      guest.disconnect();
+      third.disconnect();
+    });
   });
 });

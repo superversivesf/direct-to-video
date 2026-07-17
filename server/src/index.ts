@@ -6,7 +6,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { initDb, seedCards } from "./db.js";
 import { RoomStore } from "./rooms.js";
-import { setupSocketHandlers } from "./sockets.js";
+import { setupSocketHandlers } from "./sockets/handlers.js";
 import { logger } from "./logger.js";
 import type { DbHandle } from "./db.js";
 
