@@ -64,7 +64,7 @@ export function Audience() {
   const state = audienceState;
   const currentMovie = state.movies.find((m) => m.playerId === state.currentPitcherId);
   const pitcher = state.players.find((p) => p.id === state.currentPitcherId);
-  const executive = state.players.find((p) => p.id === state.executiveId);
+  const noteGiver = state.players.find((p) => p.id === state.noteGiverId);
 
   return (
     <div className="audience-view">
@@ -79,8 +79,8 @@ export function Audience() {
       <header className="audience-header">
         <h1>DIRECT TO VIDEO</h1>
         <div className="audience-meta">
-          Room: {state.code} | Round {state.round.current}/{state.round.total}
-          {executive && ` | Executive: ${executive.name}`}
+          Room: {state.code} | Round {state.round.current}/{state.totalRounds}
+          {noteGiver && ` | Note Giver: ${noteGiver.name}`}
         </div>
       </header>
 
@@ -124,15 +124,15 @@ export function Audience() {
           {state.votingActive ? (
             <>
               <h2>Vote for the Best Movie!</h2>
-              {state.timer.running && (
-                <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} />
-              )}
-              {!state.timer.running && (
-                <p className="audience-vote-hint">Cast your vote now — the Executive hasn't picked yet!</p>
+              <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} />
+              {state.hasVoted ? (
+                <p className="audience-vote-hint">You voted! Waiting for others...</p>
+              ) : (
+                <p className="audience-vote-hint">Cast your vote now!</p>
               )}
             </>
           ) : (
-            <h2>Executive is choosing the winner...</h2>
+            <h2>Voting has ended. Next round starting...</h2>
           )}
           {state.movies.map((movie) => {
             const player = state.players.find((p) => p.id === movie.playerId);
@@ -146,7 +146,10 @@ export function Audience() {
                     Vote for this movie
                   </button>
                 )}
-                {state.votingActive && state.hasVoted && voteCount > 0 && (
+                {state.votingActive && state.hasVoted && (
+                  <div className="vote-tally">{voteCount} vote{voteCount > 1 ? "s" : ""}</div>
+                )}
+                {!state.votingActive && voteCount > 0 && (
                   <div className="vote-tally">{voteCount} vote{voteCount > 1 ? "s" : ""}</div>
                 )}
               </div>
