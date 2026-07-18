@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+const futureFlags = { v7_startTransition: true, v7_relativeSplatPath: true };
 import { Game } from "../src/pages/Game.js";
 import type { PublicRoomState } from "@direct-to-video/shared";
 
@@ -61,7 +62,7 @@ function setState(overrides: Partial<PublicRoomState>) {
 }
 
 function renderGame() {
-  return render(<MemoryRouter><Game /></MemoryRouter>);
+  return render(<MemoryRouter future={futureFlags}><Game /></MemoryRouter>);
 }
 
 describe("Game", () => {

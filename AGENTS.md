@@ -382,9 +382,9 @@ Previously `cd server && npx vitest run` emitted 56 unhandled errors after tests
 
 There is no force-start mechanism. If a writer goes AFK during card selection, the game is stuck.
 
-### 5. React Router v7 future flag warnings
+### 5. React Router v7 future flag warnings (RESOLVED)
 
-Client tests emit warnings about React Router v6 future flags. These are warnings only, not errors.
+Previously client tests emitted warnings about React Router v6 future flags. Fixed in v2.1.2 by passing `future={{ v7_startTransition: true, v7_relativeSplatPath: true }}` to `BrowserRouter` in `main.tsx` and `MemoryRouter` in `Join.test.tsx` / `Game.test.tsx`. Client tests now run warning-free.
 
 ### 6. No reconnection state recovery
 
