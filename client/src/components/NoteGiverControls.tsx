@@ -11,7 +11,15 @@ interface NoteGiverControlsProps {
   onEndPitch: () => void;
 }
 
-export function NoteGiverControls({ notes, timerRunning, timerStarted, onStartTimer, onPauseTimer, onPlayNote, onEndPitch }: NoteGiverControlsProps) {
+export function NoteGiverControls({
+  notes,
+  timerRunning,
+  timerStarted,
+  onStartTimer,
+  onPauseTimer,
+  onPlayNote,
+  onEndPitch,
+}: NoteGiverControlsProps) {
   return (
     <div className="note-giver-controls">
       <div className="timer-controls">
@@ -20,7 +28,11 @@ export function NoteGiverControls({ notes, timerRunning, timerStarted, onStartTi
         {timerStarted && !timerRunning && <button onClick={onStartTimer}>Resume Timer</button>}
         <button onClick={onEndPitch}>End Pitch</button>
       </div>
-      <h3>{timerStarted ? "Your NOTE Cards — click to play on the pitcher" : "Start the timer to enable Note cards"}</h3>
+      <h3>
+        {timerStarted
+          ? "Your NOTE Cards — click to play on the pitcher"
+          : "Start the timer to enable Note cards"}
+      </h3>
       <div className="card-row">
         {notes.map((note) => (
           <Card

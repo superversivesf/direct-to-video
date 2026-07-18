@@ -8,7 +8,7 @@ import {
   clickEndPitch,
   clickVoteForMovie,
   waitForPhase,
-  findNoteGiverSession,
+  _findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
@@ -79,10 +79,15 @@ test.describe("Franchise cards journey", () => {
     }
     await clickVoteForMovie(audiencePage, 0);
 
-    await expect.poll(async () => {
-      const r = await noteGiver.page.locator("body").textContent() ?? "";
-      return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
-    }, { timeout: 20000, intervals: [500] }).toBeTruthy();
+    await expect
+      .poll(
+        async () => {
+          const r = (await noteGiver.page.locator("body").textContent()) ?? "";
+          return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
+        },
+        { timeout: 20000, intervals: [500] },
+      )
+      .toBeTruthy();
 
     test.info().annotations.push({
       type: "franchise-cards-present",

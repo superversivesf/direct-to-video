@@ -14,13 +14,7 @@ import {
   nextRound,
   playAgain,
 } from "../src/state-machine.js";
-import {
-  createTimer,
-  startTimer,
-  pauseForNote,
-  tickTimer,
-  shouldResumeFromNote,
-} from "../src/timer.js";
+import { startTimer, pauseForNote, tickTimer, shouldResumeFromNote } from "../src/timer.js";
 import type { Card } from "@direct-to-video/shared";
 import type { Database } from "better-sqlite3";
 
@@ -39,9 +33,10 @@ describe("state machine", () => {
     db.close();
   });
 
-  function createGameWithPlayers(
-    names: string[]
-  ): { room: ReturnType<typeof createRoom>["room"]; playerIds: string[] } {
+  function createGameWithPlayers(names: string[]): {
+    room: ReturnType<typeof createRoom>["room"];
+    playerIds: string[];
+  } {
     const created = createRoom(store, names[0]);
     const playerIds = [created.playerId];
     for (let i = 1; i < names.length; i++) {
@@ -164,25 +159,21 @@ describe("state machine", () => {
     });
 
     it("skips disconnected players when picking note-giver", () => {
-      const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie"]);
+      const { room, _playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
 
       const nextId = updated.noteGiverOrder[1];
       updated = {
         ...updated,
-        players: updated.players.map((p) =>
-          p.id === nextId ? { ...p, isDisconnected: true } : p
-        ),
+        players: updated.players.map((p) => (p.id === nextId ? { ...p, isDisconnected: true } : p)),
         noteGiverIndex: 1,
       };
       store.saveRoom(updated);
       setupRound(store, updated);
       const after = store.getRoom(room.code)!;
       expect(after.noteGiverId).not.toBe(nextId);
-      expect(
-        after.players.find((p) => p.id === after.noteGiverId)!.isDisconnected
-      ).toBe(false);
+      expect(after.players.find((p) => p.id === after.noteGiverId)!.isDisconnected).toBe(false);
     });
 
     it("reshuffles order when exhausted", () => {
@@ -223,9 +214,7 @@ describe("state machine", () => {
       const { room } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
       startGame(store, room);
       const updated = store.getRoom(room.code)!;
-      expect(() =>
-        selectDeckType(store, updated, updated.noteGiverId!, "plot")
-      ).not.toThrow();
+      expect(() => selectDeckType(store, updated, updated.noteGiverId!, "plot")).not.toThrow();
       const after = store.getRoom(room.code)!;
       const noteGiver = after.players.find((p) => p.id === updated.noteGiverId)!;
       expect(noteGiver.hand).toHaveLength(3);
@@ -313,9 +302,7 @@ describe("state machine", () => {
       updated = {
         ...updated,
         players: updated.players.map((p) =>
-          p.id === writerId
-            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
-            : p
+          p.id === writerId ? { ...p, hand: [specialCard, ...p.hand.slice(1)] } : p,
         ),
       };
       store.saveRoom(updated);
@@ -361,9 +348,7 @@ describe("state machine", () => {
       updated = {
         ...updated,
         players: updated.players.map((p) =>
-          p.id === writerId
-            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
-            : p
+          p.id === writerId ? { ...p, hand: [specialCard, ...p.hand.slice(1)] } : p,
         ),
       };
       store.saveRoom(updated);
@@ -390,9 +375,7 @@ describe("state machine", () => {
       updated = {
         ...updated,
         players: updated.players.map((p) =>
-          p.id === writerId
-            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
-            : p
+          p.id === writerId ? { ...p, hand: [specialCard, ...p.hand.slice(1)] } : p,
         ),
       };
       store.saveRoom(updated);
@@ -424,9 +407,7 @@ describe("state machine", () => {
       updated = {
         ...updated,
         players: updated.players.map((p) =>
-          p.id === writerId
-            ? { ...p, hand: [specialCard, ...p.hand.slice(1)] }
-            : p
+          p.id === writerId ? { ...p, hand: [specialCard, ...p.hand.slice(1)] } : p,
         ),
       };
       store.saveRoom(updated);
@@ -505,9 +486,7 @@ describe("state machine", () => {
       }
       startPitching(store, updated);
       const after = store.getRoom(room.code)!;
-      const firstMovie = after.movies.find(
-        (m) => m.playerId === after.pitchOrder[0]
-      )!;
+      const firstMovie = after.movies.find((m) => m.playerId === after.pitchOrder[0])!;
       expect(firstMovie.revealed).toBe(true);
     });
   });
@@ -589,9 +568,7 @@ describe("state machine", () => {
       startGame(store, room);
       const updated = store.getRoom(room.code)!;
       const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
-      expect(() => revealMovie(store, updated, writerId)).toThrow(
-        "No movie found for player"
-      );
+      expect(() => revealMovie(store, updated, writerId)).toThrow("No movie found for player");
     });
   });
 
@@ -619,7 +596,7 @@ describe("state machine", () => {
       const updated = store.getRoom(room.code)!;
       const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
       expect(() => castVote(store, updated, writerId, writerId)).toThrow(
-        "cannot vote for themselves"
+        "cannot vote for themselves",
       );
     });
 
@@ -637,18 +614,14 @@ describe("state machine", () => {
       const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       const updated = store.getRoom(room.code)!;
-      expect(() =>
-        castVote(store, updated, "aud1", playerIds[0])
-      ).toThrow("not active");
+      expect(() => castVote(store, updated, "aud1", playerIds[0])).toThrow("not active");
     });
 
     it("prevents voting for a player with no movie", () => {
-      const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
+      const { room, _playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
       const updated = store.getRoom(room.code)!;
       const fakeId = "nonexistent-player-id";
-      expect(() => castVote(store, updated, "aud1", fakeId)).toThrow(
-        "No movie found"
-      );
+      expect(() => castVote(store, updated, "aud1", fakeId)).toThrow("No movie found");
     });
   });
 
@@ -657,9 +630,7 @@ describe("state machine", () => {
       const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
       const target1 = playerIds[0];
       const target2 = playerIds[1];
-      const voter = playerIds.find(
-        (id) => id !== target1 && id !== target2
-      )!;
+      const voter = playerIds.find((id) => id !== target1 && id !== target2)!;
       castVote(store, store.getRoom(room.code)!, "aud1", target1);
       castVote(store, store.getRoom(room.code)!, "aud2", target1);
       castVote(store, store.getRoom(room.code)!, voter, target2);
@@ -694,7 +665,7 @@ describe("state machine", () => {
 
     it("clears votes and deactivates voting", () => {
       const { room, playerIds } = setupRoundEnd(["Jason", "Sarah", "Mike"]);
-      const updated = store.getRoom(room.code)!;
+      const _updated = store.getRoom(room.code)!;
       castVote(store, store.getRoom(room.code)!, "aud1", playerIds[0]);
       tallyAndAdvance(store, store.getRoom(room.code)!);
       const after = store.getRoom(room.code)!;
@@ -724,7 +695,7 @@ describe("state machine", () => {
     });
 
     it("throws when voting is not active", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      const { room, _playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       const updated = store.getRoom(room.code)!;
       expect(() => tallyAndAdvance(store, updated)).toThrow("not active");
@@ -775,7 +746,7 @@ describe("state machine", () => {
     it("increments the round counter and transitions to setup", () => {
       const { room } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
-      let updated = store.getRoom(room.code)!;
+      const updated = store.getRoom(room.code)!;
       const before = updated.round.current;
       nextRound(store, updated);
       const after = store.getRoom(room.code)!;
@@ -798,21 +769,23 @@ describe("state machine", () => {
     it("picks a new note-giver for the next round", () => {
       const { room, playerIds } = createGameWithPlayers(["Alice", "Bob", "Charlie"]);
       startGame(store, room);
-      let updated = store.getRoom(room.code)!;
-      const firstNoteGiver = updated.noteGiverId!;
+      const updated = store.getRoom(room.code)!;
+      const _firstNoteGiver = updated.noteGiverId!;
       nextRound(store, updated);
       const after = store.getRoom(room.code)!;
       expect(after.noteGiverId).toBeDefined();
-      expect(after.noteGiverId).toBe(after.noteGiverOrder[after.noteGiverIndex - 1] ?? after.noteGiverOrder[0]);
+      expect(after.noteGiverId).toBe(
+        after.noteGiverOrder[after.noteGiverIndex - 1] ?? after.noteGiverOrder[0],
+      );
       expect(playerIds).toContain(after.noteGiverId);
     });
   });
 
   describe("playAgain", () => {
     it("resets to lobby keeping players", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      const { room, _playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
-      let updated = store.getRoom(room.code)!;
+      const updated = store.getRoom(room.code)!;
       playAgain(store, updated);
       const after = store.getRoom(room.code)!;
       expect(after.phase).toBe("lobby");
@@ -824,7 +797,7 @@ describe("state machine", () => {
     it("clears noteGiverOrder, noteGiverIndex, and roundWinnerId", () => {
       const { room } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
-      let updated = store.getRoom(room.code)!;
+      const updated = store.getRoom(room.code)!;
       expect(updated.noteGiverOrder.length).toBeGreaterThan(0);
       playAgain(store, updated);
       const after = store.getRoom(room.code)!;
@@ -1136,12 +1109,12 @@ describe("state machine", () => {
       expect(updated.round.current).toBe(2);
 
       const disconnectedWriter = playerIds.find(
-        (id) => id !== updated.noteGiverId && id !== playerIds[0]
+        (id) => id !== updated.noteGiverId && id !== playerIds[0],
       )!;
       updated = {
         ...updated,
         players: updated.players.map((p) =>
-          p.id === disconnectedWriter ? { ...p, isDisconnected: true } : p
+          p.id === disconnectedWriter ? { ...p, isDisconnected: true } : p,
         ),
       };
       store.saveRoom(updated);

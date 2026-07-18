@@ -44,7 +44,13 @@ export function tickTimer(timer: TimerState): TimerState {
   if (!timer.running) return timer;
   const next = timer.secondsRemaining - 1;
   if (next <= 0) {
-    return { running: false, secondsRemaining: 0, pausedAt: null, pausedForNote: false, noteResumeAt: null };
+    return {
+      running: false,
+      secondsRemaining: 0,
+      pausedAt: null,
+      pausedForNote: false,
+      noteResumeAt: null,
+    };
   }
   return { ...timer, secondsRemaining: next };
 }

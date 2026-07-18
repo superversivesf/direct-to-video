@@ -50,7 +50,10 @@ export const logger = {
     const line = `JOIN ${formatIp(ip)} room=${roomCode} name="${name}" role=${role}`;
     console.log(line);
     appendLog(LOG_FILE, `JOIN  ${line}`);
-    appendLog(GAME_LOG_FILE, `${timestamp()} JOIN room=${roomCode} name="${name}" ip=${formatIp(ip)} role=${role}`);
+    appendLog(
+      GAME_LOG_FILE,
+      `${timestamp()} JOIN room=${roomCode} name="${name}" ip=${formatIp(ip)} role=${role}`,
+    );
   },
 
   joinAudience(ip: string, roomCode: string): void {
@@ -78,7 +81,10 @@ export const logger = {
   roundEnd(roomCode: string, round: number, total: number, winner: string): void {
     const line = `ROUND room=${roomCode} ${round}/${total} winner="${winner}"`;
     console.log(line);
-    appendLog(GAME_LOG_FILE, `${timestamp()} ROUND room=${roomCode} ${round}/${total} winner="${winner}"`);
+    appendLog(
+      GAME_LOG_FILE,
+      `${timestamp()} ROUND room=${roomCode} ${round}/${total} winner="${winner}"`,
+    );
   },
 
   error(ip: string, socketId: string, message: string): void {

@@ -9,7 +9,7 @@ import {
   clickVoteForMovie,
   setTotalRounds,
   waitForPhase,
-  findNoteGiverSession,
+  _findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "./helpers.js";
@@ -98,10 +98,15 @@ test.describe("Full 2-player game (UI-driven)", () => {
       }
       await clickVoteForMovie(audiencePage, 0);
 
-      await expect.poll(async () => {
-        const r = await audiencePage.locator("body").textContent() ?? "";
-        return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
-      }, { timeout: 20000, intervals: [500] }).toBeTruthy();
+      await expect
+        .poll(
+          async () => {
+            const r = (await audiencePage.locator("body").textContent()) ?? "";
+            return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
+          },
+          { timeout: 20000, intervals: [500] },
+        )
+        .toBeTruthy();
 
       await new Promise((r) => setTimeout(r, 1000));
     }
@@ -109,7 +114,9 @@ test.describe("Full 2-player game (UI-driven)", () => {
     await waitForPhase(audiencePage, /wins!|It's a tie!/i, 15000);
     await expect(audiencePage.locator(".audience-game-end")).toBeVisible({ timeout: 10000 });
     await expect(audiencePage.locator(".winner-spotlight")).toBeVisible({ timeout: 10000 });
-    await expect(audiencePage.locator(".audience-footer .scoreboard")).toBeVisible({ timeout: 10000 });
+    await expect(audiencePage.locator(".audience-footer .scoreboard")).toBeVisible({
+      timeout: 10000,
+    });
 
     const scoreboardText = await audiencePage.locator(".audience-footer .scoreboard").textContent();
     expect(scoreboardText).toContain("Host");

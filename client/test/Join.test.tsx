@@ -21,27 +21,47 @@ beforeEach(() => {
 
 describe("Join", () => {
   it("renders room code input", () => {
-    render(<MemoryRouter future={futureFlags}><Join /></MemoryRouter>);
+    render(
+      <MemoryRouter future={futureFlags}>
+        <Join />
+      </MemoryRouter>,
+    );
     expect(screen.getByPlaceholderText(/room code/i)).toBeTruthy();
   });
 
   it("renders name input", () => {
-    render(<MemoryRouter future={futureFlags}><Join /></MemoryRouter>);
+    render(
+      <MemoryRouter future={futureFlags}>
+        <Join />
+      </MemoryRouter>,
+    );
     expect(screen.getByPlaceholderText(/your name/i)).toBeTruthy();
   });
 
   it("renders join as player button", () => {
-    render(<MemoryRouter future={futureFlags}><Join /></MemoryRouter>);
+    render(
+      <MemoryRouter future={futureFlags}>
+        <Join />
+      </MemoryRouter>,
+    );
     expect(screen.getByText(/join as player/i)).toBeTruthy();
   });
 
   it("renders join as audience button", () => {
-    render(<MemoryRouter future={futureFlags}><Join /></MemoryRouter>);
+    render(
+      <MemoryRouter future={futureFlags}>
+        <Join />
+      </MemoryRouter>,
+    );
     expect(screen.getByText(/join as audience/i)).toBeTruthy();
   });
 
   it("navigates to /room/:code when joining as player", () => {
-    render(<MemoryRouter future={futureFlags}><Join /></MemoryRouter>);
+    render(
+      <MemoryRouter future={futureFlags}>
+        <Join />
+      </MemoryRouter>,
+    );
     const codeInput = screen.getByPlaceholderText(/room code/i);
     const nameInput = screen.getByPlaceholderText(/your name/i);
     fireEvent.change(codeInput, { target: { value: "ABCD" } });

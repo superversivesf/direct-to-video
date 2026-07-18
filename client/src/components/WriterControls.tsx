@@ -12,7 +12,16 @@ interface WriterControlsProps {
   onReady: () => void;
 }
 
-export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBlind, blindCard, blindRevealed, onSelectCard, onReady }: WriterControlsProps) {
+export function WriterControls({
+  hand,
+  selectedCard,
+  hasSelectedCard,
+  hasDrawnBlind: _hasDrawnBlind,
+  blindCard,
+  blindRevealed,
+  onSelectCard,
+  onReady,
+}: WriterControlsProps) {
   const blindDeckType: DeckType = selectedCard?.type === "plot" ? "character" : "plot";
 
   return (
@@ -34,11 +43,17 @@ export function WriterControls({ hand, selectedCard, hasSelectedCard, hasDrawnBl
             {selectedCard.type === "character" ? (
               <>
                 <Card card={selectedCard} />
-                <Card card={blindCard || { id: "blank", type: blindDeckType, text: "" }} faceDown={true} />
+                <Card
+                  card={blindCard || { id: "blank", type: blindDeckType, text: "" }}
+                  faceDown={true}
+                />
               </>
             ) : (
               <>
-                <Card card={blindCard || { id: "blank", type: blindDeckType, text: "" }} faceDown={true} />
+                <Card
+                  card={blindCard || { id: "blank", type: blindDeckType, text: "" }}
+                  faceDown={true}
+                />
                 <Card card={selectedCard} />
               </>
             )}

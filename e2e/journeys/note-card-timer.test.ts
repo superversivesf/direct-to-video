@@ -7,7 +7,7 @@ import {
   clickStartTimer,
   clickEndPitch,
   waitForPhase,
-  findNoteGiverSession,
+  _findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
@@ -43,7 +43,7 @@ test.describe("NOTE card timer journey", () => {
     await clickStartGame(alice.page);
     await waitForPhase(alice.page, /Round 1|Choose your deck|You are/i, 10000);
 
-    const { noteGiver, writers } = await playAllToReady(players, "plot");
+    const { noteGiver, _writers } = await playAllToReady(players, "plot");
 
     await waitForPhase(noteGiver.page, /Now Pitching|Your cards are ready|pitching/i, 15000);
     await waitForPhase(audiencePage, /Now Pitching/i, 15000);
@@ -62,18 +62,23 @@ test.describe("NOTE card timer journey", () => {
     await new Promise((r) => setTimeout(r, 500));
 
     await expect(
-      noteGiver.page.locator(".timer-note-badge").or(noteGiver.page.locator("text=/PAUSED — Read your note/i"))
+      noteGiver.page
+        .locator(".timer-note-badge")
+        .or(noteGiver.page.locator("text=/PAUSED — Read your note/i")),
     ).toBeVisible({ timeout: 5000 });
 
     await new Promise((r) => setTimeout(r, 6000));
 
-    const audText = await audiencePage.locator("body").textContent().catch(() => "");
+    const audText = await audiencePage
+      .locator("body")
+      .textContent()
+      .catch(() => "");
     expect(audText).toBeTruthy();
 
     await clickEndPitch(noteGiver.page);
     await new Promise((r) => setTimeout(r, 2000));
 
-    const afterText = await noteGiver.page.locator("body").textContent() ?? "";
+    const afterText = (await noteGiver.page.locator("body").textContent()) ?? "";
     const stillPitching = /pitching|Pitching|Waiting for|Now Pitching/i.test(afterText);
     const atRoundEnd = /Vote for the best movie|Vote for the Best Movie/i.test(afterText);
     expect(stillPitching || atRoundEnd).toBe(true);

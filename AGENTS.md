@@ -11,14 +11,14 @@ Direct to Video is a self-hosted web app for playing a remote party game. It is 
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Node.js 20, TypeScript, Express, Socket.IO v4, better-sqlite3 |
-| Frontend | React 18, Vite 5, React Router v6 |
-| Shared | TypeScript types package (`@direct-to-video/shared`) |
-| Testing | Vitest 1.6 (unit/integration), Playwright 1.45 (E2E) |
-| Deployment | Docker multi-stage build, docker-compose, SQLite volume |
-| Security | helmet, express-rate-limit, socket rate limiting, non-root Docker |
+| Layer      | Technology                                                        |
+| ---------- | ----------------------------------------------------------------- |
+| Backend    | Node.js 20, TypeScript, Express, Socket.IO v4, better-sqlite3     |
+| Frontend   | React 18, Vite 5, React Router v6                                 |
+| Shared     | TypeScript types package (`@direct-to-video/shared`)              |
+| Testing    | Vitest 1.6 (unit/integration), Playwright 1.45 (E2E)              |
+| Deployment | Docker multi-stage build, docker-compose, SQLite volume           |
+| Security   | helmet, express-rate-limit, socket rate limiting, non-root Docker |
 
 ## Project Structure
 
@@ -173,13 +173,21 @@ docker compose up --build    # App at http://localhost:3000
 
 ### Lint
 
-**No linter configured.** No ESLint, no Prettier, no lint script in any package.json.
+**ESLint 9 flat config** in `eslint.config.mjs` with typescript-eslint + react + react-hooks + react-refresh + prettier plugins. Prettier config in `.prettierrc.json` with `.prettierignore`.
+
+```bash
+npm run lint           # Run ESLint (exits 0 with 4 intentional react-hooks warnings)
+npm run lint:fix       # ESLint --fix
+npm run format         # Prettier --write across all source
+npm run format:check   # Prettier --check
+```
 
 ## Architecture
 
 ### Monorepo Monolith
 
 Single Node.js process serves:
+
 1. Express REST API (static file serving + SPA fallback) with helmet security headers + rate limiting
 2. Socket.IO real-time game state with per-IP connection limits + per-socket event rate limiting
 3. Built React static files from `client/dist/`
@@ -266,57 +274,57 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 
 - **Auto-draw cards:** Cards with `draws: [{ deck, count }]` and `____` in text automatically draw from the specified deck and substitute the placeholder. E.g., `"has a steamy affair with ____"` draws a character card. Substitution lives in `card-ops.ts:substituteDraws`.
 - **Franchise cards:** Cards with `isFranchise: true` and `header: "FRANCHISE PITCH:"` reference previously pitched movies (display-only, handled verbally). Filtered out in 2-player games, and when the host disables franchise cards. Franchise card holders pitch last.
-- **Multi-line notes:** Note cards with ` / ` separator display as separate paragraphs (note + note-giver commentary).
+- **Multi-line notes:** Note cards with `/` separator display as separate paragraphs (note + note-giver commentary).
 - **Note card draws:** Some note cards draw plot, character, or even other note cards when played.
 - **Card rendering:** Note cards use "Permanent Marker" handwritten font. Character cards have red location header above typewriter-font text. Note cards are 20% larger than other cards.
 
 ## Security Hardening
 
-| Layer | Protection | Limit |
-|-------|-----------|-------|
-| HTTP | Rate limiting per IP | 60 req/min |
-| HTTP | Security headers | helmet + CSP (allows Google Fonts + WebSocket) |
-| HTTP | Trust proxy | enabled (for nginx X-Forwarded-For) |
-| Socket | Max payload size | 4KB |
-| Socket | Connections per IP | 25 |
-| Socket | Join attempts per IP | 20/min |
-| Socket | Game events per socket | 50 per 10s |
-| Rooms | Max active rooms | 20 (`MAX_ROOMS` env) |
-| Rooms | Max players per room | 20 (`MAX_PLAYERS` env) |
-| Names | Validation | 20 chars, alphanumeric + spaces only |
-| Lobby | Host kick | host-only, cannot kick self or other hosts |
-| Docker | Runs as | non-root `appuser` |
-| Docker | Filesystem | read-only (data volume writable) |
-| Docker | Memory | 512MB limit |
-| Docker | CPU | 1 core limit |
-| Docker | Restart | unless-stopped |
+| Layer  | Protection             | Limit                                          |
+| ------ | ---------------------- | ---------------------------------------------- |
+| HTTP   | Rate limiting per IP   | 60 req/min                                     |
+| HTTP   | Security headers       | helmet + CSP (allows Google Fonts + WebSocket) |
+| HTTP   | Trust proxy            | enabled (for nginx X-Forwarded-For)            |
+| Socket | Max payload size       | 4KB                                            |
+| Socket | Connections per IP     | 25                                             |
+| Socket | Join attempts per IP   | 20/min                                         |
+| Socket | Game events per socket | 50 per 10s                                     |
+| Rooms  | Max active rooms       | 20 (`MAX_ROOMS` env)                           |
+| Rooms  | Max players per room   | 20 (`MAX_PLAYERS` env)                         |
+| Names  | Validation             | 20 chars, alphanumeric + spaces only           |
+| Lobby  | Host kick              | host-only, cannot kick self or other hosts     |
+| Docker | Runs as                | non-root `appuser`                             |
+| Docker | Filesystem             | read-only (data volume writable)               |
+| Docker | Memory                 | 512MB limit                                    |
+| Docker | CPU                    | 1 core limit                                   |
+| Docker | Restart                | unless-stopped                                 |
 
 ## What Works (Verified 2026-07-17)
 
 ### Tests — All Passing
 
-| Suite | Tests | Status |
-|-------|-------|--------|
-| server/test/db.test.ts | 7 | PASS |
-| server/test/rooms.test.ts | 14 | PASS |
-| server/test/timer.test.ts | 15 | PASS |
-| server/test/timer-helpers.test.ts | 5 | PASS |
-| server/test/card-ops.test.ts | — | PASS |
-| server/test/state-machine.test.ts | — | PASS |
-| server/test/sockets.test.ts | — | PASS |
-| **Server subtotal** | **140** | **ALL PASS** |
-| client/test/Card.test.tsx | 4 | PASS |
-| client/test/WriterControls.test.tsx | 6 | PASS |
-| client/test/Timer.test.tsx | 5 | PASS |
-| client/test/NoteGiverControls.test.tsx | 12 | PASS |
-| client/test/Join.test.tsx | 5 | PASS |
-| client/test/Scoreboard.test.tsx | 9 | PASS |
-| client/test/PlayerList.test.tsx | 6 | PASS |
-| client/test/PhaseIndicator.test.tsx | 9 | PASS |
-| client/test/MovieReveal.test.tsx | 6 | PASS |
-| client/test/Game.test.tsx | 16 | PASS |
-| **Client subtotal** | **78** | **ALL PASS** |
-| **Total** | **218** | **ALL PASS** |
+| Suite                                  | Tests   | Status       |
+| -------------------------------------- | ------- | ------------ |
+| server/test/db.test.ts                 | 7       | PASS         |
+| server/test/rooms.test.ts              | 14      | PASS         |
+| server/test/timer.test.ts              | 15      | PASS         |
+| server/test/timer-helpers.test.ts      | 5       | PASS         |
+| server/test/card-ops.test.ts           | —       | PASS         |
+| server/test/state-machine.test.ts      | —       | PASS         |
+| server/test/sockets.test.ts            | —       | PASS         |
+| **Server subtotal**                    | **140** | **ALL PASS** |
+| client/test/Card.test.tsx              | 4       | PASS         |
+| client/test/WriterControls.test.tsx    | 6       | PASS         |
+| client/test/Timer.test.tsx             | 5       | PASS         |
+| client/test/NoteGiverControls.test.tsx | 12      | PASS         |
+| client/test/Join.test.tsx              | 5       | PASS         |
+| client/test/Scoreboard.test.tsx        | 9       | PASS         |
+| client/test/PlayerList.test.tsx        | 6       | PASS         |
+| client/test/PhaseIndicator.test.tsx    | 9       | PASS         |
+| client/test/MovieReveal.test.tsx       | 6       | PASS         |
+| client/test/Game.test.tsx              | 16      | PASS         |
+| **Client subtotal**                    | **78**  | **ALL PASS** |
+| **Total**                              | **218** | **ALL PASS** |
 
 > Note: `cd server && npx vitest run` reports 56 unhandled timer errors after all 140 tests pass — these are from stale-disconnect `setTimeout` callbacks firing against closed in-memory SQLite handles in `sockets.test.ts`. All 140 tests pass; the errors are post-test cleanup noise, not test failures.
 
@@ -366,9 +374,9 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 
 ## Known Issues & What Doesn't Work
 
-### 1. No linter or formatter
+### 1. No linter or formatter (RESOLVED)
 
-No ESLint, Prettier, or any lint configuration exists. Code style is enforced only by convention and review.
+Previously no ESLint, Prettier, or lint configuration existed. Added in v2.1.2: ESLint 9 flat config (`eslint.config.mjs`) with typescript-eslint + react + react-hooks + react-refresh + prettier plugins, Prettier config (`.prettierrc.json`, `.prettierignore`), and `lint` / `lint:fix` / `format` / `format:check` scripts in root `package.json`. Existing code was reformatted via `npm run format` and unused-vars were fixed. `npm run lint` exits 0 with 4 intentional `react-hooks/exhaustive-deps` warnings in `Audience.tsx` / `Game.tsx` (deliberate partial dependency arrays for effect timing).
 
 ### 2. E2E test not verified
 
@@ -400,12 +408,12 @@ This project deliberately does **not** use GitHub Actions or any CI/CD pipeline,
 
 ## Configuration
 
-| Environment Variable | Default | Description |
-|---------------------|---------|-------------|
-| `PORT` | `3000` | Server listen port |
-| `DB_PATH` | `data/directtovideo.db` | SQLite database path |
-| `MAX_PLAYERS` | `20` | Max players per room |
-| `MAX_ROOMS` | `20` | Max concurrent active rooms |
+| Environment Variable | Default                 | Description                 |
+| -------------------- | ----------------------- | --------------------------- |
+| `PORT`               | `3000`                  | Server listen port          |
+| `DB_PATH`            | `data/directtovideo.db` | SQLite database path        |
+| `MAX_PLAYERS`        | `20`                    | Max players per room        |
+| `MAX_ROOMS`          | `20`                    | Max concurrent active rooms |
 
 Note: `ROOM_TTL_MS`, `CLEANUP_INTERVAL_MS`, and `STALE_DISCONNECT_MS` (60s) are hardcoded constants in `server/src/index.ts` and `server/src/sockets/handlers.ts`.
 

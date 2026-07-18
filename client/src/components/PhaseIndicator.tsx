@@ -28,7 +28,9 @@ export function PhaseIndicator({ phase, isNoteGiver }: PhaseIndicatorProps) {
       {steps.map((step, i) => (
         <div key={step.key} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           {i > 0 && <div className="phase-divider" />}
-          <div className={`phase-step ${i === activeIndex ? "active" : ""} ${i < activeIndex ? "done" : ""}`}>
+          <div
+            className={`phase-step ${i === activeIndex ? "active" : ""} ${i < activeIndex ? "done" : ""}`}
+          >
             <div className="phase-step-dot" />
             {step.label}
           </div>

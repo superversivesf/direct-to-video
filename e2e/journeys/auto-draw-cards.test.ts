@@ -8,7 +8,7 @@ import {
   clickEndPitch,
   clickVoteForMovie,
   waitForPhase,
-  findNoteGiverSession,
+  _findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
@@ -70,10 +70,18 @@ test.describe("Auto-draw cards journey", () => {
 
     await waitForPhase(noteGiver.page, /Vote for the best movie/i, 10000);
 
-    const audienceMovieText = await audiencePage.locator(".audience-movie-card").first().textContent().catch(() => "");
+    const audienceMovieText = await audiencePage
+      .locator(".audience-movie-card")
+      .first()
+      .textContent()
+      .catch(() => "");
     expect(audienceMovieText).toBeTruthy();
 
-    const playerMovieText = await noteGiver.page.locator(".round-summary-movie, .movie-reveal").first().textContent().catch(() => "");
+    const playerMovieText = await noteGiver.page
+      .locator(".round-summary-movie, .movie-reveal")
+      .first()
+      .textContent()
+      .catch(() => "");
     expect(playerMovieText).toBeTruthy();
 
     for (const player of players) {
@@ -86,9 +94,14 @@ test.describe("Auto-draw cards journey", () => {
     }
     await clickVoteForMovie(audiencePage, 0);
 
-    await expect.poll(async () => {
-      const r = await noteGiver.page.locator("body").textContent() ?? "";
-      return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
-    }, { timeout: 20000, intervals: [500] }).toBeTruthy();
+    await expect
+      .poll(
+        async () => {
+          const r = (await noteGiver.page.locator("body").textContent()) ?? "";
+          return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
+        },
+        { timeout: 20000, intervals: [500] },
+      )
+      .toBeTruthy();
   });
 });

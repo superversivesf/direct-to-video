@@ -4,8 +4,21 @@ import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
 import { createServer } from "http";
 import { initDb, seedCards } from "../src/db.js";
 import { RoomStore } from "../src/rooms.js";
-import { setupSocketHandlers, resetRateLimits, clearStaleDisconnectTimers, clearTimerInterval } from "../src/sockets/handlers.js";
-import { startGame, selectDeckType, selectCard, startPitching, revealMovie, endPitch, tallyAndAdvance } from "../src/state-machine.js";
+import {
+  setupSocketHandlers,
+  resetRateLimits,
+  clearStaleDisconnectTimers,
+  clearTimerInterval,
+} from "../src/sockets/handlers.js";
+import {
+  startGame,
+  selectDeckType,
+  selectCard,
+  startPitching,
+  revealMovie,
+  endPitch,
+  tallyAndAdvance,
+} from "../src/state-machine.js";
 import { startTimer, pauseForNote } from "../src/timer.js";
 import type { Database } from "better-sqlite3";
 import type { PublicRoomState, AudienceRoomState } from "@direct-to-video/shared";
@@ -24,10 +37,17 @@ function waitForEvent<T>(socket: ClientSocket, event: string, timeout = 30000): 
   });
 }
 
-function connectAndJoin(port: number, code: string, name: string): Promise<{ socket: ClientSocket; state: PublicRoomState }> {
+function connectAndJoin(
+  port: number,
+  code: string,
+  name: string,
+): Promise<{ socket: ClientSocket; state: PublicRoomState }> {
   return new Promise((resolve, reject) => {
     const socket = ioc(`${BASE}:${port}`, { forceNew: true, transports: ["websocket"] });
-    const timer = setTimeout(() => { socket.close(); reject(new Error("Connect timeout")); }, 15000);
+    const timer = setTimeout(() => {
+      socket.close();
+      reject(new Error("Connect timeout"));
+    }, 15000);
     const handler = (state: PublicRoomState) => {
       clearTimeout(timer);
       socket.off("room_joined", handler);
@@ -44,10 +64,16 @@ function connectAndJoin(port: number, code: string, name: string): Promise<{ soc
   });
 }
 
-function connectAudience(port: number, code: string): Promise<{ socket: ClientSocket; state: AudienceRoomState }> {
+function connectAudience(
+  port: number,
+  code: string,
+): Promise<{ socket: ClientSocket; state: AudienceRoomState }> {
   return new Promise((resolve, reject) => {
     const socket = ioc(`${BASE}:${port}`, { forceNew: true, transports: ["websocket"] });
-    const timer = setTimeout(() => { socket.close(); reject(new Error("Audience connect timeout")); }, 15000);
+    const timer = setTimeout(() => {
+      socket.close();
+      reject(new Error("Audience connect timeout"));
+    }, 15000);
     const handler = (state: AudienceRoomState) => {
       clearTimeout(timer);
       socket.off("audience_joined", handler);
@@ -64,7 +90,15 @@ function connectAudience(port: number, code: string): Promise<{ socket: ClientSo
   });
 }
 
-async function playToRoundEnd(port: number, store: RoomStore, playerNames: string[]): Promise<{ sockets: ClientSocket[]; roomCode: string; states: Map<ClientSocket, PublicRoomState> }> {
+async function playToRoundEnd(
+  port: number,
+  store: RoomStore,
+  playerNames: string[],
+): Promise<{
+  sockets: ClientSocket[];
+  roomCode: string;
+  states: Map<ClientSocket, PublicRoomState>;
+}> {
   const sockets: ClientSocket[] = [];
   const states = new Map<ClientSocket, PublicRoomState>();
   let roomCode = "";
@@ -232,7 +266,9 @@ describe("sockets", () => {
         if (i === 0) roomCode = result.state.code;
       }
       for (const socket of sockets) {
-        socket.on("room_joined", (state: PublicRoomState) => { states.set(socket, state); });
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
       }
 
       let room = store.getRoom(roomCode)!;
@@ -298,7 +334,11 @@ describe("sockets", () => {
     });
 
     it("all votes have equal weight (1x) in v2.0", async () => {
-      const { sockets, states, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
+      const { sockets, states, audience, movies } = await setupVotingTest([
+        "Jason",
+        "Sarah",
+        "Mike",
+      ]);
       expect(movies.length).toBeGreaterThanOrEqual(2);
 
       await new Promise((r) => setTimeout(r, 300));
@@ -323,7 +363,11 @@ describe("sockets", () => {
     }, 15000);
 
     it("voting timer expiry tallies votes and advances round", async () => {
-      const { sockets, noteGiverSocket, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
+      const { sockets, noteGiverSocket, audience, movies } = await setupVotingTest([
+        "Jason",
+        "Sarah",
+        "Mike",
+      ]);
 
       await new Promise((r) => setTimeout(r, 300));
 
@@ -339,7 +383,11 @@ describe("sockets", () => {
     }, 120000);
 
     it("all players voting triggers early tally", async () => {
-      const { sockets, states, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
+      const { sockets, states, audience, movies } = await setupVotingTest([
+        "Jason",
+        "Sarah",
+        "Mike",
+      ]);
       const noteGiverId = states.get(sockets[0])!.noteGiverId!;
 
       await new Promise((r) => setTimeout(r, 300));
@@ -364,7 +412,11 @@ describe("sockets", () => {
     }, 45000);
 
     it("prevents players from voting for themselves", async () => {
-      const { sockets, states, audience, movies } = await setupVotingTest(["Jason", "Sarah", "Mike"]);
+      const { sockets, states, audience, _movies } = await setupVotingTest([
+        "Jason",
+        "Sarah",
+        "Mike",
+      ]);
       const noteGiverId = states.get(sockets[0])!.noteGiverId!;
       const nonNoteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId !== noteGiverId)!;
       const selfPlayerId = states.get(nonNoteGiverSocket)!.myPlayerId!;
@@ -392,7 +444,9 @@ describe("sockets", () => {
         if (i === 0) roomCode = result.state.code;
       }
       for (const socket of sockets) {
-        socket.on("room_joined", (state: PublicRoomState) => { states.set(socket, state); });
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
       }
 
       let room = store.getRoom(roomCode)!;
@@ -496,7 +550,7 @@ describe("sockets", () => {
     it("host can set total rounds in lobby", async () => {
       const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
       host.on("connect", () => host.emit("join_room", "", "Jason"));
-      const hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
+      const _hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
 
       const statePromise = waitForEvent<PublicRoomState>(host, "room_joined");
       host.emit("set_total_rounds", 7);
@@ -513,7 +567,7 @@ describe("sockets", () => {
 
       const guest = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
       guest.on("connect", () => guest.emit("join_room", hostState.code, "Sarah"));
-      const guestState = await waitForEvent<PublicRoomState>(guest, "room_joined");
+      const _guestState = await waitForEvent<PublicRoomState>(guest, "room_joined");
 
       guest.emit("set_total_rounds", 10);
       await new Promise((r) => setTimeout(r, 500));
@@ -617,16 +671,28 @@ describe("sockets", () => {
         await new Promise((r) => setTimeout(r, 300));
       }
 
-      const r2NoteGiverPlayer = store.getRoom(roomCode)!.players.find((p) => p.id === r2NoteGiverId)!;
+      const r2NoteGiverPlayer = store
+        .getRoom(roomCode)!
+        .players.find((p) => p.id === r2NoteGiverId)!;
       if (r2NoteGiverPlayer.hand.length === 0) {
-        const ngPromise = waitForEvent<PublicRoomState>(sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!, "room_joined");
-        sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!.emit("select_deck_type", "plot");
+        const ngPromise = waitForEvent<PublicRoomState>(
+          sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!,
+          "room_joined",
+        );
+        sockets
+          .find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!
+          .emit("select_deck_type", "plot");
         await ngPromise;
         await new Promise((r) => setTimeout(r, 300));
         const ngRoom = store.getRoom(roomCode)!;
         const ngPlayer = ngRoom.players.find((p) => p.id === r2NoteGiverId)!;
-        const ngCardPromise = waitForEvent<PublicRoomState>(sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!, "room_joined");
-        sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!.emit("select_card", ngPlayer.hand[0].id);
+        const ngCardPromise = waitForEvent<PublicRoomState>(
+          sockets.find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!,
+          "room_joined",
+        );
+        sockets
+          .find((s) => states.get(s)!.myPlayerId === r2NoteGiverId)!
+          .emit("select_card", ngPlayer.hand[0].id);
         await ngCardPromise;
         await new Promise((r) => setTimeout(r, 300));
       }
@@ -676,7 +742,7 @@ describe("sockets", () => {
       await w0Draw;
       await new Promise((r) => setTimeout(r, 300));
 
-      let w0Hand = store.getRoom(roomCode)!.players.find((p) => p.id === w0Id)!.hand;
+      const w0Hand = store.getRoom(roomCode)!.players.find((p) => p.id === w0Id)!.hand;
       expect(w0Hand.length).toBe(3);
 
       const w0Card = waitForEvent<PublicRoomState>(w0, "room_joined");

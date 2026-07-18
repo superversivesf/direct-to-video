@@ -13,7 +13,14 @@ import {
   tallyAndAdvance,
   playAgain,
 } from "../state-machine.js";
-import { startTimer, pauseTimer, pauseForNote, tickTimer, isTimerExpired, shouldResumeFromNote } from "../timer.js";
+import {
+  startTimer,
+  pauseTimer,
+  pauseForNote,
+  tickTimer,
+  isTimerExpired,
+  shouldResumeFromNote,
+} from "../timer.js";
 import {
   resetRateLimits,
   checkConnectionLimit,
@@ -159,7 +166,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         room = {
           ...room,
           players: room.players.map((p) =>
-            p.id === playerId ? { ...p, socketId: socket.id, isDisconnected: false } : p
+            p.id === playerId ? { ...p, socketId: socket.id, isDisconnected: false } : p,
           ),
         };
         store.saveRoom(room);
@@ -494,7 +501,9 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
             let updated = {
               ...room,
               players: room.players.map((p) =>
-                p.id === playerId ? { ...p, isDisconnected: true, socketId: null, isHost: false } : p
+                p.id === playerId
+                  ? { ...p, isDisconnected: true, socketId: null, isHost: false }
+                  : p,
               ),
             };
             if (wasHost) {
@@ -503,7 +512,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
                 updated = {
                   ...updated,
                   players: updated.players.map((p) =>
-                    p.id === nextHost.id ? { ...p, isHost: true } : p
+                    p.id === nextHost.id ? { ...p, isHost: true } : p,
                   ),
                 };
               }
@@ -512,49 +521,54 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
             broadcastPlayerList(io, updated);
             broadcastAllStates(io, updated);
 
-            staleDisconnectTimers.set(playerId, setTimeout(() => {
-              staleDisconnectTimers.delete(playerId);
-              const currentRoom = store.getRoom(socketInfo.roomCode);
-              if (!currentRoom) return;
-              const stillDisconnected = currentRoom.players.find(
-                (p) => p.id === playerId && p.isDisconnected
-              );
-              if (!stillDisconnected) return;
+            staleDisconnectTimers.set(
+              playerId,
+              setTimeout(() => {
+                staleDisconnectTimers.delete(playerId);
+                const currentRoom = store.getRoom(socketInfo.roomCode);
+                if (!currentRoom) return;
+                const stillDisconnected = currentRoom.players.find(
+                  (p) => p.id === playerId && p.isDisconnected,
+                );
+                if (!stillDisconnected) return;
 
-              const wasNoteGiver = currentRoom.noteGiverId === playerId;
-              let cleared = {
-                ...currentRoom,
-                players: currentRoom.players.filter((p) => p.id !== playerId),
-              };
-              if (wasNoteGiver && cleared.phase !== "round-end" && cleared.phase !== "game-end") {
-                const nextGiver = cleared.players.find((p) => !p.isDisconnected);
-                if (nextGiver) {
-                  cleared = {
-                    ...cleared,
-                    noteGiverId: nextGiver.id,
-                    noteGiverNotes: cleared.noteGiverNotes,
-                    players: cleared.players.map((p) =>
-                      p.id === nextGiver.id ? { ...p, isNoteGiver: true } : { ...p, isNoteGiver: false }
-                    ),
-                  };
+                const wasNoteGiver = currentRoom.noteGiverId === playerId;
+                let cleared = {
+                  ...currentRoom,
+                  players: currentRoom.players.filter((p) => p.id !== playerId),
+                };
+                if (wasNoteGiver && cleared.phase !== "round-end" && cleared.phase !== "game-end") {
+                  const nextGiver = cleared.players.find((p) => !p.isDisconnected);
+                  if (nextGiver) {
+                    cleared = {
+                      ...cleared,
+                      noteGiverId: nextGiver.id,
+                      noteGiverNotes: cleared.noteGiverNotes,
+                      players: cleared.players.map((p) =>
+                        p.id === nextGiver.id
+                          ? { ...p, isNoteGiver: true }
+                          : { ...p, isNoteGiver: false },
+                      ),
+                    };
+                  }
                 }
-              }
-              if (cleared.players.length > 0 && !cleared.players.some((p) => p.isHost)) {
-                const nextHost = cleared.players.find((p) => !p.isDisconnected);
-                if (nextHost) {
-                  cleared = {
-                    ...cleared,
-                    players: cleared.players.map((p) =>
-                      p.id === nextHost.id ? { ...p, isHost: true } : p
-                    ),
-                  };
+                if (cleared.players.length > 0 && !cleared.players.some((p) => p.isHost)) {
+                  const nextHost = cleared.players.find((p) => !p.isDisconnected);
+                  if (nextHost) {
+                    cleared = {
+                      ...cleared,
+                      players: cleared.players.map((p) =>
+                        p.id === nextHost.id ? { ...p, isHost: true } : p,
+                      ),
+                    };
+                  }
                 }
-              }
-              store.saveRoom(cleared);
-              broadcastPlayerList(io, cleared);
-              broadcastAllStates(io, cleared);
-              deletePlayerSocket(playerId);
-            }, STALE_DISCONNECT_MS));
+                store.saveRoom(cleared);
+                broadcastPlayerList(io, cleared);
+                broadcastAllStates(io, cleared);
+                deletePlayerSocket(playerId);
+              }, STALE_DISCONNECT_MS),
+            );
           }
           deletePlayerSocket(playerId);
         }

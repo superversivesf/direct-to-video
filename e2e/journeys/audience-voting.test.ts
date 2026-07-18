@@ -8,7 +8,7 @@ import {
   clickEndPitch,
   clickVoteForMovie,
   waitForPhase,
-  findNoteGiverSession,
+  _findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
@@ -23,7 +23,11 @@ test.describe("Audience voting journey", () => {
     extraPages = [];
   });
 
-  async function playThroughPitches(noteGiver: PlayerSession, writers: PlayerSession[], audiencePage: import("@playwright/test").Page): Promise<void> {
+  async function playThroughPitches(
+    noteGiver: PlayerSession,
+    writers: PlayerSession[],
+    audiencePage: import("@playwright/test").Page,
+  ): Promise<void> {
     await waitForPhase(noteGiver.page, /Now Pitching|Your cards are ready|pitching/i, 15000);
     await waitForPhase(audiencePage, /Now Pitching/i, 15000);
 
@@ -80,10 +84,15 @@ test.describe("Audience voting journey", () => {
       }
     }
 
-    await expect.poll(async () => {
-      const r = await noteGiver.page.locator("body").textContent() ?? "";
-      return /wins this round|Writers are choosing|Round \d+|wins!|It's a tie/i.test(r);
-    }, { timeout: 20000, intervals: [500] }).toBeTruthy();
+    await expect
+      .poll(
+        async () => {
+          const r = (await noteGiver.page.locator("body").textContent()) ?? "";
+          return /wins this round|Writers are choosing|Round \d+|wins!|It's a tie/i.test(r);
+        },
+        { timeout: 20000, intervals: [500] },
+      )
+      .toBeTruthy();
 
     const bodyText = await audiencePage.locator("body").textContent();
     expect(bodyText).toBeTruthy();
@@ -116,9 +125,14 @@ test.describe("Audience voting journey", () => {
     await clickVoteForMovie(audiencePage, 0);
     await new Promise((r) => setTimeout(r, 500));
 
-    await expect.poll(async () => {
-      const r = await audiencePage.locator("body").textContent() ?? "";
-      return /Writers are choosing|wins!|It's a tie|Round \d+ of/i.test(r);
-    }, { timeout: 45000, intervals: [500] }).toBeTruthy();
+    await expect
+      .poll(
+        async () => {
+          const r = (await audiencePage.locator("body").textContent()) ?? "";
+          return /Writers are choosing|wins!|It's a tie|Round \d+ of/i.test(r);
+        },
+        { timeout: 45000, intervals: [500] },
+      )
+      .toBeTruthy();
   });
 });

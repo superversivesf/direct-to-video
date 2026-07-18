@@ -6,7 +6,11 @@ import { Scoreboard } from "../components/Scoreboard.js";
 import { MovieReveal } from "../components/MovieReveal.js";
 import type { AudienceRoomState } from "@direct-to-video/shared";
 
-function AudienceRoundWinner({ winnerId, state, onDismiss }: {
+function AudienceRoundWinner({
+  winnerId,
+  state,
+  onDismiss,
+}: {
   winnerId: string;
   state: AudienceRoomState;
   onDismiss: () => void;
@@ -52,7 +56,9 @@ export function Audience() {
     return (
       <div className="audience-loading">
         <div className="error-banner">{error}</div>
-        <a href="/" className="rules-back-btn">← Back to Join</a>
+        <a href="/" className="rules-back-btn">
+          ← Back to Join
+        </a>
       </div>
     );
   }
@@ -107,14 +113,15 @@ export function Audience() {
 
       {(state.phase === "card-selection" || state.phase === "pitching") && (
         <div className="audience-pitching">
-          <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} pausedForNote={state.timer.pausedForNote} />
+          <Timer
+            seconds={state.timer.secondsRemaining}
+            running={state.timer.running}
+            large={true}
+            pausedForNote={state.timer.pausedForNote}
+          />
           {pitcher && <h2 className="audience-pitcher-name">Now Pitching: {pitcher.name}</h2>}
           {currentMovie && (
-            <MovieReveal
-              movie={currentMovie}
-              large={true}
-              blindFaceDown={!currentMovie.revealed}
-            />
+            <MovieReveal movie={currentMovie} large={true} blindFaceDown={!currentMovie.revealed} />
           )}
         </div>
       )}
@@ -124,7 +131,11 @@ export function Audience() {
           {state.votingActive ? (
             <>
               <h2>Vote for the Best Movie!</h2>
-              <Timer seconds={state.timer.secondsRemaining} running={state.timer.running} large={true} />
+              <Timer
+                seconds={state.timer.secondsRemaining}
+                running={state.timer.running}
+                large={true}
+              />
               {state.hasVoted ? (
                 <p className="audience-vote-hint">You voted! Waiting for others...</p>
               ) : (
@@ -136,7 +147,8 @@ export function Audience() {
           )}
           {state.movies.map((movie) => {
             const player = state.players.find((p) => p.id === movie.playerId);
-            const voteCount = state.voteCounts?.find((v) => v.playerId === movie.playerId)?.votes || 0;
+            const voteCount =
+              state.voteCounts?.find((v) => v.playerId === movie.playerId)?.votes || 0;
             return (
               <div key={movie.playerId} className="audience-movie-card">
                 <h3>{player?.name}'s Movie</h3>
@@ -147,10 +159,14 @@ export function Audience() {
                   </button>
                 )}
                 {state.votingActive && state.hasVoted && (
-                  <div className="vote-tally">{voteCount} vote{voteCount > 1 ? "s" : ""}</div>
+                  <div className="vote-tally">
+                    {voteCount} vote{voteCount > 1 ? "s" : ""}
+                  </div>
                 )}
                 {!state.votingActive && voteCount > 0 && (
-                  <div className="vote-tally">{voteCount} vote{voteCount > 1 ? "s" : ""}</div>
+                  <div className="vote-tally">
+                    {voteCount} vote{voteCount > 1 ? "s" : ""}
+                  </div>
                 )}
               </div>
             );
@@ -176,7 +192,11 @@ export function Audience() {
       )}
 
       <footer className="audience-footer">
-        <Scoreboard players={state.players} large={state.phase === "game-end"} podium={state.phase === "game-end"} />
+        <Scoreboard
+          players={state.players}
+          large={state.phase === "game-end"}
+          podium={state.phase === "game-end"}
+        />
       </footer>
     </div>
   );

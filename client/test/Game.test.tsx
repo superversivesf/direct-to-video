@@ -30,10 +30,18 @@ const mockFns = {
 const baseState: PublicRoomState = {
   code: "ABCD",
   phase: "lobby",
-  players: [{ id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false }],
+  players: [
+    { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
+  ],
   noteGiverId: null,
   currentPitcherId: null,
-  timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
+  timer: {
+    running: false,
+    secondsRemaining: 45,
+    pausedAt: null,
+    pausedForNote: false,
+    noteResumeAt: null,
+  },
   round: { current: 0 },
   totalRounds: 5,
   movies: [],
@@ -62,7 +70,11 @@ function setState(overrides: Partial<PublicRoomState>) {
 }
 
 function renderGame() {
-  return render(<MemoryRouter future={futureFlags}><Game /></MemoryRouter>);
+  return render(
+    <MemoryRouter future={futureFlags}>
+      <Game />
+    </MemoryRouter>,
+  );
 }
 
 describe("Game", () => {
@@ -82,7 +94,16 @@ describe("Game", () => {
   it("does not render start game button for non-host in lobby", () => {
     setState({
       phase: "lobby",
-      players: [{ id: "2", name: "Bob", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false }],
+      players: [
+        {
+          id: "2",
+          name: "Bob",
+          isNoteGiver: false,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
+      ],
       myPlayerId: "2",
     });
     renderGame();
@@ -184,14 +205,22 @@ describe("Game", () => {
       noteGiverId: "9",
       myPlayerId: "1",
       currentPitcherId: "1",
-      timer: { running: true, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
-      movies: [{
-        playerId: "1",
-        chosenCard: { id: "c1", type: "plot", text: "Plot A" },
-        randomCard: { id: "r1", type: "character", text: "Char A" },
-        notesPlayed: [],
-        revealed: true,
-      }],
+      timer: {
+        running: true,
+        secondsRemaining: 45,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
+      movies: [
+        {
+          playerId: "1",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+        },
+      ],
     });
     renderGame();
     expect(screen.getByText("YOUR TURN TO PITCH!")).toBeTruthy();
@@ -207,18 +236,47 @@ describe("Game", () => {
       myPlayerId: "2",
       currentPitcherId: "1",
       players: [
-        { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
-        { id: "2", name: "Bob", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false },
-        { id: "9", name: "NoteGiver", isNoteGiver: true, isHost: false, score: 0, isDisconnected: false },
+        {
+          id: "1",
+          name: "Jason",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "2",
+          name: "Bob",
+          isNoteGiver: false,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "9",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
       ],
-      timer: { running: true, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
-      movies: [{
-        playerId: "1",
-        chosenCard: { id: "c1", type: "plot", text: "Plot A" },
-        randomCard: { id: "r1", type: "character", text: "Char A" },
-        notesPlayed: [],
-        revealed: true,
-      }],
+      timer: {
+        running: true,
+        secondsRemaining: 45,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
+      movies: [
+        {
+          playerId: "1",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+        },
+      ],
     });
     renderGame();
     expect(screen.getByText(/jason is pitching/i)).toBeTruthy();
@@ -233,17 +291,39 @@ describe("Game", () => {
       myPlayerId: "1",
       currentPitcherId: "2",
       players: [
-        { id: "1", name: "NoteGiver", isNoteGiver: true, isHost: false, score: 0, isDisconnected: false },
-        { id: "2", name: "Writer", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
+        {
+          id: "1",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "2",
+          name: "Writer",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+        },
       ],
-      timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
-      movies: [{
-        playerId: "2",
-        chosenCard: { id: "c1", type: "plot", text: "Plot A" },
-        randomCard: { id: "r1", type: "character", text: "Char A" },
-        notesPlayed: [],
-        revealed: true,
-      }],
+      timer: {
+        running: false,
+        secondsRemaining: 45,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
+      movies: [
+        {
+          playerId: "2",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+        },
+      ],
       myNoteGiverNotes: [{ id: "n1", type: "note", text: "Note A" }],
     });
     renderGame();
@@ -261,17 +341,39 @@ describe("Game", () => {
       myPlayerId: "1",
       currentPitcherId: "2",
       players: [
-        { id: "1", name: "NoteGiver", isNoteGiver: true, isHost: false, score: 0, isDisconnected: false },
-        { id: "2", name: "Writer", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
+        {
+          id: "1",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "2",
+          name: "Writer",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+        },
       ],
-      timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
-      movies: [{
-        playerId: "2",
-        chosenCard: { id: "c1", type: "plot", text: "Plot A" },
-        randomCard: { id: "r1", type: "character", text: "Char A" },
-        notesPlayed: [],
-        revealed: true,
-      }],
+      timer: {
+        running: false,
+        secondsRemaining: 45,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
+      movies: [
+        {
+          playerId: "2",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+        },
+      ],
       myNoteGiverNotes: [{ id: "n1", type: "note", text: "Note A" }],
     });
     renderGame();
@@ -288,11 +390,38 @@ describe("Game", () => {
       myPlayerId: "1",
       votingActive: true,
       voteCounts: [],
-      timer: { running: true, secondsRemaining: 15, pausedAt: null, pausedForNote: false, noteResumeAt: null },
+      timer: {
+        running: true,
+        secondsRemaining: 15,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
       players: [
-        { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
-        { id: "2", name: "Writer", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false },
-        { id: "9", name: "NoteGiver", isNoteGiver: true, isHost: false, score: 0, isDisconnected: false },
+        {
+          id: "1",
+          name: "Jason",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "2",
+          name: "Writer",
+          isNoteGiver: false,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "9",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
       ],
       movies: [
         {
@@ -327,10 +456,30 @@ describe("Game", () => {
       votingActive: true,
       voteCounts: [],
       myVote: null,
-      timer: { running: true, secondsRemaining: 15, pausedAt: null, pausedForNote: false, noteResumeAt: null },
+      timer: {
+        running: true,
+        secondsRemaining: 15,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
       players: [
-        { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 0, isDisconnected: false },
-        { id: "2", name: "Writer", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false },
+        {
+          id: "1",
+          name: "Jason",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "2",
+          name: "Writer",
+          isNoteGiver: false,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
       ],
       movies: [
         {
@@ -354,7 +503,14 @@ describe("Game", () => {
       totalRounds: 3,
       myPlayerId: "1",
       players: [
-        { id: "1", name: "Jason", isNoteGiver: false, isHost: true, score: 5, isDisconnected: false },
+        {
+          id: "1",
+          name: "Jason",
+          isNoteGiver: false,
+          isHost: true,
+          score: 5,
+          isDisconnected: false,
+        },
         { id: "2", name: "Bob", isNoteGiver: true, isHost: false, score: 3, isDisconnected: false },
       ],
     });

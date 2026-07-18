@@ -65,7 +65,9 @@ export function toAudienceRoomState(room: Room, audienceSocketId?: string): Audi
   const hasVoted = audienceSocketId ? !!room.votes[audienceSocketId] : false;
   const visibleMovies = room.movies.filter((m) => m.revealed);
   if (room.currentPitcherId) {
-    const currentMovie = room.movies.find((m) => m.playerId === room.currentPitcherId && !m.revealed);
+    const currentMovie = room.movies.find(
+      (m) => m.playerId === room.currentPitcherId && !m.revealed,
+    );
     if (currentMovie && !visibleMovies.some((m) => m.playerId === currentMovie.playerId)) {
       visibleMovies.push(currentMovie);
     }
@@ -139,7 +141,10 @@ export function broadcastAllStates(io: Server, room: Room): void {
   }
 }
 
-export function getPlayerContext(socketId: string, store: RoomStore): { room: Room; playerId: string } | null {
+export function getPlayerContext(
+  socketId: string,
+  store: RoomStore,
+): { room: Room; playerId: string } | null {
   for (const [playerId, info] of playerSockets) {
     if (info.socketId === socketId) {
       const room = store.getRoom(info.roomCode);
@@ -166,7 +171,9 @@ export function setPlayerSocket(playerId: string, socketId: string, roomCode: st
   playerSockets.set(playerId, { socketId, roomCode });
 }
 
-export function getPlayerSocketInfo(playerId: string): { socketId: string; roomCode: string } | undefined {
+export function getPlayerSocketInfo(
+  playerId: string,
+): { socketId: string; roomCode: string } | undefined {
   return playerSockets.get(playerId);
 }
 
@@ -189,7 +196,9 @@ export function findPlayerIdBySocketId(socketId: string): string | null {
   return null;
 }
 
-export function findAudienceSocketBySocketId(socketId: string): { socketId: string; roomCode: string } | undefined {
+export function findAudienceSocketBySocketId(
+  socketId: string,
+): { socketId: string; roomCode: string } | undefined {
   return audienceSockets.get(socketId);
 }
 
@@ -223,6 +232,11 @@ export function emitRoundResult(io: Server, room: Room, roundWinnerId: string | 
     io.to(`room:${room.code}`).emit("round_started", room.round.current);
     io.to(`audience:${room.code}`).emit("round_started", room.round.current);
     const winnerPlayer = roundWinnerId ? room.players.find((p) => p.id === roundWinnerId) : null;
-    logger.roundEnd(room.code, room.round.current, room.totalRounds, winnerPlayer?.name || "tie/no-winner");
+    logger.roundEnd(
+      room.code,
+      room.round.current,
+      room.totalRounds,
+      winnerPlayer?.name || "tie/no-winner",
+    );
   }
 }

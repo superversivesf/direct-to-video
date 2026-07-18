@@ -8,7 +8,7 @@ import {
   clickEndPitch,
   clickVoteForMovie,
   waitForPhase,
-  findNoteGiverSession,
+  _findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
@@ -80,10 +80,15 @@ test.describe("4-player round 2 soft-lock regression", () => {
       }
       await clickVoteForMovie(audiencePage, 0);
 
-      await expect.poll(async () => {
-        const r = await noteGiver.page.locator("body").textContent() ?? "";
-        return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
-      }, { timeout: 20000, intervals: [500] }).toBeTruthy();
+      await expect
+        .poll(
+          async () => {
+            const r = (await noteGiver.page.locator("body").textContent()) ?? "";
+            return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
+          },
+          { timeout: 20000, intervals: [500] },
+        )
+        .toBeTruthy();
 
       if (round < 4) {
         await waitForPhase(audiencePage, /Writers are choosing/i, 15000);

@@ -11,12 +11,7 @@ import {
 import type { Card, Room } from "@direct-to-video/shared";
 import type { Database } from "better-sqlite3";
 
-function makeCard(
-  id: string,
-  type: Card["type"],
-  text: string,
-  draws?: Card["draws"]
-): Card {
+function makeCard(id: string, type: Card["type"], text: string, draws?: Card["draws"]): Card {
   return { id, type, text, draws };
 }
 
@@ -31,7 +26,7 @@ describe("card-ops", () => {
     seedCards(db);
     store = new RoomStore(handle);
     const created = createRoom(store, "Host");
-    const joined = joinRoom(store, created.room.code, "Writer");
+    const _joined = joinRoom(store, created.room.code, "Writer");
     joinRoom(store, created.room.code, "Writer2");
     room = store.getRoom(created.room.code)!;
     room = {
@@ -118,12 +113,7 @@ describe("card-ops", () => {
   describe("substituteDraws", () => {
     it("returns the card unchanged when it has no draws", () => {
       const card = makeCard("c1", "plot", "A simple plot with no placeholders.");
-      const { card: result, deck: resultDeck } = substituteDraws(
-        store,
-        room.deck,
-        card,
-        room
-      );
+      const { card: result, deck: resultDeck } = substituteDraws(store, room.deck, card, room);
       expect(result).toBe(card);
       expect(resultDeck).toBe(room.deck);
     });
@@ -133,12 +123,7 @@ describe("card-ops", () => {
         { deck: "character", count: 1 },
       ]);
       const beforeChar = room.deck.character.length;
-      const { card: result, deck: resultDeck } = substituteDraws(
-        store,
-        room.deck,
-        card,
-        room
-      );
+      const { card: result, deck: resultDeck } = substituteDraws(store, room.deck, card, room);
       expect(result.substitutedText).toBeDefined();
       expect(result.substitutedText).not.toContain("____");
       expect(resultDeck.character.length).toBe(beforeChar - 1);
@@ -149,12 +134,7 @@ describe("card-ops", () => {
         { deck: "character", count: 2 },
       ]);
       const beforeChar = room.deck.character.length;
-      const { card: result, deck: resultDeck } = substituteDraws(
-        store,
-        room.deck,
-        card,
-        room
-      );
+      const { card: result, deck: resultDeck } = substituteDraws(store, room.deck, card, room);
       expect(result.substitutedText).not.toContain("____");
       expect(resultDeck.character.length).toBe(beforeChar - 2);
     });
@@ -166,12 +146,7 @@ describe("card-ops", () => {
       ]);
       const beforeChar = room.deck.character.length;
       const beforePlot = room.deck.plot.length;
-      const { card: result, deck: resultDeck } = substituteDraws(
-        store,
-        room.deck,
-        card,
-        room
-      );
+      const { card: result, deck: resultDeck } = substituteDraws(store, room.deck, card, room);
       expect(result.substitutedText).not.toBe(card.text);
       expect(result.substitutedText!.startsWith("____ meets ")).toBe(false);
       expect(resultDeck.character.length).toBe(beforeChar - 1);
@@ -188,9 +163,7 @@ describe("card-ops", () => {
     });
 
     it("draws from the note deck when specified", () => {
-      const card = makeCard("c1", "note", "Note: ____", [
-        { deck: "note", count: 1 },
-      ]);
+      const card = makeCard("c1", "note", "Note: ____", [{ deck: "note", count: 1 }]);
       const before = room.deck.note.length;
       const { deck: resultDeck } = substituteDraws(store, room.deck, card, room);
       expect(resultDeck.note.length).toBe(before - 1);

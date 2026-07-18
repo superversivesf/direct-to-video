@@ -91,17 +91,17 @@ Lobby → Setup → Card Selection → Pitching → Round End (auto-vote) → (n
 
 ## Card Types
 
-| Type | Count | Description |
-|------|-------|-------------|
-| Plot | 166 | Story premises (6 with auto-draw `____`, 7 franchise) |
-| Character | 161 | Characters with location headers (10 franchise, 2 "Pick a...") |
-| Note | 166 | Note Giver twist notes (8 with auto-draw: plot, character, or note cards) |
+| Type      | Count | Description                                                               |
+| --------- | ----- | ------------------------------------------------------------------------- |
+| Plot      | 166   | Story premises (6 with auto-draw `____`, 7 franchise)                     |
+| Character | 161   | Characters with location headers (10 franchise, 2 "Pick a...")            |
+| Note      | 166   | Note Giver twist notes (8 with auto-draw: plot, character, or note cards) |
 
 ### Special card mechanics
 
 - **Auto-draw cards:** Cards with `____` in the text automatically draw from the specified deck and substitute the placeholder. E.g., "has a steamy affair with ____" draws a character card.
 - **Franchise cards:** Cards with `FRANCHISE PITCH:` header that reference previously pitched movies (display-only, player handles verbally). Filtered out in 2-player games; host can disable them in the lobby.
-- **Multi-line notes:** Note cards with ` / ` separator display as two lines (note + note-giver commentary).
+- **Multi-line notes:** Note cards with `/` separator display as two lines (note + note-giver commentary).
 - **Note card draws:** Some note cards draw plot, character, or even other note cards when played.
 
 ## Testing
@@ -163,12 +163,12 @@ movie-pitch/
 
 ## Configuration
 
-| Environment Variable | Default | Description |
-|---------------------|---------|-------------|
-| `PORT` | `3000` | Server listen port |
-| `DB_PATH` | `data/directtovideo.db` | SQLite database path |
-| `MAX_PLAYERS` | `20` | Max players per room |
-| `MAX_ROOMS` | `20` | Max concurrent active rooms |
+| Environment Variable | Default                 | Description                 |
+| -------------------- | ----------------------- | --------------------------- |
+| `PORT`               | `3000`                  | Server listen port          |
+| `DB_PATH`            | `data/directtovideo.db` | SQLite database path        |
+| `MAX_PLAYERS`        | `20`                    | Max players per room        |
+| `MAX_ROOMS`          | `20`                    | Max concurrent active rooms |
 
 Stale-disconnect timeout (`STALE_DISCONNECT_MS`, 60s) and room cleanup TTL are hardcoded constants in the server source.
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, _screen } from "@testing-library/react";
 import { PhaseIndicator } from "../src/components/PhaseIndicator.js";
 
 describe("PhaseIndicator", () => {

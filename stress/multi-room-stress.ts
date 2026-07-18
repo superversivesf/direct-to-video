@@ -21,38 +21,50 @@ interface AudienceMember {
   state: AudienceRoomState | null;
 }
 
-interface RoomInstance {
-  id: number;
-  players: Player[];
-  audience: AudienceMember[];
-  roomCode: string;
-  finished: boolean;
-}
-
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function waitForHand(socket: ClientSocket, getState: () => PublicRoomState | null, timeout = 30000): Promise<void> {
+function waitForHand(
+  socket: ClientSocket,
+  getState: () => PublicRoomState | null,
+  timeout = 30000,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const check = () => {
       const state = getState();
-      if (state && state.myHand && state.myHand.length > 0) { resolve(); return; }
-      if (Date.now() - start > timeout) { reject(new Error("Timeout waiting for hand")); return; }
+      if (state && state.myHand && state.myHand.length > 0) {
+        resolve();
+        return;
+      }
+      if (Date.now() - start > timeout) {
+        reject(new Error("Timeout waiting for hand"));
+        return;
+      }
       setTimeout(check, 100);
     };
     check();
   });
 }
 
-function waitForMovieReady(socket: ClientSocket, getState: () => PublicRoomState | null, timeout = 10000): Promise<void> {
+function waitForMovieReady(
+  socket: ClientSocket,
+  getState: () => PublicRoomState | null,
+  timeout = 10000,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const check = () => {
       const state = getState();
-      if (state && state.myMovieReady) { resolve(); return; }
-      if (Date.now() - start > timeout) { reject(new Error("Timeout waiting for movie ready")); return; }
+      if (state && state.myMovieReady) {
+        resolve();
+        return;
+      }
+      if (Date.now() - start > timeout) {
+        reject(new Error("Timeout waiting for movie ready"));
+        return;
+      }
       setTimeout(check, 100);
     };
     check();
@@ -60,39 +72,76 @@ function waitForMovieReady(socket: ClientSocket, getState: () => PublicRoomState
 }
 
 function waitForPhaseAll(players: Player[], phase: string, timeout = 15000): Promise<void> {
-  return Promise.all(players.map((p) => {
-    if (p.state?.phase === phase) return Promise.resolve();
-    return new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`Timeout waiting for phase ${phase}`)), timeout);
-      const handler = (state: PublicRoomState) => {
-        if (state.phase === phase) { clearTimeout(timer); p.socket.off("room_joined", handler); resolve(); }
-      };
-      p.socket.on("room_joined", handler);
-    });
-  })).then(() => {});
+  return Promise.all(
+    players.map((p) => {
+      if (p.state?.phase === phase) return Promise.resolve();
+      return new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error(`Timeout waiting for phase ${phase}`)),
+          timeout,
+        );
+        const handler = (state: PublicRoomState) => {
+          if (state.phase === phase) {
+            clearTimeout(timer);
+            p.socket.off("room_joined", handler);
+            resolve();
+          }
+        };
+        p.socket.on("room_joined", handler);
+      });
+    }),
+  ).then(() => {});
 }
 
 function connectPlayer(target: string, roomCode: string, name: string): Promise<Player> {
   return new Promise((resolve, reject) => {
     const socket = ioClient(target, { forceNew: true, transports: ["websocket"] });
-    const timer = setTimeout(() => { socket.close(); reject(new Error(`Timeout connecting ${name}`)); }, 15000);
-    socket.on("room_joined", (state: PublicRoomState) => { clearTimeout(timer); resolve({ name, socket, playerId: state.myPlayerId!, roomCode: state.code, state }); });
-    socket.on("connect", () => { socket.emit("join_room", roomCode, name); });
-    socket.on("error", (msg: string) => { clearTimeout(timer); reject(new Error(`${name} error: ${msg}`)); });
+    const timer = setTimeout(() => {
+      socket.close();
+      reject(new Error(`Timeout connecting ${name}`));
+    }, 15000);
+    socket.on("room_joined", (state: PublicRoomState) => {
+      clearTimeout(timer);
+      resolve({ name, socket, playerId: state.myPlayerId!, roomCode: state.code, state });
+    });
+    socket.on("connect", () => {
+      socket.emit("join_room", roomCode, name);
+    });
+    socket.on("error", (msg: string) => {
+      clearTimeout(timer);
+      reject(new Error(`${name} error: ${msg}`));
+    });
   });
 }
 
 function connectAudience(target: string, roomCode: string, name: string): Promise<AudienceMember> {
   return new Promise((resolve, reject) => {
     const socket = ioClient(target, { forceNew: true, transports: ["websocket"] });
-    const timer = setTimeout(() => { socket.close(); reject(new Error(`Timeout connecting audience ${name}`)); }, 15000);
-    socket.on("audience_joined", (state: AudienceRoomState) => { clearTimeout(timer); resolve({ name, socket, state }); });
-    socket.on("connect", () => { socket.emit("join_audience", roomCode); });
-    socket.on("error", (msg: string) => { clearTimeout(timer); reject(new Error(`Audience ${name} error: ${msg}`)); });
+    const timer = setTimeout(() => {
+      socket.close();
+      reject(new Error(`Timeout connecting audience ${name}`));
+    }, 15000);
+    socket.on("audience_joined", (state: AudienceRoomState) => {
+      clearTimeout(timer);
+      resolve({ name, socket, state });
+    });
+    socket.on("connect", () => {
+      socket.emit("join_audience", roomCode);
+    });
+    socket.on("error", (msg: string) => {
+      clearTimeout(timer);
+      reject(new Error(`Audience ${name} error: ${msg}`));
+    });
   });
 }
 
-async function runRoom(target: string, roomId: number, numPlayers: number, numAudience: number, numRounds: number): Promise<void> {
+async function runRoom(
+  target: string,
+  roomId: number,
+  numPlayers: number,
+  numAudience: number,
+  numRounds: number,
+): Promise<void> {
   const tag = `[Room ${roomId}]`;
   const players: Player[] = [];
   const audience: AudienceMember[] = [];
@@ -115,13 +164,34 @@ async function runRoom(target: string, roomId: number, numPlayers: number, numAu
   }
 
   for (const p of players) {
-    p.socket.on("room_joined", (state: PublicRoomState) => { p.state = state; });
+    p.socket.on("room_joined", (state: PublicRoomState) => {
+      p.state = state;
+    });
   }
   for (const a of audience) {
-    a.socket.on("audience_update", (state: AudienceRoomState) => { a.state = state; });
-    a.socket.on("vote_update", (voteCounts: { playerId: string; votes: number }[]) => { if (a.state) a.state = { ...a.state, voteCounts }; });
-    a.socket.on("voting_started", (secondsRemaining: number) => { if (a.state) a.state = { ...a.state, votingActive: true, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } }; });
-    a.socket.on("voting_ended", (_winnerId: string | null) => { if (a.state) a.state = { ...a.state, votingActive: false }; });
+    a.socket.on("audience_update", (state: AudienceRoomState) => {
+      a.state = state;
+    });
+    a.socket.on("vote_update", (voteCounts: { playerId: string; votes: number }[]) => {
+      if (a.state) a.state = { ...a.state, voteCounts };
+    });
+    a.socket.on("voting_started", (secondsRemaining: number) => {
+      if (a.state)
+        a.state = {
+          ...a.state,
+          votingActive: true,
+          timer: {
+            running: true,
+            secondsRemaining,
+            pausedAt: null,
+            pausedForNote: false,
+            noteResumeAt: null,
+          },
+        };
+    });
+    a.socket.on("voting_ended", (_winnerId: string | null) => {
+      if (a.state) a.state = { ...a.state, votingActive: false };
+    });
   }
 
   console.log(`${tag} ${players.length} players + ${audience.length} audience in room ${roomCode}`);
@@ -200,7 +270,9 @@ async function runRoom(target: string, roomId: number, numPlayers: number, numAu
       const postWinState = players[0].state!;
       if (postWinState.phase === "game-end") {
         const sorted = [...postWinState.players].sort((a, b) => b.score - a.score);
-        console.log(`${tag} Game ended. Scores: ${sorted.map((p) => `${p.name}=${p.score}`).join(", ")}`);
+        console.log(
+          `${tag} Game ended. Scores: ${sorted.map((p) => `${p.name}=${p.score}`).join(", ")}`,
+        );
         break;
       }
       console.log(`${tag} Round ${round} complete`);
@@ -214,7 +286,9 @@ async function runRoom(target: string, roomId: number, numPlayers: number, numAu
 
 async function main(): Promise<void> {
   const line = "=".repeat(60);
-  console.log(`\n${line}\nMULTI-ROOM STRESS TEST: ${NUM_ROOMS} rooms, ${PLAYERS_PER_ROOM} players + ${AUDIENCE_PER_ROOM} audience each, ${NUM_ROUNDS} rounds\n${line}`);
+  console.log(
+    `\n${line}\nMULTI-ROOM STRESS TEST: ${NUM_ROOMS} rooms, ${PLAYERS_PER_ROOM} players + ${AUDIENCE_PER_ROOM} audience each, ${NUM_ROUNDS} rounds\n${line}`,
+  );
 
   const roomPromises: Promise<void>[] = [];
   for (let r = 1; r <= NUM_ROOMS; r++) {

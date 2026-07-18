@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { createTimer, startTimer, pauseTimer, pauseForNote, tickTimer, isTimerExpired, shouldResumeFromNote } from "../src/timer.js";
+import {
+  createTimer,
+  startTimer,
+  pauseTimer,
+  pauseForNote,
+  tickTimer,
+  isTimerExpired,
+  shouldResumeFromNote,
+} from "../src/timer.js";
 
 describe("timer", () => {
   it("creates a timer with full duration", () => {

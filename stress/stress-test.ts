@@ -36,9 +36,16 @@ function waitForState(socket: ClientSocket, timeout = 10000): Promise<PublicRoom
   });
 }
 
-function waitForPhase(socket: ClientSocket, phase: string, timeout = 15000): Promise<PublicRoomState> {
+function waitForPhase(
+  socket: ClientSocket,
+  phase: string,
+  timeout = 15000,
+): Promise<PublicRoomState> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Timeout waiting for phase ${phase}`)), timeout);
+    const timer = setTimeout(
+      () => reject(new Error(`Timeout waiting for phase ${phase}`)),
+      timeout,
+    );
     const handler = (state: PublicRoomState) => {
       if (state.phase === phase) {
         clearTimeout(timer);
@@ -50,7 +57,11 @@ function waitForPhase(socket: ClientSocket, phase: string, timeout = 15000): Pro
   });
 }
 
-function waitForHand(socket: ClientSocket, getState: () => PublicRoomState | null, timeout = 30000): Promise<void> {
+function waitForHand(
+  socket: ClientSocket,
+  getState: () => PublicRoomState | null,
+  timeout = 30000,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const check = () => {
@@ -69,7 +80,11 @@ function waitForHand(socket: ClientSocket, getState: () => PublicRoomState | nul
   });
 }
 
-function waitForMovieReady(socket: ClientSocket, getState: () => PublicRoomState | null, timeout = 10000): Promise<void> {
+function waitForMovieReady(
+  socket: ClientSocket,
+  getState: () => PublicRoomState | null,
+  timeout = 10000,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const start = Date.now();
     const check = () => {
@@ -89,10 +104,12 @@ function waitForMovieReady(socket: ClientSocket, getState: () => PublicRoomState
 }
 
 function waitForPhaseAll(players: Player[], phase: string, timeout = 15000): Promise<void> {
-  return Promise.all(players.map((p) => {
-    if (p.state?.phase === phase) return Promise.resolve();
-    return waitForPhase(p.socket, phase, timeout);
-  })).then(() => {});
+  return Promise.all(
+    players.map((p) => {
+      if (p.state?.phase === phase) return Promise.resolve();
+      return waitForPhase(p.socket, phase, timeout);
+    }),
+  ).then(() => {});
 }
 
 function connectPlayer(target: string, roomCode: string, name: string): Promise<Player> {
@@ -148,8 +165,15 @@ function printBanner(text: string): void {
   console.log(`\n${line}\n${text}\n${line}`);
 }
 
-async function runGame(target: string, numPlayers: number, numRounds: number, numAudience: number): Promise<void> {
-  printBanner(`STRESS TEST: ${numPlayers} players, ${numAudience} audience, ${numRounds} rounds, target ${target}`);
+async function runGame(
+  target: string,
+  numPlayers: number,
+  numRounds: number,
+  numAudience: number,
+): Promise<void> {
+  printBanner(
+    `STRESS TEST: ${numPlayers} players, ${numAudience} audience, ${numRounds} rounds, target ${target}`,
+  );
 
   const players: Player[] = [];
   const audienceMembers: AudienceMember[] = [];
@@ -205,14 +229,27 @@ async function runGame(target: string, numPlayers: number, numRounds: number, nu
       if (a.state) a.state = { ...a.state, voteCounts };
     });
     a.socket.on("voting_started", (secondsRemaining: number) => {
-      if (a.state) a.state = { ...a.state, votingActive: true, timer: { running: true, secondsRemaining, pausedAt: null, pausedForNote: false, noteResumeAt: null } };
+      if (a.state)
+        a.state = {
+          ...a.state,
+          votingActive: true,
+          timer: {
+            running: true,
+            secondsRemaining,
+            pausedAt: null,
+            pausedForNote: false,
+            noteResumeAt: null,
+          },
+        };
     });
     a.socket.on("voting_ended", (_winnerId: string | null) => {
       if (a.state) a.state = { ...a.state, votingActive: false };
     });
   }
 
-  console.log(`\n  All ${players.length} players and ${audienceMembers.length} audience connected to room ${roomCode}`);
+  console.log(
+    `\n  All ${players.length} players and ${audienceMembers.length} audience connected to room ${roomCode}`,
+  );
 
   // Phase 2: Start game
   printBanner("PHASE 2: Starting game");
@@ -264,7 +301,9 @@ async function runGame(target: string, numPlayers: number, numRounds: number, nu
         writer.socket.emit("select_card", cardId);
         await moviePromise;
       } else {
-        console.log(`  ${writer.name} has no cards in hand! (phase: ${deckState.phase}, hand: ${deckState.myHand?.length ?? 0})`);
+        console.log(
+          `  ${writer.name} has no cards in hand! (phase: ${deckState.phase}, hand: ${deckState.myHand?.length ?? 0})`,
+        );
       }
     }
 
@@ -276,7 +315,9 @@ async function runGame(target: string, numPlayers: number, numRounds: number, nu
     const pitchState = players[0].state!;
     // All writers are pitchers (note-giver pitches last, included in pitchOrder)
     const pitcherIds = pitchState.movies?.map((m) => m.playerId) || writers.map((w) => w.playerId);
-    console.log(`  Pitchers: ${pitcherIds.map((id) => players.find((p) => p.playerId === id)?.name).join(", ")}`);
+    console.log(
+      `  Pitchers: ${pitcherIds.map((id) => players.find((p) => p.playerId === id)?.name).join(", ")}`,
+    );
 
     // Play through each pitcher
     for (let pi = 0; pi < pitcherIds.length; pi++) {
@@ -329,7 +370,7 @@ async function runGame(target: string, numPlayers: number, numRounds: number, nu
     if (movies.length > 0) {
       // Each player votes for a random OTHER movie (cannot self-vote)
       for (const player of players) {
-        const myMovie = movies.find((m) => m.playerId === player.playerId);
+        const _myMovie = movies.find((m) => m.playerId === player.playerId);
         const votableMovies = movies.filter((m) => m.playerId !== player.playerId);
         if (votableMovies.length === 0) continue;
         const voteTarget = votableMovies[Math.floor(Math.random() * votableMovies.length)];

@@ -5,8 +5,8 @@ import {
   playAllToReady,
   clickStartTimer,
   waitForPhase,
-  findNoteGiverSession,
-  findWriterSessions,
+  _findNoteGiverSession,
+  _findWriterSessions,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
@@ -63,7 +63,9 @@ test.describe("Reconnection journey", () => {
     await rejoinPage.waitForSelector(".game-view", { timeout: 10000 });
 
     const rejoinText = await rejoinPage.locator("body").textContent();
-    expect(rejoinText).toMatch(/Round|pitching|cards are ready|Leave Game|You are a Writer|You are the Note Giver|Build Movie|Choose your deck|Now Pitching|Vote/i);
+    expect(rejoinText).toMatch(
+      /Round|pitching|cards are ready|Leave Game|You are a Writer|You are the Note Giver|Build Movie|Choose your deck|Now Pitching|Vote/i,
+    );
 
     await rejoinPage.close();
     extraPages = extraPages.filter((p) => p !== rejoinPage);

@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  timerRunning,
-  timerIdle,
-  timerPaused,
-  timerExpired,
-} from "../../shared/timer-helpers.js";
+import { timerRunning, timerIdle, timerPaused, timerExpired } from "../../shared/timer-helpers.js";
 import type { TimerState } from "@direct-to-video/shared";
 
 function assertTimerShape(t: TimerState) {

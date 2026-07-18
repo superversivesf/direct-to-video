@@ -10,8 +10,10 @@ const MAX_NAME_LENGTH = 20;
 export function validateName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Name is required");
-  if (trimmed.length > MAX_NAME_LENGTH) throw new Error(`Name must be ${MAX_NAME_LENGTH} characters or fewer`);
-  if (!/^[a-zA-Z0-9 ]+$/.test(trimmed)) throw new Error("Name can only contain letters, numbers, and spaces");
+  if (trimmed.length > MAX_NAME_LENGTH)
+    throw new Error(`Name must be ${MAX_NAME_LENGTH} characters or fewer`);
+  if (!/^[a-zA-Z0-9 ]+$/.test(trimmed))
+    throw new Error("Name can only contain letters, numbers, and spaces");
   return trimmed;
 }
 
@@ -39,7 +41,13 @@ function createEmptyRoom(code: string): Room {
     deck: { plot: [], character: [], note: [] },
     noteGiverNotes: [],
     movies: [],
-    timer: { running: false, secondsRemaining: 45, pausedAt: null, pausedForNote: false, noteResumeAt: null },
+    timer: {
+      running: false,
+      secondsRemaining: 45,
+      pausedAt: null,
+      pausedForNote: false,
+      noteResumeAt: null,
+    },
     round: { current: 0 },
     totalRounds: 5,
     noteGiverOrder: [],
@@ -69,7 +77,7 @@ function createPlayer(name: string, isHost: boolean): Player {
 
 export function createRoom(store: RoomStore, hostName: string): { room: Room; playerId: string } {
   const name = validateName(hostName);
-  const activeRooms = store.getAllCachedRooms().filter(r => r.phase !== "game-end").length;
+  const activeRooms = store.getAllCachedRooms().filter((r) => r.phase !== "game-end").length;
   if (activeRooms >= MAX_ROOMS) throw new Error("Too many active rooms. Please try again later.");
   const code = generateRoomCode(store);
   const room = createEmptyRoom(code);
@@ -79,14 +87,16 @@ export function createRoom(store: RoomStore, hostName: string): { room: Room; pl
   return { room, playerId: player.id };
 }
 
-export function joinRoom(store: RoomStore, code: string, name: string): { room: Room; playerId: string } {
+export function joinRoom(
+  store: RoomStore,
+  code: string,
+  name: string,
+): { room: Room; playerId: string } {
   const validatedName = validateName(name);
   const room = store.getRoom(code);
   if (!room) throw new Error("Room not found");
 
-  const existing = room.players.find(
-    (p) => p.name.toLowerCase() === validatedName.toLowerCase()
-  );
+  const existing = room.players.find((p) => p.name.toLowerCase() === validatedName.toLowerCase());
   if (existing) {
     store.saveRoom(room);
     return { room, playerId: existing.id };

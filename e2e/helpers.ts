@@ -8,7 +8,11 @@ export interface PlayerSession {
   name: string;
 }
 
-export async function createPlayer(browser: Browser, roomCode: string, name: string): Promise<PlayerSession> {
+export async function createPlayer(
+  browser: Browser,
+  roomCode: string,
+  name: string,
+): Promise<PlayerSession> {
   const page = await browser.newPage();
   await page.goto(BASE, { timeout: 30000 });
   await page.waitForSelector('input[placeholder*="Room Code"]', { timeout: 30000 });
@@ -33,7 +37,11 @@ export async function createAudience(browser: Browser, roomCode: string): Promis
   return page;
 }
 
-export async function waitForPhase(page: Page, text: string | RegExp, timeout = 20000): Promise<void> {
+export async function waitForPhase(
+  page: Page,
+  text: string | RegExp,
+  timeout = 20000,
+): Promise<void> {
   if (text instanceof RegExp) {
     await page.waitForSelector(`text=/${text.source}/i`, { timeout });
   } else {
@@ -104,7 +112,10 @@ export async function clickKickPlayerByName(page: Page, playerName: string): Pro
   await playerRow.locator("button.btn-kick").click();
 }
 
-export async function playWriterToReady(page: Page, deckType: "plot" | "character" = "plot"): Promise<void> {
+export async function playWriterToReady(
+  page: Page,
+  deckType: "plot" | "character" = "plot",
+): Promise<void> {
   await page.waitForSelector(`text=Draw ${deckType.toUpperCase()} cards`, { timeout: 15000 });
   await clickDrawCards(page, deckType);
   await page.waitForSelector(".card-row .card-template", { timeout: 10000 });
@@ -130,11 +141,13 @@ export async function playWriterToReady(page: Page, deckType: "plot" | "characte
 
 export async function playAllToReady(
   sessions: PlayerSession[],
-  deckType: "plot" | "character" = "plot"
+  deckType: "plot" | "character" = "plot",
 ): Promise<{ noteGiver: PlayerSession; writers: PlayerSession[] }> {
   await Promise.race([
     sessions[0].page.waitForSelector("text=Draw PLOT cards", { timeout: 20000 }).catch(() => {}),
-    sessions[0].page.waitForSelector("text=Draw CHARACTER cards", { timeout: 20000 }).catch(() => {}),
+    sessions[0].page
+      .waitForSelector("text=Draw CHARACTER cards", { timeout: 20000 })
+      .catch(() => {}),
   ]);
 
   const noteGiver = await findNoteGiverSession(sessions);

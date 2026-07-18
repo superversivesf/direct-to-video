@@ -28,13 +28,13 @@ export function Card({ card, faceDown = false, large = false, onClick }: CardPro
       {isFranchise && card.header && <div className="card-header-franchise">{card.header}</div>}
       {!isFranchise && card.header && <div className="card-location">{card.header}</div>}
       <div className="card-text">
-        {isNote ? (
-          paragraphs.map((p, i) => (
-            <p key={i} className="card-note-paragraph">{p}</p>
-          ))
-        ) : (
-          displayText
-        )}
+        {isNote
+          ? paragraphs.map((p, i) => (
+              <p key={i} className="card-note-paragraph">
+                {p}
+              </p>
+            ))
+          : displayText}
       </div>
     </CardTemplate>
   );

@@ -1,11 +1,7 @@
 import type { Room, Player, Card, DeckType } from "@direct-to-video/shared";
 import type { RoomStore } from "./rooms.js";
 import { createTimer } from "./timer.js";
-import {
-  shuffle,
-  drawFromDeck,
-  substituteDraws,
-} from "./card-ops.js";
+import { shuffle, drawFromDeck, substituteDraws } from "./card-ops.js";
 
 function getWriterPlayers(room: Room): Player[] {
   return room.players.filter((p) => !p.isDisconnected);
@@ -37,7 +33,7 @@ export function setupRound(store: RoomStore, room: Room): void {
     room.deck.note,
     3,
     "note",
-    room
+    room,
   );
   store.saveRoom({
     ...room,
@@ -62,9 +58,7 @@ export function setupRound(store: RoomStore, room: Room): void {
 }
 
 function pickNoteGiver(room: Room): string {
-  const connected = new Set(
-    room.players.filter((p) => !p.isDisconnected).map((p) => p.id)
-  );
+  const connected = new Set(room.players.filter((p) => !p.isDisconnected).map((p) => p.id));
   let order = room.noteGiverOrder;
   let index = room.noteGiverIndex;
   for (let attempts = 0; attempts < order.length; attempts++) {
@@ -93,22 +87,14 @@ export function selectDeckType(
   store: RoomStore,
   room: Room,
   playerId: string,
-  deckType: DeckType
+  deckType: DeckType,
 ): void {
   if (room.phase !== "setup") throw new Error("Cannot select deck outside setup phase");
-  const { drawn, remaining } = drawFromDeck(
-    store,
-    room.deck[deckType],
-    3,
-    deckType,
-    room
-  );
+  const { drawn, remaining } = drawFromDeck(store, room.deck[deckType], 3, deckType, room);
   const updated: Room = {
     ...room,
     deck: { ...room.deck, [deckType]: remaining },
-    players: room.players.map((p) =>
-      p.id === playerId ? { ...p, hand: drawn } : p
-    ),
+    players: room.players.map((p) => (p.id === playerId ? { ...p, hand: drawn } : p)),
   };
   checkAllWritersReady(store, updated);
 }
@@ -122,12 +108,7 @@ function checkAllWritersReady(store: RoomStore, room: Room): void {
   }
 }
 
-export function selectCard(
-  store: RoomStore,
-  room: Room,
-  playerId: string,
-  cardId: string
-): void {
+export function selectCard(store: RoomStore, room: Room, playerId: string, cardId: string): void {
   if (room.phase !== "card-selection" && room.phase !== "setup")
     throw new Error("Cannot select card outside card-selection phase");
   const player = room.players.find((p) => p.id === playerId);
@@ -135,12 +116,7 @@ export function selectCard(
   const card = player.hand.find((c) => c.id === cardId);
   if (!card) throw new Error("Card not in hand");
 
-  const { card: chosenCard, deck: deckAfterDraws } = substituteDraws(
-    store,
-    room.deck,
-    card,
-    room
-  );
+  const { card: chosenCard, deck: deckAfterDraws } = substituteDraws(store, room.deck, card, room);
 
   const blindDeckType: DeckType = card.type === "plot" ? "character" : "plot";
   const { drawn: blindDrawn, remaining: blindRemaining } = drawFromDeck(
@@ -148,7 +124,7 @@ export function selectCard(
     deckAfterDraws[blindDeckType],
     1,
     blindDeckType,
-    room
+    room,
   );
   const updatedDeck = {
     ...deckAfterDraws,
@@ -168,14 +144,9 @@ export function selectCard(
     ...room,
     deck: updatedDeck,
     players: room.players.map((p) =>
-      p.id === playerId
-        ? { ...p, hand: p.hand.filter((c) => c.id !== cardId), chosenCard }
-        : p
+      p.id === playerId ? { ...p, hand: p.hand.filter((c) => c.id !== cardId), chosenCard } : p,
     ),
-    movies: [
-      ...room.movies.filter((m) => m.playerId !== playerId),
-      newMovie,
-    ],
+    movies: [...room.movies.filter((m) => m.playerId !== playerId), newMovie],
   };
 
   checkAllMoviesReady(store, updatedRoom);
@@ -185,11 +156,8 @@ function checkAllMoviesReady(store: RoomStore, room: Room): void {
   const writers = getWriterPlayers(room);
   const readyWriters = writers.filter((w) =>
     room.movies.some(
-      (m) =>
-        m.playerId === w.id &&
-        m.chosenCard.id !== "" &&
-        m.randomCard.id !== ""
-    )
+      (m) => m.playerId === w.id && m.chosenCard.id !== "" && m.randomCard.id !== "",
+    ),
   );
   if (readyWriters.length === writers.length) {
     startPitching(store, room);
@@ -199,9 +167,7 @@ function checkAllMoviesReady(store: RoomStore, room: Room): void {
 }
 
 export function startPitching(store: RoomStore, room: Room): void {
-  const noteGiverIndex = room.players.findIndex(
-    (p) => p.id === room.noteGiverId
-  );
+  const noteGiverIndex = room.players.findIndex((p) => p.id === room.noteGiverId);
   const writers = getWriterPlayers(room);
   const pitchOrder: string[] = [];
   for (let i = 1; i <= writers.length; i++) {
@@ -211,10 +177,8 @@ export function startPitching(store: RoomStore, room: Room): void {
   pitchOrder.sort((a, b) => {
     const movieA = room.movies.find((m) => m.playerId === a);
     const movieB = room.movies.find((m) => m.playerId === b);
-    const aFranchise =
-      movieA?.chosenCard.isFranchise || movieA?.randomCard.isFranchise || false;
-    const bFranchise =
-      movieB?.chosenCard.isFranchise || movieB?.randomCard.isFranchise || false;
+    const aFranchise = movieA?.chosenCard.isFranchise || movieA?.randomCard.isFranchise || false;
+    const bFranchise = movieB?.chosenCard.isFranchise || movieB?.randomCard.isFranchise || false;
     const aIsNoteGiver = a === room.noteGiverId;
     const bIsNoteGiver = b === room.noteGiverId;
     if (aIsNoteGiver && !bIsNoteGiver) return 1;
@@ -230,32 +194,20 @@ export function startPitching(store: RoomStore, room: Room): void {
     pitchOrder,
     currentPitchIndex: 0,
     currentPitcherId: firstPitcherId,
-    movies: room.movies.map((m) =>
-      m.playerId === firstPitcherId ? { ...m, revealed: true } : m
-    ),
+    movies: room.movies.map((m) => (m.playerId === firstPitcherId ? { ...m, revealed: true } : m)),
   });
 }
 
-export function revealMovie(
-  store: RoomStore,
-  room: Room,
-  playerId: string
-): void {
+export function revealMovie(store: RoomStore, room: Room, playerId: string): void {
   const movie = room.movies.find((m) => m.playerId === playerId);
   if (!movie) throw new Error("No movie found for player");
   store.saveRoom({
     ...room,
-    movies: room.movies.map((m) =>
-      m.playerId === playerId ? { ...m, revealed: true } : m
-    ),
+    movies: room.movies.map((m) => (m.playerId === playerId ? { ...m, revealed: true } : m)),
   });
 }
 
-export function endPitch(
-  store: RoomStore,
-  room: Room,
-  playerId: string
-): void {
+export function endPitch(store: RoomStore, room: Room, _playerId: string): void {
   const nextIndex = room.currentPitchIndex + 1;
   if (nextIndex >= room.pitchOrder.length) {
     const allRevealed = room.movies.map((m) => ({ ...m, revealed: true }));
@@ -271,7 +223,7 @@ export function endPitch(
   } else {
     const nextPitcherId = room.pitchOrder[nextIndex];
     const movies = room.movies.map((m) =>
-      m.playerId === nextPitcherId ? { ...m, revealed: true } : m
+      m.playerId === nextPitcherId ? { ...m, revealed: true } : m,
     );
     store.saveRoom({
       ...room,
@@ -287,7 +239,7 @@ export function playNote(
   store: RoomStore,
   room: Room,
   noteCardId: string,
-  pitcherId: string
+  pitcherId: string,
 ): void {
   if (room.phase !== "pitching") throw new Error("Can only play notes during pitching");
   const noteCard = room.noteGiverNotes.find((c) => c.id === noteCardId);
@@ -297,16 +249,10 @@ export function playNote(
     store,
     room.deck,
     noteCard,
-    room
+    room,
   );
 
-  const { drawn, remaining } = drawFromDeck(
-    store,
-    deckAfterDraws.note,
-    1,
-    "note",
-    room
-  );
+  const { drawn, remaining } = drawFromDeck(store, deckAfterDraws.note, 1, "note", room);
   const refill = drawn[0] || null;
   store.saveRoom({
     ...room,
@@ -316,19 +262,12 @@ export function playNote(
     ],
     deck: { ...deckAfterDraws, note: remaining },
     movies: room.movies.map((m) =>
-      m.playerId === pitcherId
-        ? { ...m, notesPlayed: [...m.notesPlayed, playedCard] }
-        : m
+      m.playerId === pitcherId ? { ...m, notesPlayed: [...m.notesPlayed, playedCard] } : m,
     ),
   });
 }
 
-export function castVote(
-  store: RoomStore,
-  room: Room,
-  voterId: string,
-  playerId: string
-): void {
+export function castVote(store: RoomStore, room: Room, voterId: string, playerId: string): void {
   if (!room.votingActive) throw new Error("Voting is not active");
   const movie = room.movies.find((m) => m.playerId === playerId);
   if (!movie) throw new Error("No movie found for voted player");

@@ -65,17 +65,30 @@ export function Join() {
           Join as Audience
         </button>
         <div className="join-hint">
-          Share the 4-letter room code with your friends.<br />
+          Share the 4-letter room code with your friends.
+          <br />
           Audience can join to watch on a shared screen.
         </div>
-        <a href="/rules" className="rules-link">How to Play →</a>
+        <a href="/rules" className="rules-link">
+          How to Play →
+        </a>
       </div>
       <div className="join-footer-links">
-        <a href="https://boardgamegeek.com/boardgame/254132/pitchstorm" target="_blank" rel="noopener noreferrer" className="footer-link">
+        <a
+          href="https://boardgamegeek.com/boardgame/254132/pitchstorm"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="footer-link"
+        >
           Original Game
         </a>
         <span className="footer-link-divider">·</span>
-        <a href="https://github.com/superversivesf/direct-to-video" target="_blank" rel="noopener noreferrer" className="footer-link">
+        <a
+          href="https://github.com/superversivesf/direct-to-video"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="footer-link"
+        >
           GitHub
         </a>
       </div>

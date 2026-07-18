@@ -13,7 +13,7 @@ export function shuffle<T>(array: T[]): T[] {
 export function drawCards(
   deck: Card[],
   count: number,
-  refillDeck?: Card[]
+  refillDeck?: Card[],
 ): { drawn: Card[]; remaining: Card[] } {
   if (deck.length >= count) {
     const shuffled = shuffle(deck);
@@ -26,11 +26,7 @@ export function drawCards(
   return { drawn: shuffle(deck), remaining: [] };
 }
 
-export function getRefillDeck(
-  store: RoomStore,
-  type: CardType,
-  room: Room
-): Card[] {
+export function getRefillDeck(store: RoomStore, type: CardType, room: Room): Card[] {
   if (!room.franchiseEnabled) {
     return store.getCardsByType(type).filter((c) => !c.isFranchise);
   }
@@ -42,7 +38,7 @@ export function drawFromDeck(
   deck: Card[],
   count: number,
   type: CardType,
-  room: Room
+  room: Room,
 ): { drawn: Card[]; remaining: Card[] } {
   const refill = getRefillDeck(store, type, room);
   return drawCards(deck, count, refill);
@@ -52,7 +48,7 @@ export function substituteDraws(
   store: RoomStore,
   deck: Room["deck"],
   card: Card,
-  room: Room
+  room: Room,
 ): { card: Card; deck: Room["deck"] } {
   if (!card.draws || card.draws.length === 0) {
     return { card, deck };
@@ -61,13 +57,7 @@ export function substituteDraws(
   let resolvedText = card.text;
   for (const draw of card.draws) {
     for (let i = 0; i < draw.count; i++) {
-      const { drawn, remaining } = drawFromDeck(
-        store,
-        updatedDeck[draw.deck],
-        1,
-        draw.deck,
-        room
-      );
+      const { drawn, remaining } = drawFromDeck(store, updatedDeck[draw.deck], 1, draw.deck, room);
       updatedDeck = { ...updatedDeck, [draw.deck]: remaining };
       if (drawn[0]) {
         resolvedText = resolvedText.replace("____", drawn[0].text);

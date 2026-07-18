@@ -2,7 +2,12 @@
   "name": "direct-to-video",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
-  "workspaces": ["shared", "server", "client", "stress"],
+  "workspaces": [
+    "shared",
+    "server",
+    "client",
+    "stress"
+  ],
   "scripts": {
     "dev:server": "tsx watch server/src/index.ts",
     "dev:client": "vite --config client/vite.config.ts",
@@ -10,6 +15,10 @@
     "build": "npm run build:client && tsc -p server/tsconfig.json",
     "test": "cd server && npx vitest run && cd ../client && npx vitest run",
     "test:e2e": "npx playwright test --config e2e/playwright.config.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"server/src/**/*.ts\" \"server/test/**/*.ts\" \"client/src/**/*.{ts,tsx}\" \"client/test/**/*.{ts,tsx}\" \"shared/**/*.ts\" \"stress/**/*.ts\" \"e2e/**/*.ts\" \"*.{js,json,md}\"",
+    "format:check": "prettier --check \"server/src/**/*.ts\" \"server/test/**/*.ts\" \"client/src/**/*.{ts,tsx}\" \"client/test/**/*.{ts,tsx}\" \"shared/**/*.ts\" \"stress/**/*.ts\" \"e2e/**/*.ts\" \"*.{js,json,md}\"",
     "stress": "tsx stress/stress-test.ts",
     "stress:local": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=10 STRESS_ROUNDS=3 tsx stress/stress-test.ts",
     "stress:small": "STRESS_TARGET=http://localhost:3000 STRESS_PLAYERS=3 STRESS_ROUNDS=2 tsx stress/stress-test.ts",
@@ -19,9 +28,19 @@
     "stress:multiroom": "STRESS_TARGET=http://localhost:3000 STRESS_ROOMS=4 STRESS_PLAYERS=5 STRESS_AUDIENCE=10 STRESS_ROUNDS=5 tsx stress/multi-room-stress.ts"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.45.0",
-    "typescript": "^5.4.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.26",
+    "globals": "^15.15.0",
+    "prettier": "^3.9.5",
     "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.64.0",
     "vitest": "^1.6.0"
   }
 }

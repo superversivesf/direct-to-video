@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import {
   createPlayer,
-  createAudience,
+  _createAudience,
   clickStartGame,
   playAllToReady,
   clickStartTimer,
@@ -10,7 +10,7 @@ import {
   clickLeaveGame,
   clickPlayAgain,
   waitForPhase,
-  findNoteGiverSession,
+  _findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
@@ -36,7 +36,9 @@ test.describe("Host succession journey", () => {
     sessions.push(bob);
 
     await expect(alice.page.locator("text=Start Game")).toBeVisible({ timeout: 5000 });
-    await expect(bob.page.locator("text=Start Game")).not.toBeVisible({ timeout: 3000 }).catch(() => {});
+    await expect(bob.page.locator("text=Start Game"))
+      .not.toBeVisible({ timeout: 3000 })
+      .catch(() => {});
 
     await clickLeaveGame(alice.page);
     sessions = sessions.filter((s) => s !== alice);
@@ -86,10 +88,15 @@ test.describe("Host succession journey", () => {
         }
       }
 
-      await expect.poll(async () => {
-        const r = await noteGiver.page.locator("body").textContent() ?? "";
-        return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
-      }, { timeout: 20000, intervals: [500] }).toBeTruthy();
+      await expect
+        .poll(
+          async () => {
+            const r = (await noteGiver.page.locator("body").textContent()) ?? "";
+            return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
+          },
+          { timeout: 20000, intervals: [500] },
+        )
+        .toBeTruthy();
 
       await new Promise((r) => setTimeout(r, 1000));
     }

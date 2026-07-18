@@ -50,7 +50,9 @@ export function initDb(path: string = ":memory:"): DbHandle {
         data TEXT NOT NULL
       );
     `);
-    db.exec(`INSERT INTO cards (id, type, data) SELECT id, type, json_object('id', id, 'type', type, 'text', text) FROM cards_old;`);
+    db.exec(
+      `INSERT INTO cards (id, type, data) SELECT id, type, json_object('id', id, 'type', type, 'text', text) FROM cards_old;`,
+    );
     db.exec(`DROP TABLE cards_old;`);
     // Old card IDs were nanoid random strings, need to re-seed with proper structured cards
     db.exec(`DELETE FROM cards;`);
@@ -58,7 +60,7 @@ export function initDb(path: string = ":memory:"): DbHandle {
 
   const saveRoom = db.prepare(
     `INSERT INTO rooms (code, state) VALUES (?, ?)
-     ON CONFLICT(code) DO UPDATE SET state = excluded.state, updated_at = datetime('now')`
+     ON CONFLICT(code) DO UPDATE SET state = excluded.state, updated_at = datetime('now')`,
   );
 
   const loadRoom = db.prepare(`SELECT state FROM rooms WHERE code = ?`);
@@ -93,7 +95,15 @@ export function initDb(path: string = ":memory:"): DbHandle {
     return row ?? null;
   }
 
-  return { db, saveRoom: saveRoomFn, loadRoom: loadRoomFn, getAllRooms: getAllRoomsFn, getCardDeck, deleteRoom: deleteRoomFn, loadRoomMeta: loadRoomMetaFn };
+  return {
+    db,
+    saveRoom: saveRoomFn,
+    loadRoom: loadRoomFn,
+    getAllRooms: getAllRoomsFn,
+    getCardDeck,
+    deleteRoom: deleteRoomFn,
+    loadRoomMeta: loadRoomMetaFn,
+  };
 }
 
 export function seedCards(db: DB) {
