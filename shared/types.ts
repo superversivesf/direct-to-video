@@ -1,4 +1,4 @@
-export const VERSION = "2.1.0";
+export const VERSION = "2.1.1";
 
 export type Phase = "lobby" | "setup" | "card-selection" | "pitching" | "round-end" | "game-end";
 
