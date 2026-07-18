@@ -378,9 +378,9 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 
 Previously no ESLint, Prettier, or lint configuration existed. Added in v2.1.2: ESLint 9 flat config (`eslint.config.mjs`) with typescript-eslint + react + react-hooks + react-refresh + prettier plugins, Prettier config (`.prettierrc.json`, `.prettierignore`), and `lint` / `lint:fix` / `format` / `format:check` scripts in root `package.json`. Existing code was reformatted via `npm run format` and unused-vars were fixed. `npm run lint` exits 0 with 4 intentional `react-hooks/exhaustive-deps` warnings in `Audience.tsx` / `Game.tsx` (deliberate partial dependency arrays for effect timing).
 
-### 2. E2E test not verified
+### 2. E2E test not verified (RESOLVED)
 
-The Playwright E2E test (`e2e/full-game.test.ts`) uses port 3100 and requires a built server running. The stress test (`stress/stress-test.ts`) is more comprehensive and has been verified against production.
+Previously the Playwright E2E suite (`e2e/full-game.test.ts` + 12 journey specs) was not verified. Verified in v2.1.2: all 13 E2E tests pass in ~8 minutes (full-game + audience-voting × 2 + auto-draw + deck-reshuffle + four-player-softlock + franchise-cards + full-three-player + host-succession × 2 + note-card-timer + reconnection + timer-expiry). Run with `npm run build && npx playwright test --config e2e/playwright.config.ts`.
 
 ### 3. Stale-disconnect post-test timer errors (RESOLVED)
 
