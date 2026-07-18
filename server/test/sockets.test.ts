@@ -4,7 +4,7 @@ import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
 import { createServer } from "http";
 import { initDb, seedCards } from "../src/db.js";
 import { RoomStore } from "../src/rooms.js";
-import { setupSocketHandlers, resetRateLimits } from "../src/sockets/handlers.js";
+import { setupSocketHandlers, resetRateLimits, clearStaleDisconnectTimers, clearTimerInterval } from "../src/sockets/handlers.js";
 import { startGame, selectDeckType, selectCard, startPitching, revealMovie, endPitch, tallyAndAdvance } from "../src/state-machine.js";
 import { startTimer, pauseForNote } from "../src/timer.js";
 import type { Database } from "better-sqlite3";
@@ -153,6 +153,8 @@ describe("sockets", () => {
   });
 
   afterEach(async () => {
+    clearStaleDisconnectTimers();
+    clearTimerInterval();
     io.close();
     httpServer.close();
     await new Promise((r) => setTimeout(r, 200));

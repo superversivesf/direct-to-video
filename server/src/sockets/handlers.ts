@@ -47,8 +47,27 @@ export { resetRateLimits };
 const STALE_DISCONNECT_MS = 60 * 1000;
 const staleDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
+export function clearStaleDisconnectTimers(): void {
+  for (const timer of staleDisconnectTimers.values()) {
+    clearTimeout(timer);
+  }
+  staleDisconnectTimers.clear();
+}
+
+let activeTimerInterval: ReturnType<typeof setInterval> | null = null;
+
+export function clearTimerInterval(): void {
+  if (activeTimerInterval !== null) {
+    clearInterval(activeTimerInterval);
+    activeTimerInterval = null;
+  }
+}
+
 export function setupSocketHandlers(io: Server, store: RoomStore): void {
-  const timerInterval = setInterval(() => {
+  if (activeTimerInterval !== null) {
+    clearInterval(activeTimerInterval);
+  }
+  activeTimerInterval = setInterval(() => {
     for (const room of allRooms(store)) {
       if (room.timer.running) {
         const ticked = tickTimer(room.timer);
@@ -92,7 +111,10 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
   }, 1000);
 
   io.engine.on("close", () => {
-    clearInterval(timerInterval);
+    if (activeTimerInterval !== null) {
+      clearInterval(activeTimerInterval);
+      activeTimerInterval = null;
+    }
   });
 
   io.on("connection", (socket: Socket) => {

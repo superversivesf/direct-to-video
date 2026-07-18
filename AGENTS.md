@@ -370,33 +370,33 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 
 No ESLint, Prettier, or any lint configuration exists. Code style is enforced only by convention and review.
 
-### 2. No CI/CD pipeline
-
-No GitHub Actions, no CI configuration of any kind. Tests and build are only verified manually.
-
-### 3. E2E test not verified
+### 2. E2E test not verified
 
 The Playwright E2E test (`e2e/full-game.test.ts`) uses port 3100 and requires a built server running. The stress test (`stress/stress-test.ts`) is more comprehensive and has been verified against production.
 
-### 4. Stale-disconnect post-test timer errors
+### 3. Stale-disconnect post-test timer errors (RESOLVED)
 
-`cd server && npx vitest run` emits 56 unhandled errors after all 140 tests pass, caused by stale-disconnect `setTimeout` callbacks in `sockets.test.ts` firing against closed in-memory SQLite handles. All tests pass; this is cleanup noise only.
+Previously `cd server && npx vitest run` emitted 56 unhandled errors after tests passed — stale-disconnect `setTimeout` callbacks and the 1-second timer `setInterval` firing against closed in-memory SQLite handles. Fixed in v2.1.2 by exporting `clearStaleDisconnectTimers()` and `clearTimerInterval()` from `sockets/handlers.ts` and invoking them in `afterEach`. Server tests now pass cleanly with zero post-test errors.
 
-### 5. Force-start for slow writers not implemented
+### 4. Force-start for slow writers not implemented
 
 There is no force-start mechanism. If a writer goes AFK during card selection, the game is stuck.
 
-### 6. React Router v7 future flag warnings
+### 5. React Router v7 future flag warnings
 
 Client tests emit warnings about React Router v6 future flags. These are warnings only, not errors.
 
-### 7. No reconnection state recovery
+### 6. No reconnection state recovery
 
 If a player disconnects mid-game and reconnects within 60s, they get the current room state. After 60s they are fully removed and must rejoin. No "spectator until round end" mode for missed pitches.
 
-### 8. Room codes are letters-only
+### 7. Room codes are letters-only
 
 The implementation plan specified letters + numbers. The actual implementation is letters only (`ABCDEFGHJKLMNPQRSTUVWXYZ`). This is a deliberate deviation — better for verbal communication.
+
+## Policy: No GitHub Actions / CI pipelines
+
+This project deliberately does **not** use GitHub Actions or any CI/CD pipeline, and never will. Tests and build are verified manually before release. Do not add `.github/workflows/`, CI configuration files, or any related tooling. This is a final decision, not a gap to be closed.
 
 ## Configuration
 
