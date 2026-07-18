@@ -22,6 +22,8 @@ export default defineConfig({
     env: {
       PORT: "3100",
       DB_PATH: "/tmp/directtovideo-e2e-test.db",
+      MAX_ROOMS: "100",
+      MAX_PLAYERS: "20",
     },
   },
 });

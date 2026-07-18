@@ -3,18 +3,19 @@ import {
   createPlayer,
   createAudience,
   clickStartGame,
-  playWriterToReady,
+  playAllToReady,
   clickStartTimer,
   clickEndPitch,
-  clickPickWinner,
+  clickVoteForMovie,
   clickLeaveGame,
   clickPlayAgain,
   waitForPhase,
+  findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe.skip("Host succession journey", () => {
+test.describe("Host succession journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 
@@ -25,7 +26,7 @@ test.describe.skip("Host succession journey", () => {
   });
 
   test("host leaves lobby, next player promoted to host", async ({ browser }) => {
-    test.setTimeout(120000);
+    test.setTimeout(60000);
 
     const alice = await createPlayer(browser, "", "Alice");
     sessions.push(alice);
@@ -47,7 +48,7 @@ test.describe.skip("Host succession journey", () => {
   });
 
   test("host leaves at game-end, next player can play again", async ({ browser }) => {
-    test.setTimeout(180000);
+    test.setTimeout(300000);
 
     const alice = await createPlayer(browser, "", "Alice");
     sessions.push(alice);
@@ -59,27 +60,41 @@ test.describe.skip("Host succession journey", () => {
     const players = [alice, bob];
 
     await clickStartGame(alice.page);
-    await waitForPhase(alice.page, /Round 1/i, 10000);
+    await waitForPhase(alice.page, /Round 1|Choose your deck|You are/i, 10000);
 
-    for (let round = 0; round < 2; round++) {
-      const execSession = players[round];
-      const writerSession = players[round === 0 ? 1 : 0];
+    for (let round = 0; round < 5; round++) {
+      const { noteGiver, writers } = await playAllToReady(players, "plot");
 
-      await playWriterToReady(writerSession.page, "plot");
+      await waitForPhase(noteGiver.page, /Now Pitching|Your cards are ready|pitching/i, 15000);
 
-      await waitForPhase(execSession.page, /Now Pitching|Waiting for/i, 15000);
+      const totalPitches = writers.length + 1;
+      for (let p = 0; p < totalPitches; p++) {
+        await clickStartTimer(noteGiver.page);
+        await new Promise((r) => setTimeout(r, 800));
+        await clickEndPitch(noteGiver.page);
+        await new Promise((r) => setTimeout(r, 700));
+      }
 
-      await clickStartTimer(execSession.page);
+      await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
+
+      for (const player of players) {
+        const voteButtons = player.page.locator("button.btn-vote");
+        const count = await voteButtons.count();
+        if (count > 0) {
+          await clickVoteForMovie(player.page, 0);
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }
+
+      await expect.poll(async () => {
+        const r = await noteGiver.page.locator("body").textContent() ?? "";
+        return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
+      }, { timeout: 20000, intervals: [500] }).toBeTruthy();
+
       await new Promise((r) => setTimeout(r, 1000));
-      await clickEndPitch(execSession.page);
-
-      await waitForPhase(execSession.page, /Select the Best Movie|Executive is choosing/i, 10000);
-
-      await clickPickWinner(execSession.page, 0);
-      await new Promise((r) => setTimeout(r, 1500));
     }
 
-    await waitForPhase(bob.page, /wins!|tie!/i, 10000);
+    await waitForPhase(bob.page, /wins!|It's a tie!/i, 10000);
 
     await expect(alice.page.locator("text=Play Again")).toBeVisible({ timeout: 10000 });
 

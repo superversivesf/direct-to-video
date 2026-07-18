@@ -3,15 +3,17 @@ import {
   createPlayer,
   createAudience,
   clickStartGame,
-  playWriterToReady,
+  playAllToReady,
   clickStartTimer,
   clickEndPitch,
+  clickVoteForMovie,
   waitForPhase,
+  findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe.skip("Auto-draw cards journey", () => {
+test.describe("Auto-draw cards journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 
@@ -37,33 +39,56 @@ test.describe.skip("Auto-draw cards journey", () => {
     const players = [alice, bob];
 
     await clickStartGame(alice.page);
-    await waitForPhase(alice.page, /Round 1/i, 10000);
+    await waitForPhase(alice.page, /Round 1|Choose your deck|You are/i, 10000);
 
-    const execSession = players[0];
-    const writerSession = players[1];
+    const { noteGiver, writers } = await playAllToReady(players, "plot");
 
-    await playWriterToReady(writerSession.page, "plot");
-
-    await waitForPhase(execSession.page, /Now Pitching|Waiting for/i, 15000);
+    await waitForPhase(noteGiver.page, /Now Pitching|Your cards are ready|pitching/i, 15000);
     await waitForPhase(audiencePage, /Now Pitching/i, 15000);
 
-    await clickStartTimer(execSession.page);
-    await new Promise((r) => setTimeout(r, 1000));
-
-    const cardTexts = await writerSession.page.locator(".card-text").allTextContents();
-    const hasUnderscores = cardTexts.some((t) => t.includes("____"));
-    const hasSubstituted = cardTexts.some((t) => !t.includes("____") && t.length > 10);
+    const allCardTexts: string[] = [];
+    for (const player of players) {
+      const texts = await player.page.locator(".card-text").allTextContents();
+      allCardTexts.push(...texts);
+    }
+    const hasSubstituted = allCardTexts.some((t) => !t.includes("____") && t.length > 10);
 
     expect(hasSubstituted).toBe(true);
 
-    await clickEndPitch(execSession.page);
+    await clickStartTimer(noteGiver.page);
+    await new Promise((r) => setTimeout(r, 1000));
 
-    await waitForPhase(execSession.page, /Select the Best Movie|Executive is choosing/i, 10000);
+    const totalPitches = writers.length + 1;
+    for (let p = 0; p < totalPitches; p++) {
+      await clickEndPitch(noteGiver.page);
+      await new Promise((r) => setTimeout(r, 600));
+      if (p < totalPitches - 1) {
+        await clickStartTimer(noteGiver.page);
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    }
 
-    const roundSummaryText = await execSession.page.locator(".round-summary").textContent();
-    expect(roundSummaryText).toBeTruthy();
+    await waitForPhase(noteGiver.page, /Vote for the best movie/i, 10000);
 
     const audienceMovieText = await audiencePage.locator(".audience-movie-card").first().textContent().catch(() => "");
     expect(audienceMovieText).toBeTruthy();
+
+    const playerMovieText = await noteGiver.page.locator(".round-summary-movie, .movie-reveal").first().textContent().catch(() => "");
+    expect(playerMovieText).toBeTruthy();
+
+    for (const player of players) {
+      const voteButtons = player.page.locator("button.btn-vote");
+      const count = await voteButtons.count();
+      if (count > 0) {
+        await clickVoteForMovie(player.page, 0);
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    }
+    await clickVoteForMovie(audiencePage, 0);
+
+    await expect.poll(async () => {
+      const r = await noteGiver.page.locator("body").textContent() ?? "";
+      return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
+    }, { timeout: 20000, intervals: [500] }).toBeTruthy();
   });
 });

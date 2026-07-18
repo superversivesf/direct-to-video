@@ -3,16 +3,17 @@ import {
   createPlayer,
   createAudience,
   clickStartGame,
-  playWriterToReady,
+  playAllToReady,
   clickStartTimer,
   clickEndPitch,
-  clickPickWinner,
+  clickVoteForMovie,
   waitForPhase,
+  findNoteGiverSession,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
 
-test.describe.skip("Deck reshuffle journey", () => {
+test.describe("Deck reshuffle journey", () => {
   let sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 
@@ -22,8 +23,8 @@ test.describe.skip("Deck reshuffle journey", () => {
     extraPages = [];
   });
 
-  test("4-player game with 2 rounds completes without deck errors", async ({ browser }) => {
-    test.setTimeout(180000);
+  test("4-player game with multiple rounds completes without deck errors", async ({ browser }) => {
+    test.setTimeout(300000);
 
     const alice = await createPlayer(browser, "", "Alice");
     sessions.push(alice);
@@ -44,31 +45,52 @@ test.describe.skip("Deck reshuffle journey", () => {
     const players = [alice, bob, charlie, dave];
 
     await clickStartGame(alice.page);
-    await waitForPhase(alice.page, /Round 1/i, 10000);
+    await waitForPhase(alice.page, /Round 1|Choose your deck|You are/i, 10000);
 
-    for (let round = 0; round < 4; round++) {
-      const execSession = players[round];
-      const writerSessions = players.filter((_, i) => i !== round);
+    for (let round = 0; round < 5; round++) {
+      const { noteGiver, writers } = await playAllToReady(players, round % 2 === 0 ? "plot" : "character");
 
-      for (const writer of writerSessions) {
-        await playWriterToReady(writer.page, round % 2 === 0 ? "plot" : "character");
+      await waitForPhase(noteGiver.page, /Now Pitching|Your cards are ready|pitching/i, 15000);
+      await waitForPhase(audiencePage, /Now Pitching/i, 15000);
+
+      const totalPitches = writers.length + 1;
+      for (let p = 0; p < totalPitches; p++) {
+        await clickStartTimer(noteGiver.page);
+        await new Promise((r) => setTimeout(r, 700));
+        await clickEndPitch(noteGiver.page);
+        await new Promise((r) => setTimeout(r, 600));
+        if (p < totalPitches - 1) {
+          await waitForPhase(audiencePage, /Now Pitching/i, 15000);
+        }
       }
 
-      await waitForPhase(execSession.page, /Now Pitching|Waiting for/i, 15000);
+      await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
 
-      for (let p = 0; p < writerSessions.length; p++) {
-        await clickStartTimer(execSession.page);
-        await new Promise((r) => setTimeout(r, 1000));
-        await clickEndPitch(execSession.page);
+      await expect(noteGiver.page.locator("button.btn-vote")).toHaveCount(writers.length, {
+        timeout: 10000,
+      });
+
+      for (const player of players) {
+        const voteButtons = player.page.locator("button.btn-vote");
+        const count = await voteButtons.count();
+        if (count > 0) {
+          await clickVoteForMovie(player.page, 0);
+          await new Promise((r) => setTimeout(r, 200));
+        }
       }
+      await clickVoteForMovie(audiencePage, 0);
 
-      await waitForPhase(execSession.page, /Select the Best Movie|Executive is choosing/i, 10000);
+      await expect.poll(async () => {
+        const r = await noteGiver.page.locator("body").textContent() ?? "";
+        return /wins this round|Writers are choosing|Round \d+ of|wins!|It's a tie/i.test(r);
+      }, { timeout: 20000, intervals: [500] }).toBeTruthy();
 
-      await clickPickWinner(execSession.page, 0);
-      await new Promise((r) => setTimeout(r, 1500));
+      if (round < 4) {
+        await waitForPhase(audiencePage, /Writers are choosing/i, 15000);
+      }
     }
 
-    await waitForPhase(alice.page, /wins!/i, 15000);
+    await waitForPhase(alice.page, /wins!|It's a tie!/i, 15000);
     await expect(audiencePage.locator(".winner-spotlight")).toBeVisible({ timeout: 10000 });
   });
 });
