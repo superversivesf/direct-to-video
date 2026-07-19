@@ -41,6 +41,7 @@ function createEmptyRoom(code: string): Room {
     deck: { plot: [], character: [], note: [] },
     noteGiverNotes: [],
     movies: [],
+    movieHistory: [],
     timer: {
       running: false,
       secondsRemaining: 45,
