@@ -1,5 +1,6 @@
 import type { Room, Player, Card, DeckType } from "@direct-to-video/shared";
 import type { RoomStore } from "./rooms.js";
+import { nanoid } from "nanoid";
 import { createTimer } from "./timer.js";
 import { shuffle, drawFromDeck, substituteDraws } from "./card-ops.js";
 
@@ -35,6 +36,8 @@ export function setupRound(store: RoomStore, room: Room): void {
     "note",
     room,
   );
+  const updatedHistory =
+    room.movies.length > 0 ? [...room.movieHistory, ...room.movies] : room.movieHistory;
   store.saveRoom({
     ...room,
     phase: "setup",
@@ -42,6 +45,7 @@ export function setupRound(store: RoomStore, room: Room): void {
     noteGiverNotes: notes,
     deck: { ...room.deck, note: noteRemaining },
     movies: [],
+    movieHistory: updatedHistory,
     timer: createTimer(45),
     pitchOrder: [],
     currentPitchIndex: 0,
@@ -134,11 +138,13 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
   const blindCard = blindDrawn[0];
 
   const newMovie = {
+    id: nanoid(12),
     playerId,
     chosenCard,
     randomCard: blindCard,
     notesPlayed: [] as Card[],
     revealed: false,
+    franchiseSourceMovieId: null,
   };
 
   const updatedRoom: Room = {
@@ -356,7 +362,6 @@ export function nextRound(store: RoomStore, room: Room): void {
       isSpectator: false,
     })),
     noteGiverNotes: [],
-    movies: [],
     pitchOrder: [],
     currentPitchIndex: 0,
     currentPitcherId: null,

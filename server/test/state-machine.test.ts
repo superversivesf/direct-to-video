@@ -1243,4 +1243,67 @@ describe("state machine", () => {
       expect(updated.phase).toBe("pitching");
     });
   });
+
+  describe("franchise card selection", () => {
+    it("setupRound appends current round's movies to movieHistory", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      expect(updated.movies.length).toBeGreaterThan(0);
+      expect(updated.movieHistory).toEqual([]);
+
+      const noteGiverId = updated.noteGiverId!;
+      selectDeckType(store, updated, noteGiverId, "plot");
+      updated = store.getRoom(room.code)!;
+      const ng = updated.players.find((p) => p.id === noteGiverId)!;
+      selectCard(store, updated, noteGiverId, ng.hand[0].id);
+      updated = store.getRoom(room.code)!;
+
+      const otherWriter = playerIds.find((id) => id !== writerId && id !== noteGiverId)!;
+      if (otherWriter) {
+        updated = store.getRoom(room.code)!;
+        selectDeckType(store, updated, otherWriter, "plot");
+        updated = store.getRoom(room.code)!;
+        const ow = updated.players.find((p) => p.id === otherWriter)!;
+        selectCard(store, updated, otherWriter, ow.hand[0].id);
+      }
+
+      updated = store.getRoom(room.code)!;
+      startPitching(store, updated);
+      updated = store.getRoom(room.code)!;
+      for (const pid of updated.pitchOrder) {
+        revealMovie(store, store.getRoom(room.code)!, pid);
+        endPitch(store, store.getRoom(room.code)!, pid);
+      }
+      updated = store.getRoom(room.code)!;
+      const started = startTimer(updated.timer);
+      store.saveRoom({ ...updated, timer: started });
+      tallyAndAdvance(store, store.getRoom(room.code)!);
+
+      updated = store.getRoom(room.code)!;
+      expect(updated.movieHistory.length).toBeGreaterThan(0);
+      expect(updated.movies).toEqual([]);
+    });
+
+    it("selectCard creates a movie with id and franchiseSourceMovieId null", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      const movie = updated.movies.find((m) => m.playerId === writerId)!;
+      expect(movie.id).toBeTruthy();
+      expect(movie.franchiseSourceMovieId).toBeNull();
+    });
+  });
 });
