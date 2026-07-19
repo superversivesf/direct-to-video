@@ -238,6 +238,9 @@ export function useRoom() {
   const forceStart = useCallback(() => {
     socket.emit("force_start");
   }, []);
+  const selectFranchiseSource = useCallback((sourceMovieId: string) => {
+    socket.emit("select_franchise_source", sourceMovieId);
+  }, []);
 
   const leaveGame = useCallback(() => {
     socket.disconnect();
@@ -264,6 +267,7 @@ export function useRoom() {
     setTotalRounds,
     kickPlayer,
     forceStart,
+    selectFranchiseSource,
     leaveGame,
   };
 }
