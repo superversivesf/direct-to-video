@@ -122,6 +122,13 @@ export async function playWriterToReady(
   await new Promise((r) => setTimeout(r, 300));
   await page.click(".card-row .card-template >> nth=0");
 
+  await new Promise((r) => setTimeout(r, 300));
+  const franchisePickerVisible = await page.locator(".franchise-picker").count();
+  if (franchisePickerVisible > 0) {
+    await page.click(".franchise-history-item >> nth=0");
+    await new Promise((r) => setTimeout(r, 300));
+  }
+
   await Promise.race([
     page.waitForSelector("text=Ready to Pitch", { timeout: 15000 }).catch(() => {}),
     page.waitForSelector(".timer", { timeout: 15000 }).catch(() => {}),
