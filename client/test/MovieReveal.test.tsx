@@ -8,19 +8,23 @@ const charCard = { id: "c1", type: "character" as const, text: "A retired villai
 const noteCard = { id: "n1", type: "note" as const, text: "Add a musical number" };
 
 const movieWithNotes: Movie = {
+  id: "m1",
   playerId: "1",
   chosenCard: plotCard,
   randomCard: charCard,
   notesPlayed: [noteCard],
   revealed: true,
+  franchiseSourceMovieId: null,
 };
 
 const movieNoNotes: Movie = {
+  id: "m1",
   playerId: "1",
   chosenCard: charCard,
   randomCard: plotCard,
   notesPlayed: [],
   revealed: true,
+  franchiseSourceMovieId: null,
 };
 
 describe("MovieReveal", () => {
@@ -68,5 +72,57 @@ describe("MovieReveal", () => {
     const { container } = render(<MovieReveal movie={movieWithNotes} large={true} />);
     const cards = container.querySelectorAll(".movie-cards .card-template");
     expect(cards[0]).toHaveClass("card-large");
+  });
+
+  it("renders referenced movie when franchiseSourceMovieId is set", () => {
+    const movie: Movie = {
+      id: "m1",
+      playerId: "p1",
+      chosenCard: { id: "c1", type: "plot", text: "Franchise plot", isFranchise: true },
+      randomCard: { id: "c2", type: "character", text: "Random character" },
+      notesPlayed: [],
+      revealed: true,
+      franchiseSourceMovieId: "hist-1",
+    };
+    const movieHistory: Movie[] = [
+      {
+        id: "hist-1",
+        playerId: "p2",
+        chosenCard: { id: "hc1", type: "plot", text: "Prior plot" },
+        randomCard: { id: "hc2", type: "character", text: "Prior character" },
+        notesPlayed: [],
+        revealed: true,
+        franchiseSourceMovieId: null,
+      },
+    ];
+    const { container } = render(<MovieReveal movie={movie} movieHistory={movieHistory} />);
+    expect(container.textContent).toContain("References:");
+    expect(container.textContent).toContain("Prior plot");
+    expect(container.textContent).toContain("Prior character");
+  });
+
+  it("does not render referenced movie when franchiseSourceMovieId is null", () => {
+    const movie: Movie = {
+      id: "m1",
+      playerId: "p1",
+      chosenCard: { id: "c1", type: "plot", text: "Regular plot" },
+      randomCard: { id: "c2", type: "character", text: "Random character" },
+      notesPlayed: [],
+      revealed: true,
+      franchiseSourceMovieId: null,
+    };
+    const movieHistory: Movie[] = [
+      {
+        id: "hist-1",
+        playerId: "p2",
+        chosenCard: { id: "hc1", type: "plot", text: "Prior plot" },
+        randomCard: { id: "hc2", type: "character", text: "Prior character" },
+        notesPlayed: [],
+        revealed: true,
+        franchiseSourceMovieId: null,
+      },
+    ];
+    const { container } = render(<MovieReveal movie={movie} movieHistory={movieHistory} />);
+    expect(container.textContent).not.toContain("References:");
   });
 });
