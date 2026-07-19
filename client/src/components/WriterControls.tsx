@@ -1,4 +1,4 @@
-import type { Card as CardType, DeckType } from "@direct-to-video/shared";
+import type { Card as CardType, DeckType, Movie as MovieType } from "@direct-to-video/shared";
 import { Card } from "./Card.js";
 
 interface WriterControlsProps {
@@ -10,6 +10,10 @@ interface WriterControlsProps {
   blindRevealed: boolean;
   onSelectCard: (cardId: string) => void;
   onReady: () => void;
+  movieHistory: MovieType[];
+  franchiseSourceMovieId: string | null;
+  myPlayerId: string;
+  onSelectFranchiseSource: (sourceMovieId: string) => void;
 }
 
 export function WriterControls({
@@ -21,8 +25,39 @@ export function WriterControls({
   blindRevealed,
   onSelectCard,
   onReady,
+  movieHistory,
+  franchiseSourceMovieId,
+  myPlayerId,
+  onSelectFranchiseSource,
 }: WriterControlsProps) {
   const blindDeckType: DeckType = selectedCard?.type === "plot" ? "character" : "plot";
+  const isFranchiseCard = selectedCard?.isFranchise === true;
+  const showFranchisePicker = isFranchiseCard && movieHistory.length > 0;
+  const franchiseSelectionMissing = showFranchisePicker && !franchiseSourceMovieId;
+  const readyDisabled = franchiseSelectionMissing === true;
+
+  const pickableHistory = movieHistory.filter((m) => m.playerId !== myPlayerId);
+
+  const renderFranchisePicker = () => (
+    <div className="franchise-picker">
+      <h4>Pick a previously pitched movie</h4>
+      <ul className="franchise-history-list">
+        {pickableHistory.map((m) => (
+          <li key={m.id}>
+            <button
+              className={`franchise-history-item${
+                franchiseSourceMovieId === m.id ? " selected" : ""
+              }`}
+              onClick={() => onSelectFranchiseSource(m.id)}
+            >
+              <span className="franchise-history-text">{m.chosenCard.text}</span>
+              <span className="franchise-history-blind"> + {m.randomCard.text}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 
   return (
     <div className="writer-controls">
@@ -61,7 +96,8 @@ export function WriterControls({
           <div className="blind-draw-controls">
             <p>Your blind card will be revealed when you start pitching!</p>
           </div>
-          <button className="btn-ready" onClick={onReady}>
+          {showFranchisePicker && renderFranchisePicker()}
+          <button className="btn-ready" onClick={onReady} disabled={readyDisabled}>
             Ready to Pitch
           </button>
         </>
@@ -82,6 +118,10 @@ export function WriterControls({
               </>
             )}
           </div>
+          {showFranchisePicker && renderFranchisePicker()}
+          <button className="btn-ready" onClick={onReady} disabled={readyDisabled}>
+            Ready to Pitch
+          </button>
         </>
       )}
     </div>
