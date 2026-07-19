@@ -29,7 +29,7 @@ function AudienceRoundWinner({
         <div className="round-winner-text">{winner.name} wins this round!</div>
         {movie && (
           <div className="round-winner-movie">
-            <MovieReveal movie={movie} />
+            <MovieReveal movie={movie} movieHistory={state.movieHistory} />
           </div>
         )}
       </div>
@@ -121,7 +121,12 @@ export function Audience() {
           />
           {pitcher && <h2 className="audience-pitcher-name">Now Pitching: {pitcher.name}</h2>}
           {currentMovie && (
-            <MovieReveal movie={currentMovie} large={true} blindFaceDown={!currentMovie.revealed} />
+            <MovieReveal
+              movie={currentMovie}
+              large={true}
+              blindFaceDown={!currentMovie.revealed}
+              movieHistory={state.movieHistory}
+            />
           )}
         </div>
       )}
@@ -152,7 +157,7 @@ export function Audience() {
             return (
               <div key={movie.playerId} className="audience-movie-card">
                 <h3>{player?.name}'s Movie</h3>
-                <MovieReveal movie={movie} />
+                <MovieReveal movie={movie} movieHistory={state.movieHistory} />
                 {state.votingActive && !state.hasVoted && (
                   <button onClick={() => castVote(movie.playerId)} className="btn-vote">
                     Vote for this movie

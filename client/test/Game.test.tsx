@@ -25,6 +25,7 @@ const mockFns = {
   setTotalRounds: vi.fn(),
   kickPlayer: vi.fn(),
   forceStart: vi.fn(),
+  selectFranchiseSource: vi.fn(),
   leaveGame: vi.fn(),
 };
 
@@ -46,6 +47,7 @@ const baseState: PublicRoomState = {
   round: { current: 0 },
   totalRounds: 5,
   movies: [],
+  movieHistory: [],
   myPlayerId: "1",
   myHand: null,
   myChosenCard: null,

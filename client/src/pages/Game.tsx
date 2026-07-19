@@ -42,11 +42,13 @@ function RoundWinnerBanner({
   winnerId,
   players,
   movies,
+  movieHistory,
   onDismiss,
 }: {
   winnerId: string;
   players: PublicRoomState["players"];
   movies: PublicRoomState["movies"];
+  movieHistory: PublicRoomState["movieHistory"];
   onDismiss: () => void;
 }) {
   const winner = players.find((p) => p.id === winnerId);
@@ -63,7 +65,7 @@ function RoundWinnerBanner({
         <div className="round-winner-text">{winner.name} wins this round!</div>
         {movie && (
           <div className="round-winner-movie">
-            <MovieReveal movie={movie} />
+            <MovieReveal movie={movie} movieHistory={movieHistory} />
           </div>
         )}
         <div className="round-winner-hint">Click to continue</div>
@@ -145,6 +147,7 @@ export function Game() {
         winnerId={state.roundWinnerId}
         players={state.players}
         movies={state.movies}
+        movieHistory={state.movieHistory}
         onDismiss={() => setShowRoundWinner(false)}
       />
     ) : null;
@@ -290,6 +293,13 @@ export function Game() {
             blindRevealed={false}
             onSelectCard={room.selectCard}
             onReady={room.revealMovie}
+            movieHistory={state.movieHistory}
+            franchiseSourceMovieId={
+              state.movies.find((m) => m.playerId === state.myPlayerId)?.franchiseSourceMovieId ??
+              null
+            }
+            myPlayerId={state.myPlayerId ?? ""}
+            onSelectFranchiseSource={room.selectFranchiseSource}
           />
           {isHost && hasUnpreparedWriters && (
             <button onClick={room.forceStart} className="btn-force-start">
@@ -320,6 +330,13 @@ export function Game() {
           blindRevealed={false}
           onSelectCard={room.selectCard}
           onReady={room.revealMovie}
+          movieHistory={state.movieHistory}
+          franchiseSourceMovieId={
+            state.movies.find((m) => m.playerId === state.myPlayerId)?.franchiseSourceMovieId ??
+            null
+          }
+          myPlayerId={state.myPlayerId ?? ""}
+          onSelectFranchiseSource={room.selectFranchiseSource}
         />
         {isHost && hasUnpreparedWriters && (
           <button onClick={room.forceStart} className="btn-force-start">
@@ -357,7 +374,12 @@ export function Game() {
         {!isMyPitch && !timerStarted && <p>Waiting for {pitcher?.name} to start pitching...</p>}
         {!isMyPitch && timerStarted && <p>{pitcher?.name} is pitching...</p>}
         {currentMovie && (
-          <MovieReveal movie={currentMovie} large={true} blindFaceDown={!timerStarted} />
+          <MovieReveal
+            movie={currentMovie}
+            large={true}
+            blindFaceDown={!timerStarted}
+            movieHistory={state.movieHistory}
+          />
         )}
         {isNoteGiver && (
           <NoteGiverControls
@@ -409,7 +431,7 @@ export function Game() {
               return (
                 <div key={movie.playerId} className="round-summary-movie">
                   <h3>{player?.name}'s Movie</h3>
-                  <MovieReveal movie={movie} />
+                  <MovieReveal movie={movie} movieHistory={state.movieHistory} />
                   {voteCount > 0 && (
                     <div className="vote-tally">
                       {voteCount} vote{voteCount > 1 ? "s" : ""}
