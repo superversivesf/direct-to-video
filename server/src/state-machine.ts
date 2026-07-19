@@ -159,6 +159,33 @@ export function selectCard(store: RoomStore, room: Room, playerId: string, cardI
   checkAllMoviesReady(store, updatedRoom);
 }
 
+export function selectFranchiseSource(
+  store: RoomStore,
+  room: Room,
+  playerId: string,
+  sourceMovieId: string,
+): void {
+  if (room.phase !== "card-selection" && room.phase !== "setup") {
+    throw new Error("Cannot select franchise source outside setup or card-selection phase");
+  }
+  const movie = room.movies.find((m) => m.playerId === playerId);
+  if (!movie) throw new Error("Player has not selected a card yet");
+  if (!movie.chosenCard.isFranchise) {
+    throw new Error("Selected card is not a franchise card");
+  }
+  const sourceMovie = room.movieHistory.find((m) => m.id === sourceMovieId);
+  if (!sourceMovie) throw new Error("Source movie not found in history");
+  if (sourceMovie.playerId === playerId) {
+    throw new Error("Cannot reference your own previously pitched movie");
+  }
+  store.saveRoom({
+    ...room,
+    movies: room.movies.map((m) =>
+      m.id === movie.id ? { ...m, franchiseSourceMovieId: sourceMovieId } : m,
+    ),
+  });
+}
+
 function checkAllMoviesReady(store: RoomStore, room: Room): void {
   const writers = getWriterPlayers(room);
   const readyWriters = writers.filter((w) =>

@@ -14,6 +14,7 @@ import {
   nextRound,
   playAgain,
   forceStart,
+  selectFranchiseSource,
 } from "../src/state-machine.js";
 import { startTimer, pauseForNote, tickTimer, shouldResumeFromNote } from "../src/timer.js";
 import type { Card } from "@direct-to-video/shared";
@@ -1304,6 +1305,132 @@ describe("state machine", () => {
       const movie = updated.movies.find((m) => m.playerId === writerId)!;
       expect(movie.id).toBeTruthy();
       expect(movie.franchiseSourceMovieId).toBeNull();
+    });
+
+    it("selectFranchiseSource throws if phase is not card-selection or setup", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      // Don't call startGame — phase stays "lobby"
+      const updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      expect(() => selectFranchiseSource(store, updated, writerId, "fake-id")).toThrow(
+        "Cannot select franchise source outside setup or card-selection phase",
+      );
+    });
+
+    it("selectFranchiseSource throws if player's chosen card is not franchise", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      const nonFranchiseCard = writer.hand.find((c) => !c.isFranchise) ?? writer.hand[0];
+      selectCard(store, updated, writerId, nonFranchiseCard.id);
+      updated = store.getRoom(room.code)!;
+      expect(() => selectFranchiseSource(store, updated, writerId, "fake-id")).toThrow(
+        "Selected card is not a franchise card",
+      );
+    });
+
+    it("selectFranchiseSource throws if sourceMovieId not in movieHistory", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      const franchiseCard = writer.hand.find((c) => c.isFranchise);
+      if (!franchiseCard) {
+        const fCard = store.getCardsByType("plot").find((c) => c.isFranchise)!;
+        updated = {
+          ...updated,
+          players: updated.players.map((p) =>
+            p.id === writerId ? { ...p, hand: [fCard, ...p.hand.slice(1)] } : p,
+          ),
+        };
+        store.saveRoom(updated);
+        selectCard(store, updated, writerId, fCard.id);
+      } else {
+        selectCard(store, updated, writerId, franchiseCard.id);
+      }
+      updated = store.getRoom(room.code)!;
+      expect(() => selectFranchiseSource(store, updated, writerId, "nonexistent-id")).toThrow(
+        "Source movie not found in history",
+      );
+    });
+
+    it("selectFranchiseSource throws if source movie is player's own", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      selectCard(store, updated, writerId, writer.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      const myMovie = updated.movies.find((m) => m.playerId === writerId)!;
+      updated = {
+        ...updated,
+        movieHistory: [
+          { ...myMovie, id: "own-history-id" },
+        ],
+      };
+      store.saveRoom(updated);
+      const fCard = store.getCardsByType("plot").find((c) => c.isFranchise)!;
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId ? { ...p, hand: [fCard, ...p.hand.slice(1)] } : p,
+        ),
+        movies: [],
+      };
+      store.saveRoom(updated);
+      selectCard(store, updated, writerId, fCard.id);
+      updated = store.getRoom(room.code)!;
+      expect(() => selectFranchiseSource(store, updated, writerId, "own-history-id")).toThrow(
+        "Cannot reference your own previously pitched movie",
+      );
+    });
+
+    it("selectFranchiseSource succeeds and updates movie.franchiseSourceMovieId", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      const otherWriterId = playerIds.find((id) => id !== updated.noteGiverId && id !== writerId)!;
+      selectDeckType(store, updated, otherWriterId, "plot");
+      updated = store.getRoom(room.code)!;
+      const otherWriter = updated.players.find((p) => p.id === otherWriterId)!;
+      selectCard(store, updated, otherWriterId, otherWriter.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      const otherMovie = updated.movies.find((m) => m.playerId === otherWriterId)!;
+      updated = { ...updated, movieHistory: [{ ...otherMovie, id: "history-id-1" }] };
+      store.saveRoom(updated);
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const writer = updated.players.find((p) => p.id === writerId)!;
+      const franchiseCard = writer.hand.find((c) => c.isFranchise);
+      if (franchiseCard) {
+        selectCard(store, updated, writerId, franchiseCard.id);
+      } else {
+        const fCard = store.getCardsByType("plot").find((c) => c.isFranchise)!;
+        updated = {
+          ...updated,
+          players: updated.players.map((p) =>
+            p.id === writerId ? { ...p, hand: [fCard, ...p.hand.slice(1)] } : p,
+          ),
+        };
+        store.saveRoom(updated);
+        selectCard(store, updated, writerId, fCard.id);
+      }
+      updated = store.getRoom(room.code)!;
+      selectFranchiseSource(store, updated, writerId, "history-id-1");
+      updated = store.getRoom(room.code)!;
+      const movie = updated.movies.find((m) => m.playerId === writerId)!;
+      expect(movie.franchiseSourceMovieId).toBe("history-id-1");
     });
   });
 });
