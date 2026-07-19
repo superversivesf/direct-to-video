@@ -188,11 +188,16 @@ export function selectFranchiseSource(
 
 function checkAllMoviesReady(store: RoomStore, room: Room): void {
   const writers = getWriterPlayers(room);
-  const readyWriters = writers.filter((w) =>
-    room.movies.some(
+  const readyWriters = writers.filter((w) => {
+    const movie = room.movies.find(
       (m) => m.playerId === w.id && m.chosenCard.id !== "" && m.randomCard.id !== "",
-    ),
-  );
+    );
+    if (!movie) return false;
+    if (movie.chosenCard.isFranchise && room.movieHistory.length > 0) {
+      return movie.franchiseSourceMovieId !== null;
+    }
+    return true;
+  });
   if (readyWriters.length === writers.length) {
     startPitching(store, room);
   } else {

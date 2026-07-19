@@ -1432,5 +1432,128 @@ describe("state machine", () => {
       const movie = updated.movies.find((m) => m.playerId === writerId)!;
       expect(movie.franchiseSourceMovieId).toBe("history-id-1");
     });
+
+    it("checkAllMoviesReady does not advance if franchise card has no source and history exists", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      const otherWriterId = playerIds.find(
+        (id) => id !== updated.noteGiverId && id !== writerId,
+      )!;
+      updated = {
+        ...updated,
+        movieHistory: [
+          {
+            id: "hist-1",
+            playerId: otherWriterId,
+            chosenCard: { id: "c1", type: "plot", text: "Plot" },
+            randomCard: { id: "c2", type: "character", text: "Character" },
+            notesPlayed: [],
+            revealed: true,
+            franchiseSourceMovieId: null,
+          },
+        ],
+      };
+      store.saveRoom(updated);
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const fCard = store.getCardsByType("plot").find((c) => c.isFranchise)!;
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId ? { ...p, hand: [fCard, ...p.hand.slice(1)] } : p,
+        ),
+      };
+      store.saveRoom(updated);
+      selectCard(store, updated, writerId, fCard.id);
+      updated = store.getRoom(room.code)!;
+      const noteGiverId = updated.noteGiverId!;
+      selectDeckType(store, updated, noteGiverId, "plot");
+      updated = store.getRoom(room.code)!;
+      const ng = updated.players.find((p) => p.id === noteGiverId)!;
+      selectCard(store, updated, noteGiverId, ng.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, otherWriterId, "plot");
+      updated = store.getRoom(room.code)!;
+      const ow = updated.players.find((p) => p.id === otherWriterId)!;
+      selectCard(store, updated, otherWriterId, ow.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      expect(updated.phase).not.toBe("pitching");
+    });
+
+    it("checkAllMoviesReady advances if franchise card has no source but history is empty", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      const otherWriterId = playerIds.find(
+        (id) => id !== updated.noteGiverId && id !== writerId,
+      )!;
+      const noteGiverId = updated.noteGiverId!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      const fCard = store.getCardsByType("plot").find((c) => c.isFranchise)!;
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId ? { ...p, hand: [fCard, ...p.hand.slice(1)] } : p,
+        ),
+      };
+      store.saveRoom(updated);
+      selectCard(store, updated, writerId, fCard.id);
+      updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, otherWriterId, "plot");
+      updated = store.getRoom(room.code)!;
+      const ow = updated.players.find((p) => p.id === otherWriterId)!;
+      selectCard(store, updated, otherWriterId, ow.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, noteGiverId, "plot");
+      updated = store.getRoom(room.code)!;
+      const ng = updated.players.find((p) => p.id === noteGiverId)!;
+      selectCard(store, updated, noteGiverId, ng.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      expect(updated.movieHistory).toEqual([]);
+      expect(updated.phase).toBe("pitching");
+    });
+
+    it("checkAllMoviesReady advances when franchise card has source picked", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      const otherWriterId = playerIds.find(
+        (id) => id !== updated.noteGiverId && id !== writerId,
+      )!;
+      const noteGiverId = updated.noteGiverId!;
+      selectDeckType(store, updated, otherWriterId, "plot");
+      updated = store.getRoom(room.code)!;
+      const ow = updated.players.find((p) => p.id === otherWriterId)!;
+      selectCard(store, updated, otherWriterId, ow.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      const otherMovie = updated.movies.find((m) => m.playerId === otherWriterId)!;
+      updated = { ...updated, movieHistory: [{ ...otherMovie, id: "hist-1" }] };
+      store.saveRoom(updated);
+      const fCard = store.getCardsByType("plot").find((c) => c.isFranchise)!;
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(room.code)!;
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId ? { ...p, hand: [fCard, ...p.hand.slice(1)] } : p,
+        ),
+      };
+      store.saveRoom(updated);
+      selectCard(store, updated, writerId, fCard.id);
+      updated = store.getRoom(room.code)!;
+      selectFranchiseSource(store, updated, writerId, "hist-1");
+      updated = store.getRoom(room.code)!;
+      selectDeckType(store, updated, noteGiverId, "plot");
+      updated = store.getRoom(room.code)!;
+      const ng = updated.players.find((p) => p.id === noteGiverId)!;
+      selectCard(store, updated, noteGiverId, ng.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      expect(updated.phase).toBe("pitching");
+    });
   });
 });
