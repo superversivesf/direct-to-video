@@ -37,11 +37,13 @@ export interface Player {
 }
 
 export interface Movie {
+  id: string;
   playerId: string;
   chosenCard: Card;
   randomCard: Card;
   notesPlayed: Card[];
   revealed: boolean;
+  franchiseSourceMovieId: string | null;
 }
 
 export interface TimerState {
@@ -65,6 +67,7 @@ export interface Room {
   };
   noteGiverNotes: Card[];
   movies: Movie[];
+  movieHistory: Movie[];
   timer: TimerState;
   round: {
     current: number;
@@ -100,6 +103,7 @@ export interface PublicRoomState {
   round: { current: number };
   totalRounds: number;
   movies: Movie[];
+  movieHistory: Movie[];
   myPlayerId: string | null;
   myHand: Card[] | null;
   myChosenCard: Card | null;
@@ -125,6 +129,7 @@ export interface AudienceRoomState {
   round: { current: number };
   totalRounds: number;
   movies: Movie[];
+  movieHistory: Movie[];
   scoreboard: { playerId: string; name: string; score: number }[];
   votingActive: boolean;
   voteCounts: { playerId: string; votes: number }[];
@@ -147,6 +152,7 @@ export interface ClientToServerEvents {
   set_total_rounds: (rounds: number) => void;
   kick_player: (playerId: string) => void;
   force_start: () => void;
+  select_franchise_source: (sourceMovieId: string) => void;
   play_again: () => void;
   join_audience: (code: string) => void;
   cast_vote: (playerId: string) => void;
