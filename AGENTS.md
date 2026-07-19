@@ -400,10 +400,6 @@ Previously client tests emitted warnings about React Router v6 future flags. Fix
 
 Previously if a player disconnected mid-game and reconnected within 60s, they got the current room state with no special handling for missed pitches. Added in v2.1.2: spectator mode for missed pitches. When a player reconnects during the pitching phase and their pitch slot has already passed (`pitchIndex < currentPitchIndex`), they are marked `isSpectator: true`, removed from `pitchOrder` and `movies`, but can still vote in the round they missed. The flag clears automatically at the start of the next round (`setupRound`) and on `playAgain`. The `Player.isSpectator` field is exposed in `PublicPlayer`; `PlayerList` shows a "(spectating)" badge.
 
-### 7. Room codes are letters-only
-
-The implementation plan specified letters + numbers. The actual implementation is letters only (`ABCDEFGHJKLMNPQRSTUVWXYZ`). This is a deliberate deviation — better for verbal communication.
-
 ## Policy: No GitHub Actions / CI pipelines
 
 This project deliberately does **not** use GitHub Actions or any CI/CD pipeline, and never will. Tests and build are verified manually before release. Do not add `.github/workflows/`, CI configuration files, or any related tooling. This is a final decision, not a gap to be closed.
