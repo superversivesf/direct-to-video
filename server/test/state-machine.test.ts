@@ -1555,5 +1555,29 @@ describe("state machine", () => {
       updated = store.getRoom(room.code)!;
       expect(updated.phase).toBe("pitching");
     });
+
+    it("playAgain clears movieHistory", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      updated = {
+        ...updated,
+        movieHistory: [
+          {
+            id: "h1",
+            playerId: playerIds[0],
+            chosenCard: { id: "c1", type: "plot", text: "Plot" },
+            randomCard: { id: "c2", type: "character", text: "Character" },
+            notesPlayed: [],
+            revealed: true,
+            franchiseSourceMovieId: null,
+          },
+        ],
+      };
+      store.saveRoom(updated);
+      playAgain(store, updated);
+      updated = store.getRoom(room.code)!;
+      expect(updated.movieHistory).toEqual([]);
+    });
   });
 });

@@ -420,6 +420,7 @@ export function playAgain(store: RoomStore, room: Room): void {
     currentPitcherId: null,
     noteGiverNotes: [],
     movies: [],
+    movieHistory: [],
     timer: createTimer(45),
     round: { current: 0 },
     noteGiverOrder: [],
