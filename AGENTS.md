@@ -1,6 +1,6 @@
 # AGENTS.md — Direct to Video
 
-> **Status snapshot:** 2026-07-19. v2.1.2. All 235 tests pass (153 server + 82 client), build and typecheck clean, E2E suite (13 tests) verified, lint clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). v2.1.2 adds ESLint+Prettier, force-start, spectator mode. Security-hardened for public internet exposure.
+> **Status snapshot:** 2026-07-19. v2.1.3. All 257 tests pass (167 server + 90 client), build and typecheck clean, E2E suite (13 tests) verified, lint clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). v2.1.2 adds ESLint+Prettier, force-start, spectator mode. v2.1.3 adds franchise card enhancement (UI for picking previously pitched movies). Security-hardened for public internet exposure.
 
 ## Project Overview
 
@@ -82,8 +82,8 @@ movie-pitch/
 │   │   │   ├── Timer.tsx             # SVG ring countdown display
 │   │   │   ├── Scoreboard.tsx        # Ranked player scores with podium
 │   │   │   ├── PlayerList.tsx        # Player list with note-giver/host/disconnected icons + host kick ✕ button
-│   │   │   ├── MovieReveal.tsx       # 2-card movie display (chosen + blind)
-│   │   │   ├── WriterControls.tsx    # Deck choice, hand, card selection, ready button
+│   │   │   ├── MovieReveal.tsx       # 2-card movie display (chosen + blind) + franchise reference
+│   │   │   ├── WriterControls.tsx    # Deck choice, hand, card selection, franchise picker, ready button
 │   │   │   ├── NoteGiverControls.tsx # Timer controls + NOTE card hand (replaces former ExecutiveControls)
 │   │   │   └── PhaseIndicator.tsx    # Progress dots for current phase
 │   │   └── styles/
@@ -92,15 +92,15 @@ movie-pitch/
 │   └── test/
 │       ├── setup.ts                      # Vitest setup (jest-dom matchers)
 │       ├── Card.test.tsx                 # 4 tests
-│       ├── WriterControls.test.tsx       # 6 tests
+│       ├── WriterControls.test.tsx       # 12 tests (6 original + 6 franchise picker)
 │       ├── Timer.test.tsx                # 5 tests
 │       ├── NoteGiverControls.test.tsx    # 12 tests
 │       ├── Join.test.tsx                 # 5 tests
 │       ├── Scoreboard.test.tsx           # 9 tests
-│       ├── PlayerList.test.tsx           # 6 tests
+│       ├── PlayerList.test.tsx           # 7 tests
 │       ├── PhaseIndicator.test.tsx       # 9 tests
-│       ├── MovieReveal.test.tsx          # 6 tests
-│       └── Game.test.tsx                 # 16 tests
+│       ├── MovieReveal.test.tsx          # 8 tests
+│       └── Game.test.tsx                 # 19 tests
 ├── stress/
 │   ├── package.json          # @direct-to-video/stress
 │   ├── stress-test.ts        # Full single-room game simulation (configurable players/audience/rounds/target)
@@ -142,8 +142,8 @@ Build output: `client/dist/` (static files) + `server/dist/` (compiled JS).
 
 ```bash
 npm test                     # Runs both server + client test suites from root
-cd server && npx vitest run  # 153 server tests
-cd client && npx vitest run  # 82 client tests
+cd server && npx vitest run  # 167 server tests
+cd client && npx vitest run  # 90 client tests
 
 # E2E (requires build first + running server on :3100):
 npm run build
@@ -257,7 +257,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 
 ### Socket.IO Events
 
-**Client → Server:** `join_room`, `join_audience`, `start_game`, `set_franchise_enabled`, `set_total_rounds`, `kick_player`, `force_start`, `select_deck_type`, `select_card`, `reveal_movie`, `start_timer`, `pause_timer`, `play_note`, `end_pitch`, `cast_vote`, `play_again`
+**Client → Server:** `join_room`, `join_audience`, `start_game`, `set_franchise_enabled`, `set_total_rounds`, `kick_player`, `force_start`, `select_franchise_source`, `select_deck_type`, `select_card`, `reveal_movie`, `start_timer`, `pause_timer`, `play_note`, `end_pitch`, `cast_vote`, `play_again`
 
 **Server → Client:** `room_joined` (full per-player state), `player_list_updated`, `movie_revealed`, `timer_started`, `timer_tick`, `timer_paused`, `timer_expired`, `note_played`, `pitch_ended`, `next_pitcher`, `round_started`, `game_ended`, `error`, `audience_joined`, `audience_update`, `voting_started`, `vote_update`, `voting_ended` (sends `roundWinnerId: string | null`), `kicked`
 
@@ -312,7 +312,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | server/test/card-ops.test.ts           | —       | PASS         |
 | server/test/state-machine.test.ts      | —       | PASS         |
 | server/test/sockets.test.ts            | —       | PASS         |
-| **Server subtotal**                    | **153** | **ALL PASS** |
+| **Server subtotal**                    | **167** | **ALL PASS** |
 | client/test/Card.test.tsx              | 4       | PASS         |
 | client/test/WriterControls.test.tsx    | 6       | PASS         |
 | client/test/Timer.test.tsx             | 5       | PASS         |
@@ -323,8 +323,8 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | client/test/PhaseIndicator.test.tsx    | 9       | PASS         |
 | client/test/MovieReveal.test.tsx       | 6       | PASS         |
 | client/test/Game.test.tsx              | 19      | PASS         |
-| **Client subtotal**                    | **82**  | **ALL PASS** |
-| **Total**                              | **235** | **ALL PASS** |
+| **Client subtotal**                    | **90**  | **ALL PASS** |
+| **Total**                              | **257** | **ALL PASS** |
 
 > Note: Server tests now pass cleanly with zero post-test errors. Earlier versions emitted 56 unhandled timer errors from stale-disconnect `setTimeout` callbacks and the 1-second timer `setInterval` firing against closed in-memory SQLite handles — fixed in v2.1.2 by exporting `clearStaleDisconnectTimers()` and `clearTimerInterval()` from `sockets/handlers.ts` and invoking them in `afterEach`.
 
@@ -358,6 +358,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 - Note giver NOTE card play with 5-second pause window and auto-resume
 - Auto-draw cards with `____` placeholder substitution (`card-ops.ts:substituteDraws`)
 - Franchise card display (filtered in 2-player games; host can disable via `set_franchise_enabled`; holders pitch last)
+- Franchise card enhancement: players holding a franchise card pick a previously pitched movie via UI during card-selection; referenced movie displayed alongside the franchise pitch on reveal; franchise source auto-picked on force-start
 - Blind card auto-draw from opposite deck on card selection
 - Pitch order: note giver sorted last; franchise holders last; otherwise circular from note giver's left
 - Stale-disconnect handling: 60s after disconnect, player is fully removed; note giver reassigned if needed; host promoted if needed
@@ -429,7 +430,6 @@ Note: `ROOM_TTL_MS`, `CLEANUP_INTERVAL_MS`, and `STALE_DISCONNECT_MS` (60s) are 
 - **Team mode** (5-12 players): Teams of 2, 60-second pitches, dual note givers
 - **Writers' Room variant**: TV show seasons, winner becomes next note giver, canon building, "6 Seasons and a Movie"
 - **Tie-breaker lightning round**: 50-second pitch judged by everyone
-- **Franchise card enhancement**: Let players select from previously pitched movies via UI
 
 ## Gotchas for Agents
 
