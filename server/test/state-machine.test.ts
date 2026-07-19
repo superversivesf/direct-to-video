@@ -1579,5 +1579,42 @@ describe("state machine", () => {
       updated = store.getRoom(room.code)!;
       expect(updated.movieHistory).toEqual([]);
     });
+
+    it("forceStart auto-picks franchise source for unprepared franchise holder", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
+      const otherWriterId = playerIds.find((id) => id !== updated.noteGiverId && id !== writerId)!;
+      updated = {
+        ...updated,
+        movieHistory: [
+          {
+            id: "hist-1",
+            playerId: otherWriterId,
+            chosenCard: { id: "c1", type: "plot", text: "Plot" },
+            randomCard: { id: "c2", type: "character", text: "Character" },
+            notesPlayed: [],
+            revealed: true,
+            franchiseSourceMovieId: null,
+          },
+        ],
+      };
+      store.saveRoom(updated);
+      const fCard = store.getCardsByType("plot").find((c) => c.isFranchise)!;
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId ? { ...p, hand: [fCard, ...p.hand.slice(1)] } : p,
+        ),
+      };
+      store.saveRoom(updated);
+      forceStart(store, updated);
+      updated = store.getRoom(room.code)!;
+      expect(updated.phase).toBe("pitching");
+      const writerMovie = updated.movies.find((m) => m.playerId === writerId)!;
+      expect(writerMovie.chosenCard.isFranchise).toBe(true);
+      expect(writerMovie.franchiseSourceMovieId).toBe("hist-1");
+    });
   });
 });

@@ -227,6 +227,19 @@ export function forceStart(store: RoomStore, room: Room): void {
         current = store.getRoom(current.code)!;
       }
     }
+    const writerMovie = current.movies.find((m) => m.playerId === writer.id);
+    if (
+      writerMovie &&
+      writerMovie.chosenCard.isFranchise &&
+      writerMovie.franchiseSourceMovieId === null &&
+      current.movieHistory.length > 0
+    ) {
+      const sourceMovie = current.movieHistory.find((m) => m.playerId !== writer.id);
+      if (sourceMovie) {
+        selectFranchiseSource(store, current, writer.id, sourceMovie.id);
+        current = store.getRoom(current.code)!;
+      }
+    }
   }
 }
 
