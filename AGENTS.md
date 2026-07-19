@@ -361,6 +361,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 - Blind card auto-draw from opposite deck on card selection
 - Pitch order: note giver sorted last; franchise holders last; otherwise circular from note giver's left
 - Stale-disconnect handling: 60s after disconnect, player is fully removed; note giver reassigned if needed; host promoted if needed
+- Spectator mode: if a player reconnects during pitching after their slot passed, they're marked `isSpectator`, removed from pitchOrder/movies, but can still vote; flag clears at next round
 - Stale room cleanup (1-hour TTL after all disconnected or game-end)
 - SQLite persistence (survives restarts)
 - Docker deployment with non-root user, read-only fs, resource limits
@@ -395,9 +396,9 @@ Previously no force-start mechanism existed. Added in v2.1.2: host can click "Fo
 
 Previously client tests emitted warnings about React Router v6 future flags. Fixed in v2.1.2 by passing `future={{ v7_startTransition: true, v7_relativeSplatPath: true }}` to `BrowserRouter` in `main.tsx` and `MemoryRouter` in `Join.test.tsx` / `Game.test.tsx`. Client tests now run warning-free.
 
-### 6. No reconnection state recovery
+### 6. No reconnection state recovery (RESOLVED)
 
-If a player disconnects mid-game and reconnects within 60s, they get the current room state. After 60s they are fully removed and must rejoin. No "spectator until round end" mode for missed pitches.
+Previously if a player disconnected mid-game and reconnected within 60s, they got the current room state with no special handling for missed pitches. Added in v2.1.2: spectator mode for missed pitches. When a player reconnects during the pitching phase and their pitch slot has already passed (`pitchIndex < currentPitchIndex`), they are marked `isSpectator: true`, removed from `pitchOrder` and `movies`, but can still vote in the round they missed. The flag clears automatically at the start of the next round (`setupRound`) and on `playAgain`. The `Player.isSpectator` field is exposed in `PublicPlayer`; `PlayerList` shows a "(spectating)" badge.
 
 ### 7. Room codes are letters-only
 

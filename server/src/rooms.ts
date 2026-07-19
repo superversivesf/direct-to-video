@@ -72,6 +72,7 @@ function createPlayer(name: string, isHost: boolean): Player {
     hand: [],
     chosenCard: null,
     isDisconnected: false,
+    isSpectator: false,
   };
 }
 

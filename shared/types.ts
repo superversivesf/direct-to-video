@@ -33,6 +33,7 @@ export interface Player {
   hand: Card[];
   chosenCard: Card | null;
   isDisconnected: boolean;
+  isSpectator: boolean;
 }
 
 export interface Movie {
@@ -86,6 +87,7 @@ export interface PublicPlayer {
   isHost: boolean;
   score: number;
   isDisconnected: boolean;
+  isSpectator: boolean;
 }
 
 export interface PublicRoomState {

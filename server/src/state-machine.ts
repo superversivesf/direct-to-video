@@ -4,7 +4,7 @@ import { createTimer } from "./timer.js";
 import { shuffle, drawFromDeck, substituteDraws } from "./card-ops.js";
 
 function getWriterPlayers(room: Room): Player[] {
-  return room.players.filter((p) => !p.isDisconnected);
+  return room.players.filter((p) => !p.isDisconnected && !p.isSpectator);
 }
 
 export function startGame(store: RoomStore, room: Room): void {
@@ -51,6 +51,7 @@ export function setupRound(store: RoomStore, room: Room): void {
       isNoteGiver: p.id === noteGiverId,
       hand: [],
       chosenCard: null,
+      isSpectator: false,
     })),
     votes: {},
     votingActive: false,
@@ -352,6 +353,7 @@ export function nextRound(store: RoomStore, room: Room): void {
       isNoteGiver: false,
       hand: [],
       chosenCard: null,
+      isSpectator: false,
     })),
     noteGiverNotes: [],
     movies: [],
@@ -375,6 +377,7 @@ export function playAgain(store: RoomStore, room: Room): void {
       hand: [],
       chosenCard: null,
       isDisconnected: false,
+      isSpectator: false,
     })),
     noteGiverId: null,
     currentPitcherId: null,

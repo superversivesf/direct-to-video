@@ -891,4 +891,226 @@ describe("sockets", () => {
       third.disconnect();
     });
   });
+
+  describe("spectator mode on rejoin", () => {
+    async function setupPitchingWithThreePlayers(): Promise<{
+      sockets: ClientSocket[];
+      states: Map<ClientSocket, PublicRoomState>;
+      roomCode: string;
+      noteGiverId: string;
+    }> {
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
+      for (let i = 0; i < 3; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
+      }
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
+      }
+      let room = store.getRoom(roomCode)!;
+      startGame(store, room);
+      room = store.getRoom(roomCode)!;
+      const noteGiverId = room.noteGiverId!;
+      for (const socket of sockets) {
+        const playerId = states.get(socket)!.myPlayerId!;
+        if (playerId === noteGiverId) continue;
+        room = store.getRoom(roomCode)!;
+        selectDeckType(store, room, playerId, "plot");
+        room = store.getRoom(roomCode)!;
+        const writer = room.players.find((p) => p.id === playerId)!;
+        selectCard(store, store.getRoom(roomCode)!, playerId, writer.hand[0].id);
+      }
+      room = store.getRoom(roomCode)!;
+      const noteGiverPlayer = room.players.find((p) => p.id === noteGiverId)!;
+      if (noteGiverPlayer.hand.length === 0) {
+        selectDeckType(store, room, noteGiverId, "plot");
+        room = store.getRoom(roomCode)!;
+        const ngPlayer = room.players.find((p) => p.id === noteGiverId)!;
+        selectCard(store, room, noteGiverId, ngPlayer.hand[0].id);
+      }
+      room = store.getRoom(roomCode)!;
+      startPitching(store, room);
+      room = store.getRoom(roomCode)!;
+      return { sockets, states, roomCode, noteGiverId };
+    }
+
+    it("player rejoins during pitching after their slot becomes spectator", async () => {
+      const { sockets, states, roomCode } = await setupPitchingWithThreePlayers();
+      let room = store.getRoom(roomCode)!;
+      const firstPitcherId = room.currentPitcherId!;
+      const firstPitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId === firstPitcherId)!;
+      const firstPitcherName = room.players.find((p) => p.id === firstPitcherId)!.name;
+
+      firstPitcherSocket.disconnect();
+      await new Promise((r) => setTimeout(r, 200));
+      room = store.getRoom(roomCode)!;
+      expect(room.players.find((p) => p.id === firstPitcherId)!.isDisconnected).toBe(true);
+
+      room = store.getRoom(roomCode)!;
+      endPitch(store, room, firstPitcherId);
+      room = store.getRoom(roomCode)!;
+      expect(room.currentPitcherId).not.toBe(firstPitcherId);
+
+      const rejoined = ioc(`http://localhost:${port}`, {
+        forceNew: true,
+        transports: ["websocket"],
+      });
+      const statePromise = waitForEvent<PublicRoomState>(rejoined, "room_joined");
+      rejoined.on("connect", () => rejoined.emit("join_room", roomCode, firstPitcherName));
+      const rejoinedState = await statePromise;
+      expect(rejoinedState.players.find((p) => p.id === firstPitcherId)!.isSpectator).toBe(true);
+      expect(rejoinedState.movies.find((m) => m.playerId === firstPitcherId)).toBeUndefined();
+
+      rejoined.disconnect();
+      sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
+    });
+
+    it("player rejoins during pitching before their slot is NOT spectator", async () => {
+      const { sockets, states, roomCode } = await setupPitchingWithThreePlayers();
+      let room = store.getRoom(roomCode)!;
+      const lastPitcherId = room.pitchOrder[room.pitchOrder.length - 1];
+      const lastPitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId === lastPitcherId)!;
+      const lastPitcherName = room.players.find((p) => p.id === lastPitcherId)!.name;
+
+      lastPitcherSocket.disconnect();
+      await new Promise((r) => setTimeout(r, 200));
+      room = store.getRoom(roomCode)!;
+
+      const rejoined = ioc(`http://localhost:${port}`, {
+        forceNew: true,
+        transports: ["websocket"],
+      });
+      const statePromise = waitForEvent<PublicRoomState>(rejoined, "room_joined");
+      rejoined.on("connect", () => rejoined.emit("join_room", roomCode, lastPitcherName));
+      const rejoinedState = await statePromise;
+      const player = rejoinedState.players.find((p) => p.id === lastPitcherId)!;
+      expect(player.isSpectator).toBe(false);
+
+      rejoined.disconnect();
+      sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
+    });
+
+    it("player rejoins during setup is NOT spectator", async () => {
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
+      for (let i = 0; i < 3; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
+      }
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
+      }
+      const room = store.getRoom(roomCode)!;
+      startGame(store, room);
+      const firstPlayerId = states.get(sockets[0])!.myPlayerId!;
+      const firstPlayerName = store
+        .getRoom(roomCode)!
+        .players.find((p) => p.id === firstPlayerId)!.name;
+      sockets[0].disconnect();
+      await new Promise((r) => setTimeout(r, 200));
+
+      const rejoined = ioc(`http://localhost:${port}`, {
+        forceNew: true,
+        transports: ["websocket"],
+      });
+      const statePromise = waitForEvent<PublicRoomState>(rejoined, "room_joined");
+      rejoined.on("connect", () => rejoined.emit("join_room", roomCode, firstPlayerName));
+      const rejoinedState = await statePromise;
+      expect(rejoinedState.players.find((p) => p.id === firstPlayerId)!.isSpectator).toBe(false);
+
+      rejoined.disconnect();
+      sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
+    });
+
+    it("spectator can cast a vote in the round they missed", async () => {
+      const { sockets, states, roomCode } = await setupPitchingWithThreePlayers();
+      let room = store.getRoom(roomCode)!;
+      const firstPitcherId = room.currentPitcherId!;
+      const firstPitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId === firstPitcherId)!;
+      const firstPitcherName = room.players.find((p) => p.id === firstPitcherId)!.name;
+      firstPitcherSocket.disconnect();
+      await new Promise((r) => setTimeout(r, 200));
+      endPitch(store, store.getRoom(roomCode)!, firstPitcherId);
+      room = store.getRoom(roomCode)!;
+
+      const rejoined = ioc(`http://localhost:${port}`, {
+        forceNew: true,
+        transports: ["websocket"],
+      });
+      const statePromise = waitForEvent<PublicRoomState>(rejoined, "room_joined");
+      rejoined.on("connect", () => rejoined.emit("join_room", roomCode, firstPitcherName));
+      await statePromise;
+
+      room = store.getRoom(roomCode)!;
+      const otherPitchers = room.pitchOrder.filter((id) => id !== firstPitcherId);
+      for (const pid of otherPitchers) {
+        revealMovie(store, store.getRoom(roomCode)!, pid);
+        endPitch(store, store.getRoom(roomCode)!, pid);
+      }
+      room = store.getRoom(roomCode)!;
+      expect(room.phase).toBe("round-end");
+      expect(room.votingActive).toBe(true);
+      const started = startTimer(room.timer);
+      store.saveRoom({ ...room, timer: started });
+
+      const voteTarget = room.movies.find((m) => m.playerId !== firstPitcherId)!.playerId;
+      rejoined.emit("cast_vote", voteTarget);
+      await new Promise((r) => setTimeout(r, 300));
+      room = store.getRoom(roomCode)!;
+      expect(room.votes[firstPitcherId]).toBe(voteTarget);
+
+      rejoined.disconnect();
+      sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
+    }, 30000);
+
+    it("nextRound clears isSpectator on all players", async () => {
+      const { sockets, states, roomCode } = await setupPitchingWithThreePlayers();
+      let room = store.getRoom(roomCode)!;
+      const firstPitcherId = room.currentPitcherId!;
+      const firstPitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId === firstPitcherId)!;
+      const firstPitcherName = room.players.find((p) => p.id === firstPitcherId)!.name;
+      firstPitcherSocket.disconnect();
+      await new Promise((r) => setTimeout(r, 200));
+      endPitch(store, store.getRoom(roomCode)!, firstPitcherId);
+      room = store.getRoom(roomCode)!;
+
+      const rejoined = ioc(`http://localhost:${port}`, {
+        forceNew: true,
+        transports: ["websocket"],
+      });
+      const statePromise = waitForEvent<PublicRoomState>(rejoined, "room_joined");
+      rejoined.on("connect", () => rejoined.emit("join_room", roomCode, firstPitcherName));
+      await statePromise;
+      room = store.getRoom(roomCode)!;
+      expect(room.players.find((p) => p.id === firstPitcherId)!.isSpectator).toBe(true);
+
+      const otherPitchers = room.pitchOrder.filter((id) => id !== firstPitcherId);
+      for (const pid of otherPitchers) {
+        revealMovie(store, store.getRoom(roomCode)!, pid);
+        endPitch(store, store.getRoom(roomCode)!, pid);
+      }
+      room = store.getRoom(roomCode)!;
+      const started = startTimer(room.timer);
+      store.saveRoom({ ...room, timer: started });
+      await new Promise((r) => setTimeout(r, 50));
+      tallyAndAdvance(store, store.getRoom(roomCode)!);
+      room = store.getRoom(roomCode)!;
+      expect(room.phase).toBe("setup");
+      expect(room.players.find((p) => p.id === firstPitcherId)!.isSpectator).toBe(false);
+
+      rejoined.disconnect();
+      sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
+    }, 30000);
+  });
 });

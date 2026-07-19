@@ -164,11 +164,33 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
           staleDisconnectTimers.delete(playerId);
         }
         room = store.getRoom(room.code)!;
+        const rejoiningPlayer = room.players.find((p) => p.id === playerId);
+        const wasDisconnected = rejoiningPlayer?.isDisconnected ?? false;
+        let becomeSpectator = false;
+        if (wasDisconnected && room.phase === "pitching") {
+          const pitchIndex = room.pitchOrder.findIndex((id) => id === playerId);
+          if (pitchIndex >= 0 && pitchIndex < room.currentPitchIndex) {
+            becomeSpectator = true;
+          }
+        }
         room = {
           ...room,
           players: room.players.map((p) =>
-            p.id === playerId ? { ...p, socketId: socket.id, isDisconnected: false } : p,
+            p.id === playerId
+              ? {
+                  ...p,
+                  socketId: socket.id,
+                  isDisconnected: false,
+                  isSpectator: becomeSpectator ? true : p.isSpectator,
+                }
+              : p,
           ),
+          movies: becomeSpectator
+            ? room.movies.filter((m) => m.playerId !== playerId)
+            : room.movies,
+          pitchOrder: becomeSpectator
+            ? room.pitchOrder.filter((id) => id !== playerId)
+            : room.pitchOrder,
         };
         store.saveRoom(room);
         logger.joinRoom(clientIp, room.code, name, isHost);

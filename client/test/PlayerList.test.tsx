@@ -4,9 +4,33 @@ import { PlayerList } from "../src/components/PlayerList.js";
 import type { PublicPlayer } from "@direct-to-video/shared";
 
 const players: PublicPlayer[] = [
-  { id: "1", name: "Jason", isNoteGiver: true, isHost: true, score: 0, isDisconnected: false },
-  { id: "2", name: "Sarah", isNoteGiver: false, isHost: false, score: 0, isDisconnected: false },
-  { id: "3", name: "Mike", isNoteGiver: false, isHost: false, score: 0, isDisconnected: true },
+  {
+    id: "1",
+    name: "Jason",
+    isNoteGiver: true,
+    isHost: true,
+    score: 0,
+    isDisconnected: false,
+    isSpectator: false,
+  },
+  {
+    id: "2",
+    name: "Sarah",
+    isNoteGiver: false,
+    isHost: false,
+    score: 0,
+    isDisconnected: false,
+    isSpectator: false,
+  },
+  {
+    id: "3",
+    name: "Mike",
+    isNoteGiver: false,
+    isHost: false,
+    score: 0,
+    isDisconnected: true,
+    isSpectator: false,
+  },
 ];
 
 describe("PlayerList", () => {
@@ -44,5 +68,23 @@ describe("PlayerList", () => {
   it("renders with empty players list", () => {
     render(<PlayerList players={[]} />);
     expect(screen.getByText("Players")).toBeTruthy();
+  });
+
+  it("shows spectator indicator for spectator player", () => {
+    const spectatorPlayers: PublicPlayer[] = [
+      {
+        id: "1",
+        name: "Jason",
+        isNoteGiver: false,
+        isHost: false,
+        score: 0,
+        isDisconnected: false,
+        isSpectator: true,
+      },
+    ];
+    const { container } = render(<PlayerList players={spectatorPlayers} />);
+    const spectatorLi = container.querySelector(".player-spectator");
+    expect(spectatorLi).toBeTruthy();
+    expect(spectatorLi!.textContent).toContain("spectating");
   });
 });

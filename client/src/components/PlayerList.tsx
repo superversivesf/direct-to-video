@@ -16,12 +16,18 @@ export function PlayerList({ players, movies, canKick, onKick }: PlayerListProps
           const isReady = movies?.some((m) => m.playerId === p.id);
           const canKickThis = canKick && onKick && !p.isHost && !p.isDisconnected;
           return (
-            <li key={p.id} className={p.isDisconnected ? "player-disconnected" : ""}>
+            <li
+              key={p.id}
+              className={
+                p.isDisconnected ? "player-disconnected" : p.isSpectator ? "player-spectator" : ""
+              }
+            >
               {p.isNoteGiver && "📝 "}
               {p.isHost && "👑 "}
               {p.name}
               {p.isDisconnected && " (disconnected)"}
-              {movies && !p.isNoteGiver && !p.isDisconnected && (
+              {p.isSpectator && " (spectating)"}
+              {movies && !p.isNoteGiver && !p.isDisconnected && !p.isSpectator && (
                 <span className={`ready-status ${isReady ? "ready-yes" : "ready-no"}`}>
                   {isReady ? " ✓ ready" : " choosing..."}
                 </span>

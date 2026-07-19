@@ -38,6 +38,7 @@ export function toPublicRoomState(room: Room, playerId: string | null): PublicRo
       isHost: p.isHost,
       score: p.score,
       isDisconnected: p.isDisconnected,
+      isSpectator: p.isSpectator,
     })),
     noteGiverId: room.noteGiverId,
     currentPitcherId: room.currentPitcherId,
@@ -82,6 +83,7 @@ export function toAudienceRoomState(room: Room, audienceSocketId?: string): Audi
       isHost: p.isHost,
       score: p.score,
       isDisconnected: p.isDisconnected,
+      isSpectator: p.isSpectator,
     })),
     noteGiverId: room.noteGiverId,
     currentPitcherId: room.currentPitcherId,
@@ -110,6 +112,7 @@ export function broadcastPlayerList(io: Server, room: Room): void {
     isHost: p.isHost,
     score: p.score,
     isDisconnected: p.isDisconnected,
+    isSpectator: p.isSpectator,
   }));
   io.to(`room:${room.code}`).emit("player_list_updated", players);
   for (const [audienceId, info] of audienceSockets) {
