@@ -1113,4 +1113,93 @@ describe("sockets", () => {
       sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
     }, 30000);
   });
+
+  describe("select_franchise_source handler", () => {
+    it("rejects if player has not selected a card yet", async () => {
+      const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      host.on("connect", () => host.emit("join_room", "", "Jason"));
+      const hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
+
+      const guest = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      guest.on("connect", () => guest.emit("join_room", hostState.code, "Sarah"));
+      await waitForEvent<PublicRoomState>(guest, "room_joined");
+
+      const third = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      third.on("connect", () => third.emit("join_room", hostState.code, "Mike"));
+      await waitForEvent<PublicRoomState>(third, "room_joined");
+
+      const room = store.getRoom(hostState.code)!;
+      startGame(store, room);
+
+      guest.emit("select_franchise_source", "fake-id");
+      const err = await waitForEvent<string>(guest, "error");
+      expect(err).toBeTruthy();
+
+      host.disconnect();
+      guest.disconnect();
+      third.disconnect();
+    });
+
+    it("updates movie.franchiseSourceMovieId on valid selection", async () => {
+      const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      host.on("connect", () => host.emit("join_room", "", "Jason"));
+      const hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
+
+      const guest = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      guest.on("connect", () => guest.emit("join_room", hostState.code, "Sarah"));
+      await waitForEvent<PublicRoomState>(guest, "room_joined");
+
+      const third = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      third.on("connect", () => third.emit("join_room", hostState.code, "Mike"));
+      await waitForEvent<PublicRoomState>(third, "room_joined");
+
+      const room = store.getRoom(hostState.code)!;
+      startGame(store, room);
+      let updated = store.getRoom(hostState.code)!;
+      const writerId = updated.players.find((p) => p.name === "Sarah")!.id;
+      const otherId = updated.players.find((p) => p.name === "Mike")!.id;
+
+      // Inject a movie into history
+      updated = {
+        ...updated,
+        movieHistory: [
+          {
+            id: "hist-1",
+            playerId: otherId,
+            chosenCard: { id: "c1", type: "plot", text: "Plot" },
+            randomCard: { id: "c2", type: "character", text: "Character" },
+            notesPlayed: [],
+            revealed: true,
+            franchiseSourceMovieId: null,
+          },
+        ],
+      };
+      store.saveRoom(updated);
+
+      // Writer (Sarah) draws and gets a franchise card
+      selectDeckType(store, updated, writerId, "plot");
+      updated = store.getRoom(hostState.code)!;
+      const fCard = store.getCardsByType("plot").find((c) => c.isFranchise)!;
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === writerId ? { ...p, hand: [fCard, ...p.hand.slice(1)] } : p,
+        ),
+      };
+      store.saveRoom(updated);
+      selectCard(store, updated, writerId, fCard.id);
+
+      const statePromise = waitForEvent<PublicRoomState>(guest, "room_joined");
+      guest.emit("select_franchise_source", "hist-1");
+      await statePromise;
+      const updatedRoom = store.getRoom(hostState.code)!;
+      const myMovie = updatedRoom.movies.find((m) => m.playerId === writerId);
+      expect(myMovie).toBeDefined();
+      expect(myMovie!.franchiseSourceMovieId).toBe("hist-1");
+
+      host.disconnect();
+      guest.disconnect();
+      third.disconnect();
+    }, 15000);
+  });
 });

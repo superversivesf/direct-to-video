@@ -13,6 +13,7 @@ import {
   tallyAndAdvance,
   playAgain,
   forceStart,
+  selectFranchiseSource,
 } from "../state-machine.js";
 import {
   startTimer,
@@ -506,6 +507,18 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
           return;
         }
         forceStart(store, ctx.room);
+        broadcastAllStates(io, store.getRoom(ctx.room.code)!);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
+    });
+
+    socket.on("select_franchise_source", (sourceMovieId: string) => {
+      if (!checkSocketEventRate(socket)) return;
+      const ctx = getPlayerContext(socket.id, store);
+      if (!ctx) return;
+      try {
+        selectFranchiseSource(store, ctx.room, ctx.playerId, sourceMovieId);
         broadcastAllStates(io, store.getRoom(ctx.room.code)!);
       } catch (err) {
         socket.emit("error", (err as Error).message);
