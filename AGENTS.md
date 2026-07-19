@@ -1,6 +1,6 @@
 # AGENTS.md — Direct to Video
 
-> **Status snapshot:** 2026-07-17. v2.1.0. All 218 tests pass (140 server + 78 client), build and typecheck clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). Security-hardened for public internet exposure.
+> **Status snapshot:** 2026-07-19. v2.1.2. All 235 tests pass (153 server + 82 client), build and typecheck clean, E2E suite (13 tests) verified, lint clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). v2.1.2 adds ESLint+Prettier, force-start, spectator mode. Security-hardened for public internet exposure.
 
 ## Project Overview
 
@@ -142,8 +142,8 @@ Build output: `client/dist/` (static files) + `server/dist/` (compiled JS).
 
 ```bash
 npm test                     # Runs both server + client test suites from root
-cd server && npx vitest run  # 140 server tests
-cd client && npx vitest run  # 78 client tests
+cd server && npx vitest run  # 153 server tests
+cd client && npx vitest run  # 82 client tests
 
 # E2E (requires build first + running server on :3100):
 npm run build
@@ -312,21 +312,21 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | server/test/card-ops.test.ts           | —       | PASS         |
 | server/test/state-machine.test.ts      | —       | PASS         |
 | server/test/sockets.test.ts            | —       | PASS         |
-| **Server subtotal**                    | **140** | **ALL PASS** |
+| **Server subtotal**                    | **153** | **ALL PASS** |
 | client/test/Card.test.tsx              | 4       | PASS         |
 | client/test/WriterControls.test.tsx    | 6       | PASS         |
 | client/test/Timer.test.tsx             | 5       | PASS         |
 | client/test/NoteGiverControls.test.tsx | 12      | PASS         |
 | client/test/Join.test.tsx              | 5       | PASS         |
 | client/test/Scoreboard.test.tsx        | 9       | PASS         |
-| client/test/PlayerList.test.tsx        | 6       | PASS         |
+| client/test/PlayerList.test.tsx        | 7       | PASS         |
 | client/test/PhaseIndicator.test.tsx    | 9       | PASS         |
 | client/test/MovieReveal.test.tsx       | 6       | PASS         |
-| client/test/Game.test.tsx              | 16      | PASS         |
-| **Client subtotal**                    | **78**  | **ALL PASS** |
-| **Total**                              | **218** | **ALL PASS** |
+| client/test/Game.test.tsx              | 19      | PASS         |
+| **Client subtotal**                    | **82**  | **ALL PASS** |
+| **Total**                              | **235** | **ALL PASS** |
 
-> Note: `cd server && npx vitest run` reports 56 unhandled timer errors after all 140 tests pass — these are from stale-disconnect `setTimeout` callbacks firing against closed in-memory SQLite handles in `sockets.test.ts`. All 140 tests pass; the errors are post-test cleanup noise, not test failures.
+> Note: Server tests now pass cleanly with zero post-test errors. Earlier versions emitted 56 unhandled timer errors from stale-disconnect `setTimeout` callbacks and the 1-second timer `setInterval` firing against closed in-memory SQLite handles — fixed in v2.1.2 by exporting `clearStaleDisconnectTimers()` and `clearTimerInterval()` from `sockets/handlers.ts` and invoking them in `afterEach`.
 
 ### Build & Typecheck
 
