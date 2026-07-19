@@ -1,6 +1,6 @@
 # AGENTS.md — Direct to Video
 
-> **Status snapshot:** 2026-07-19. v2.1.3. All 257 tests pass (167 server + 90 client), build and typecheck clean, E2E suite (13 tests) verified, lint clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). v2.1.2 adds ESLint+Prettier, force-start, spectator mode. v2.1.3 adds franchise card enhancement (UI for picking previously pitched movies). Security-hardened for public internet exposure.
+> **Status snapshot:** 2026-07-19. v2.1.4. All 263 tests pass (173 server + 90 client), build and typecheck clean, E2E suite (13 tests) verified, lint clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). v2.1.2 adds ESLint+Prettier, force-start, spectator mode. v2.1.3 adds franchise card enhancement (UI for picking previously pitched movies). v2.1.4 adds mid-game join as spectator (new players joining mid-game spectate the current round, play from next round). Security-hardened for public internet exposure.
 
 ## Project Overview
 
@@ -142,7 +142,7 @@ Build output: `client/dist/` (static files) + `server/dist/` (compiled JS).
 
 ```bash
 npm test                     # Runs both server + client test suites from root
-cd server && npx vitest run  # 167 server tests
+cd server && npx vitest run  # 173 server tests
 cd client && npx vitest run  # 90 client tests
 
 # E2E (requires build first + running server on :3100):
@@ -312,7 +312,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | server/test/card-ops.test.ts           | —       | PASS         |
 | server/test/state-machine.test.ts      | —       | PASS         |
 | server/test/sockets.test.ts            | —       | PASS         |
-| **Server subtotal**                    | **167** | **ALL PASS** |
+| **Server subtotal**                    | **173** | **ALL PASS** |
 | client/test/Card.test.tsx              | 4       | PASS         |
 | client/test/WriterControls.test.tsx    | 6       | PASS         |
 | client/test/Timer.test.tsx             | 5       | PASS         |
@@ -324,7 +324,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | client/test/MovieReveal.test.tsx       | 6       | PASS         |
 | client/test/Game.test.tsx              | 19      | PASS         |
 | **Client subtotal**                    | **90**  | **ALL PASS** |
-| **Total**                              | **257** | **ALL PASS** |
+| **Total**                              | **263** | **ALL PASS** |
 
 > Note: Server tests now pass cleanly with zero post-test errors. Earlier versions emitted 56 unhandled timer errors from stale-disconnect `setTimeout` callbacks and the 1-second timer `setInterval` firing against closed in-memory SQLite handles — fixed in v2.1.2 by exporting `clearStaleDisconnectTimers()` and `clearTimerInterval()` from `sockets/handlers.ts` and invoking them in `afterEach`.
 
@@ -363,6 +363,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 - Pitch order: note giver sorted last; franchise holders last; otherwise circular from note giver's left
 - Stale-disconnect handling: 60s after disconnect, player is fully removed; note giver reassigned if needed; host promoted if needed
 - Spectator mode: if a player reconnects during pitching after their slot passed, they're marked `isSpectator`, removed from pitchOrder/movies, but can still vote; flag clears at next round
+- Mid-game join as spectator: new players joining mid-game (phase !== lobby) are marked `isSpectator` for the current round; they can vote but don't pitch; flag clears at the start of the next round (`setupRound`), making them full players
 - Stale room cleanup (1-hour TTL after all disconnected or game-end)
 - SQLite persistence (survives restarts)
 - Docker deployment with non-root user, read-only fs, resource limits
@@ -429,7 +430,6 @@ Note: `ROOM_TTL_MS`, `CLEANUP_INTERVAL_MS`, and `STALE_DISCONNECT_MS` (60s) are 
 
 - **Team mode** (5-12 players): Teams of 2, 60-second pitches, dual note givers
 - **Writers' Room variant**: TV show seasons, winner becomes next note giver, canon building, "6 Seasons and a Movie"
-- **Tie-breaker lightning round**: 50-second pitch judged by everyone
 
 ## Gotchas for Agents
 

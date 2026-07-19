@@ -105,4 +105,98 @@ describe("rooms", () => {
     }
     expect(() => joinRoom(store, created.room.code, "Extra")).toThrow("Room is full");
   });
+
+  describe("mid-game join as spectator", () => {
+    it("new player joining during lobby is NOT a spectator", () => {
+      const created = createRoom(store, "Host");
+      const joined = joinRoom(store, created.room.code, "Latecomer");
+      const room = store.getRoom(created.room.code)!;
+      const newPlayer = room.players.find((p) => p.id === joined.playerId)!;
+      expect(newPlayer.isSpectator).toBe(false);
+    });
+
+    it("new player joining during setup becomes a spectator", () => {
+      const created = createRoom(store, "Host");
+      joinRoom(store, created.room.code, "P2");
+      const room = store.getRoom(created.room.code)!;
+      room.phase = "setup";
+      store.saveRoom(room);
+
+      const joined = joinRoom(store, created.room.code, "Latecomer");
+      const updated = store.getRoom(created.room.code)!;
+      const newPlayer = updated.players.find((p) => p.id === joined.playerId)!;
+      expect(newPlayer.isSpectator).toBe(true);
+    });
+
+    it("new player joining during pitching becomes a spectator", () => {
+      const created = createRoom(store, "Host");
+      joinRoom(store, created.room.code, "P2");
+      const room = store.getRoom(created.room.code)!;
+      room.phase = "pitching";
+      room.pitchOrder = [room.players[0].id, room.players[1].id];
+      room.currentPitcherId = room.players[0].id;
+      store.saveRoom(room);
+
+      const joined = joinRoom(store, created.room.code, "Latecomer");
+      const updated = store.getRoom(created.room.code)!;
+      const newPlayer = updated.players.find((p) => p.id === joined.playerId)!;
+      expect(newPlayer.isSpectator).toBe(true);
+      expect(updated.pitchOrder).not.toContain(joined.playerId);
+    });
+
+    it("new player joining during round-end (voting) becomes a spectator and can vote", () => {
+      const created = createRoom(store, "Host");
+      joinRoom(store, created.room.code, "P2");
+      const room = store.getRoom(created.room.code)!;
+      room.phase = "round-end";
+      room.votingActive = true;
+      room.votes = {};
+      store.saveRoom(room);
+
+      const joined = joinRoom(store, created.room.code, "Latecomer");
+      const updated = store.getRoom(created.room.code)!;
+      const newPlayer = updated.players.find((p) => p.id === joined.playerId)!;
+      expect(newPlayer.isSpectator).toBe(true);
+    });
+
+    it("same-name rejoin during pitching is NOT auto-spectator by joinRoom (existing logic handles it)", () => {
+      const created = createRoom(store, "Host");
+      const p2 = joinRoom(store, created.room.code, "P2");
+      const room = store.getRoom(created.room.code)!;
+      room.phase = "pitching";
+      room.pitchOrder = [room.players[0].id, p2.playerId];
+      room.currentPitchIndex = 1;
+      room.currentPitcherId = room.players[0].id;
+      store.saveRoom(room);
+
+      // P2 "rejoins" (same name) — joinRoom finds existing player, returns existing ID
+      const rejoined = joinRoom(store, created.room.code, "P2");
+      expect(rejoined.playerId).toBe(p2.playerId);
+      const updated = store.getRoom(created.room.code)!;
+      const existingPlayer = updated.players.find((p) => p.id === p2.playerId)!;
+      // joinRoom doesn't modify isSpectator on rejoin — the socket handler does
+      expect(existingPlayer.isSpectator).toBe(false);
+    });
+
+    it("spectator flag clears at the start of the next round", () => {
+      const created = createRoom(store, "Host");
+      joinRoom(store, created.room.code, "P2");
+      joinRoom(store, created.room.code, "P3");
+      let room = store.getRoom(created.room.code)!;
+      room.phase = "setup";
+      store.saveRoom(room);
+
+      const latecomer = joinRoom(store, created.room.code, "Latecomer");
+      room = store.getRoom(created.room.code)!;
+      expect(room.players.find((p) => p.id === latecomer.playerId)!.isSpectator).toBe(true);
+
+      // Simulate next round: setupRound clears isSpectator on all players
+      room = store.getRoom(created.room.code)!;
+      room.players = room.players.map((p) => ({ ...p, isSpectator: false }));
+      store.saveRoom(room);
+
+      const after = store.getRoom(created.room.code)!;
+      expect(after.players.find((p) => p.id === latecomer.playerId)!.isSpectator).toBe(false);
+    });
+  });
 });

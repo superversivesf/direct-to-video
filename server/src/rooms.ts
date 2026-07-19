@@ -105,7 +105,9 @@ export function joinRoom(
   }
 
   if (room.players.length >= MAX_PLAYERS) throw new Error("Room is full");
+  const isSpectator = room.phase !== "lobby";
   const player = createPlayer(validatedName, false);
+  if (isSpectator) player.isSpectator = true;
   room.players.push(player);
   store.saveRoom(room);
   return { room, playerId: player.id };
