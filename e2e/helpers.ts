@@ -122,27 +122,24 @@ export async function playWriterToReady(
   await new Promise((r) => setTimeout(r, 300));
   await page.click(".card-row .card-template >> nth=0");
 
-  // Handle franchise-source picker if visible (round 2+ with franchise card selected).
-  // Wait up to 3s for the picker to appear after the card-selection state propagates.
-  const franchisePickerVisible = await page
-    .locator(".franchise-picker")
-    .waitFor({ state: "visible", timeout: 3000 })
-    .then(() => true)
-    .catch(() => false);
-  if (franchisePickerVisible) {
-    await page.click(".franchise-history-item >> nth=0");
-    await new Promise((r) => setTimeout(r, 500));
-  }
-
   await Promise.race([
     page.waitForSelector("text=Ready to Pitch", { timeout: 15000 }).catch(() => {}),
     page.waitForSelector(".timer", { timeout: 15000 }).catch(() => {}),
     page.waitForSelector("text=Your cards are ready", { timeout: 15000 }).catch(() => {}),
     page.waitForSelector("text=Now Pitching", { timeout: 15000 }).catch(() => {}),
     page.waitForSelector("text=Waiting for", { timeout: 15000 }).catch(() => {}),
+    page.waitForSelector(".franchise-picker", { timeout: 15000 }).catch(() => {}),
   ]);
 
   await new Promise((r) => setTimeout(r, 500));
+
+  // Handle franchise-source picker (round 2+ with franchise card selected).
+  // The picker disables "Ready to Pitch" until a source is picked.
+  const franchisePickerVisible = await page.locator(".franchise-picker").count();
+  if (franchisePickerVisible > 0) {
+    await page.click(".franchise-history-item >> nth=0");
+    await new Promise((r) => setTimeout(r, 500));
+  }
 
   const hasReady = await page.locator("text=Ready to Pitch").count();
   if (hasReady > 0) {
