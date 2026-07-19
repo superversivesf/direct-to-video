@@ -257,7 +257,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 
 ### Socket.IO Events
 
-**Client → Server:** `join_room`, `join_audience`, `start_game`, `set_franchise_enabled`, `set_total_rounds`, `kick_player`, `select_deck_type`, `select_card`, `reveal_movie`, `start_timer`, `pause_timer`, `play_note`, `end_pitch`, `cast_vote`, `play_again`
+**Client → Server:** `join_room`, `join_audience`, `start_game`, `set_franchise_enabled`, `set_total_rounds`, `kick_player`, `force_start`, `select_deck_type`, `select_card`, `reveal_movie`, `start_timer`, `pause_timer`, `play_note`, `end_pitch`, `cast_vote`, `play_again`
 
 **Server → Client:** `room_joined` (full per-player state), `player_list_updated`, `movie_revealed`, `timer_started`, `timer_tick`, `timer_paused`, `timer_expired`, `note_played`, `pitch_ended`, `next_pitcher`, `round_started`, `game_ended`, `error`, `audience_joined`, `audience_update`, `voting_started`, `vote_update`, `voting_ended` (sends `roundWinnerId: string | null`), `kicked`
 
@@ -347,6 +347,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 - Leave game button in all phases (marks disconnected, can rejoin later)
 - Host succession: if host leaves, first connected player promoted to host
 - Host kick: host can remove non-host players from the lobby via ✕ button (`kick_player` → `kicked` event)
+- Force-start: host can click "Force Start (skip unprepared writers)" during setup/card-selection when writers are unprepared; server auto-picks plot deck + first card for unprepared writers (including the note giver)
 - Note giver role: randomly selected each round from `noteGiverOrder` permutation, rotates with no repeats until everyone has been note giver; note giver also pitches (sorted last)
 - Ready indicators: during setup the note giver sees ✓ ready / "choosing..." next to each writer
 - Audience/spectator view for screen-sharing
@@ -386,9 +387,9 @@ Previously the Playwright E2E suite (`e2e/full-game.test.ts` + 12 journey specs)
 
 Previously `cd server && npx vitest run` emitted 56 unhandled errors after tests passed — stale-disconnect `setTimeout` callbacks and the 1-second timer `setInterval` firing against closed in-memory SQLite handles. Fixed in v2.1.2 by exporting `clearStaleDisconnectTimers()` and `clearTimerInterval()` from `sockets/handlers.ts` and invoking them in `afterEach`. Server tests now pass cleanly with zero post-test errors.
 
-### 4. Force-start for slow writers not implemented
+### 4. Force-start for slow writers not implemented (RESOLVED)
 
-There is no force-start mechanism. If a writer goes AFK during card selection, the game is stuck.
+Previously no force-start mechanism existed. Added in v2.1.2: host can click "Force Start (skip unprepared writers)" during `setup` or `card-selection` phases when at least one writer is unprepared. Server auto-picks plot deck + first card for unprepared writers (including the note giver), then advances to pitching. Implemented as `forceStart` in `state-machine.ts`, `force_start` socket event handler in `sockets/handlers.ts`, and a host-only button in `Game.tsx`. Disconnected players are skipped (no movie assigned).
 
 ### 5. React Router v7 future flag warnings (RESOLVED)
 

@@ -12,6 +12,7 @@ import {
   castVote,
   tallyAndAdvance,
   playAgain,
+  forceStart,
 } from "../state-machine.js";
 import {
   startTimer,
@@ -467,6 +468,23 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
         const finalRoom = store.getRoom(updated.code)!;
         broadcastPlayerList(io, finalRoom);
         broadcastAllStates(io, finalRoom);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
+    });
+
+    socket.on("force_start", () => {
+      if (!checkSocketEventRate(socket)) return;
+      const ctx = getPlayerContext(socket.id, store);
+      if (!ctx) return;
+      try {
+        const player = ctx.room.players.find((p) => p.id === ctx.playerId);
+        if (!player?.isHost) {
+          socket.emit("error", "Only the host can force-start");
+          return;
+        }
+        forceStart(store, ctx.room);
+        broadcastAllStates(io, store.getRoom(ctx.room.code)!);
       } catch (err) {
         socket.emit("error", (err as Error).message);
       }

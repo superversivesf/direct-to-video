@@ -24,6 +24,7 @@ const mockFns = {
   setFranchiseEnabled: vi.fn(),
   setTotalRounds: vi.fn(),
   kickPlayer: vi.fn(),
+  forceStart: vi.fn(),
   leaveGame: vi.fn(),
 };
 
@@ -518,5 +519,99 @@ describe("Game", () => {
     expect(screen.getByText(/wins/i)).toBeTruthy();
     expect(screen.getByText("Scoreboard")).toBeTruthy();
     expect(screen.getByText(/play again/i)).toBeTruthy();
+  });
+
+  it("renders force-start button for host in setup when writers are unprepared", () => {
+    setState({
+      phase: "setup",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "2",
+      myPlayerId: "1",
+      myHand: null,
+      players: [
+        {
+          id: "1",
+          name: "Jason",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "2",
+          name: "Sarah",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
+      ],
+    });
+    renderGame();
+    expect(screen.getByText(/force start/i)).toBeTruthy();
+  });
+
+  it("calls forceStart when the force-start button is clicked", () => {
+    setState({
+      phase: "setup",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "2",
+      myPlayerId: "1",
+      myHand: null,
+      players: [
+        {
+          id: "1",
+          name: "Jason",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "2",
+          name: "Sarah",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
+      ],
+    });
+    renderGame();
+    fireEvent.click(screen.getByText(/force start/i));
+    expect(mockFns.forceStart).toHaveBeenCalled();
+  });
+
+  it("does not render force-start button for non-host", () => {
+    setState({
+      phase: "setup",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "1",
+      myPlayerId: "2",
+      myHand: null,
+      players: [
+        {
+          id: "1",
+          name: "Jason",
+          isNoteGiver: true,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "2",
+          name: "Sarah",
+          isNoteGiver: false,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
+      ],
+    });
+    renderGame();
+    expect(screen.queryByText(/force start/i)).toBeNull();
   });
 });

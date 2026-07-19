@@ -144,6 +144,7 @@ export interface ClientToServerEvents {
   set_franchise_enabled: (enabled: boolean) => void;
   set_total_rounds: (rounds: number) => void;
   kick_player: (playerId: string) => void;
+  force_start: () => void;
   play_again: () => void;
   join_audience: (code: string) => void;
   cast_vote: (playerId: string) => void;

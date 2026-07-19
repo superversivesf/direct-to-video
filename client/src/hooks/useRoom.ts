@@ -235,6 +235,9 @@ export function useRoom() {
   const kickPlayer = useCallback((playerId: string) => {
     socket.emit("kick_player", playerId);
   }, []);
+  const forceStart = useCallback(() => {
+    socket.emit("force_start");
+  }, []);
 
   const leaveGame = useCallback(() => {
     socket.disconnect();
@@ -260,6 +263,7 @@ export function useRoom() {
     setFranchiseEnabled,
     setTotalRounds,
     kickPlayer,
+    forceStart,
     leaveGame,
   };
 }

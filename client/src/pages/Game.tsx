@@ -134,6 +134,9 @@ export function Game() {
   const myPlayer = state.players.find((p) => p.id === state.myPlayerId);
   const isNoteGiver = state.myPlayerId === state.noteGiverId;
   const isHost = myPlayer?.isHost ?? false;
+  const hasUnpreparedWriters = state.players.some(
+    (p) => !p.isDisconnected && !state.movies.some((m) => m.playerId === p.id),
+  );
 
   const roundWinnerOverlay =
     showRoundWinner && state.roundWinnerId ? (
@@ -229,6 +232,11 @@ export function Game() {
         <button onClick={() => room.selectDeckType("character" as DeckType)}>
           Draw CHARACTER cards
         </button>
+        {isHost && hasUnpreparedWriters && (
+          <button onClick={room.forceStart} className="btn-force-start">
+            Force Start (skip unprepared writers)
+          </button>
+        )}
         <button onClick={handleLeave} className="btn-leave">
           Leave Game
         </button>
@@ -252,6 +260,11 @@ export function Game() {
             Draw CHARACTER cards
           </button>
           <PlayerList players={state.players} movies={state.movies} />
+          {isHost && hasUnpreparedWriters && (
+            <button onClick={room.forceStart} className="btn-force-start">
+              Force Start (skip unprepared writers)
+            </button>
+          )}
           <button onClick={handleLeave} className="btn-leave">
             Leave Game
           </button>
@@ -278,6 +291,11 @@ export function Game() {
             onSelectCard={room.selectCard}
             onReady={room.revealMovie}
           />
+          {isHost && hasUnpreparedWriters && (
+            <button onClick={room.forceStart} className="btn-force-start">
+              Force Start (skip unprepared writers)
+            </button>
+          )}
           <button onClick={handleLeave} className="btn-leave">
             Leave Game
           </button>
@@ -303,6 +321,11 @@ export function Game() {
           onSelectCard={room.selectCard}
           onReady={room.revealMovie}
         />
+        {isHost && hasUnpreparedWriters && (
+          <button onClick={room.forceStart} className="btn-force-start">
+            Force Start (skip unprepared writers)
+          </button>
+        )}
         <button onClick={handleLeave} className="btn-leave">
           Leave Game
         </button>

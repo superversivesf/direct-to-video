@@ -166,6 +166,31 @@ function checkAllMoviesReady(store: RoomStore, room: Room): void {
   }
 }
 
+export function forceStart(store: RoomStore, room: Room): void {
+  if (room.phase !== "setup" && room.phase !== "card-selection") {
+    throw new Error("Cannot force-start outside setup or card-selection phase");
+  }
+  let current = room;
+  const writers = getWriterPlayers(current);
+  for (const writer of writers) {
+    const player = current.players.find((p) => p.id === writer.id)!;
+    if (player.hand.length === 0) {
+      selectDeckType(store, current, writer.id, "plot");
+      current = store.getRoom(current.code)!;
+    }
+    const hasMovie = current.movies.some(
+      (m) => m.playerId === writer.id && m.chosenCard.id !== "" && m.randomCard.id !== "",
+    );
+    if (!hasMovie) {
+      const updatedPlayer = current.players.find((p) => p.id === writer.id)!;
+      if (updatedPlayer.hand.length > 0) {
+        selectCard(store, current, writer.id, updatedPlayer.hand[0].id);
+        current = store.getRoom(current.code)!;
+      }
+    }
+  }
+}
+
 export function startPitching(store: RoomStore, room: Room): void {
   const noteGiverIndex = room.players.findIndex((p) => p.id === room.noteGiverId);
   const writers = getWriterPlayers(room);

@@ -835,4 +835,60 @@ describe("sockets", () => {
       third.disconnect();
     });
   });
+
+  describe("force_start handler", () => {
+    it("rejects force-start from non-host", async () => {
+      const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      host.on("connect", () => host.emit("join_room", "", "Jason"));
+      const hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
+
+      const guest = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      guest.on("connect", () => guest.emit("join_room", hostState.code, "Sarah"));
+      await waitForEvent<PublicRoomState>(guest, "room_joined");
+
+      const room = store.getRoom(hostState.code)!;
+      startGame(store, room);
+
+      guest.emit("force_start");
+      const err = await waitForEvent<string>(guest, "error");
+      expect(err).toBe("Only the host can force-start");
+
+      host.disconnect();
+      guest.disconnect();
+    });
+
+    it("host force-start advances setup with unprepared writers to pitching", async () => {
+      const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      host.on("connect", () => host.emit("join_room", "", "Jason"));
+      const hostState = await waitForEvent<PublicRoomState>(host, "room_joined");
+
+      const guest = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      guest.on("connect", () => guest.emit("join_room", hostState.code, "Sarah"));
+      await waitForEvent<PublicRoomState>(guest, "room_joined");
+
+      const third = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
+      third.on("connect", () => third.emit("join_room", hostState.code, "Mike"));
+      await waitForEvent<PublicRoomState>(third, "room_joined");
+
+      const room = store.getRoom(hostState.code)!;
+      startGame(store, room);
+
+      host.emit("force_start");
+      await new Promise((r) => setTimeout(r, 500));
+
+      const finalRoom = store.getRoom(hostState.code)!;
+      expect(finalRoom.phase).toBe("pitching");
+      for (const p of finalRoom.players) {
+        if (!p.isDisconnected) {
+          const movie = finalRoom.movies.find((m) => m.playerId === p.id);
+          expect(movie).toBeDefined();
+          expect(movie!.chosenCard.id).toBeTruthy();
+        }
+      }
+
+      host.disconnect();
+      guest.disconnect();
+      third.disconnect();
+    });
+  });
 });

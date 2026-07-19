@@ -13,6 +13,7 @@ import {
   tallyAndAdvance,
   nextRound,
   playAgain,
+  forceStart,
 } from "../src/state-machine.js";
 import { startTimer, pauseForNote, tickTimer, shouldResumeFromNote } from "../src/timer.js";
 import type { Card } from "@direct-to-video/shared";
@@ -1028,6 +1029,115 @@ describe("state machine", () => {
       expect(after.timer.running).toBe(false);
       expect(after.timer.secondsRemaining).toBe(45);
       expect(after.currentPitcherId).toBe(updated.pitchOrder[1]);
+    });
+  });
+
+  describe("forceStart", () => {
+    it("throws when phase is lobby", () => {
+      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
+      expect(() => forceStart(store, room)).toThrow(
+        "Cannot force-start outside setup or card-selection phase",
+      );
+    });
+
+    it("throws when phase is pitching", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      for (const id of playerIds) {
+        selectDeckType(store, updated, id, "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === id)!;
+        selectCard(store, updated, id, writer.hand[0].id);
+        updated = store.getRoom(room.code)!;
+      }
+      expect(updated.phase).toBe("pitching");
+      expect(() => forceStart(store, updated)).toThrow(
+        "Cannot force-start outside setup or card-selection phase",
+      );
+    });
+
+    it("auto-picks plot deck and first card for unprepared writers during setup", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      expect(updated.phase).toBe("setup");
+      const unprepared = playerIds.find((id) => id !== updated.noteGiverId)!;
+      forceStart(store, updated);
+      updated = store.getRoom(room.code)!;
+      expect(updated.phase).toBe("pitching");
+      const unpreparedPlayer = updated.players.find((p) => p.id === unprepared)!;
+      expect(unpreparedPlayer.hand).toHaveLength(2);
+      const movie = updated.movies.find((m) => m.playerId === unprepared);
+      expect(movie).toBeDefined();
+      expect(movie!.chosenCard.id).toBeTruthy();
+      expect(movie!.randomCard.id).toBeTruthy();
+    });
+
+    it("auto-picks first card for writers with hand but no movie during card-selection", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      for (const id of playerIds) {
+        selectDeckType(store, updated, id, "plot");
+        updated = store.getRoom(room.code)!;
+      }
+      expect(updated.phase).toBe("card-selection");
+      const unprepared = playerIds.find((id) => id !== updated.noteGiverId)!;
+      forceStart(store, updated);
+      updated = store.getRoom(room.code)!;
+      expect(updated.phase).toBe("pitching");
+      const movie = updated.movies.find((m) => m.playerId === unprepared);
+      expect(movie).toBeDefined();
+      expect(movie!.chosenCard.id).toBeTruthy();
+    });
+
+    it("auto-picks for the note giver when unprepared", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const noteGiverId = updated.noteGiverId!;
+      const otherWriter = playerIds.find((id) => id !== noteGiverId)!;
+      selectDeckType(store, updated, otherWriter, "plot");
+      updated = store.getRoom(room.code)!;
+      const otherWriterHand = updated.players.find((p) => p.id === otherWriter)!;
+      selectCard(store, updated, otherWriter, otherWriterHand.hand[0].id);
+      updated = store.getRoom(room.code)!;
+      const noteGiverBefore = updated.players.find((p) => p.id === noteGiverId)!;
+      expect(noteGiverBefore.hand).toHaveLength(0);
+      forceStart(store, updated);
+      updated = store.getRoom(room.code)!;
+      expect(updated.phase).toBe("pitching");
+      const noteGiverAfter = updated.players.find((p) => p.id === noteGiverId)!;
+      expect(noteGiverAfter.hand).toHaveLength(2);
+      const noteGiverMovie = updated.movies.find((m) => m.playerId === noteGiverId);
+      expect(noteGiverMovie).toBeDefined();
+      expect(noteGiverMovie!.chosenCard.id).toBeTruthy();
+      expect(updated.pitchOrder[updated.pitchOrder.length - 1]).toBe(noteGiverId);
+    });
+
+    it("skips disconnected players when force-starting", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah", "Mike"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      const disconnected = playerIds.find((id) => id !== updated.noteGiverId)!;
+      updated = {
+        ...updated,
+        players: updated.players.map((p) =>
+          p.id === disconnected ? { ...p, isDisconnected: true } : p,
+        ),
+      };
+      store.saveRoom(updated);
+      forceStart(store, updated);
+      updated = store.getRoom(room.code)!;
+      const disconnectedMovie = updated.movies.find((m) => m.playerId === disconnected);
+      expect(disconnectedMovie).toBeUndefined();
+      const connectedPlayers = playerIds.filter((id) => id !== disconnected);
+      for (const id of connectedPlayers) {
+        const movie = updated.movies.find((m) => m.playerId === id);
+        expect(movie).toBeDefined();
+        expect(movie!.chosenCard.id).toBeTruthy();
+      }
     });
   });
 
