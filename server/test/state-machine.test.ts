@@ -1374,9 +1374,7 @@ describe("state machine", () => {
       const myMovie = updated.movies.find((m) => m.playerId === writerId)!;
       updated = {
         ...updated,
-        movieHistory: [
-          { ...myMovie, id: "own-history-id" },
-        ],
+        movieHistory: [{ ...myMovie, id: "own-history-id" }],
       };
       store.saveRoom(updated);
       const fCard = store.getCardsByType("plot").find((c) => c.isFranchise)!;
@@ -1438,9 +1436,7 @@ describe("state machine", () => {
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
       const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
-      const otherWriterId = playerIds.find(
-        (id) => id !== updated.noteGiverId && id !== writerId,
-      )!;
+      const otherWriterId = playerIds.find((id) => id !== updated.noteGiverId && id !== writerId)!;
       updated = {
         ...updated,
         movieHistory: [
@@ -1487,9 +1483,7 @@ describe("state machine", () => {
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
       const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
-      const otherWriterId = playerIds.find(
-        (id) => id !== updated.noteGiverId && id !== writerId,
-      )!;
+      const otherWriterId = playerIds.find((id) => id !== updated.noteGiverId && id !== writerId)!;
       const noteGiverId = updated.noteGiverId!;
       selectDeckType(store, updated, writerId, "plot");
       updated = store.getRoom(room.code)!;
@@ -1522,9 +1516,7 @@ describe("state machine", () => {
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
       const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
-      const otherWriterId = playerIds.find(
-        (id) => id !== updated.noteGiverId && id !== writerId,
-      )!;
+      const otherWriterId = playerIds.find((id) => id !== updated.noteGiverId && id !== writerId)!;
       const noteGiverId = updated.noteGiverId!;
       selectDeckType(store, updated, otherWriterId, "plot");
       updated = store.getRoom(room.code)!;
