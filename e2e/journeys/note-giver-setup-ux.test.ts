@@ -1,12 +1,7 @@
 import { test, expect } from "@playwright/test";
 import {
   createPlayer,
-  createAudience,
   clickStartGame,
-  playAllToReady,
-  clickStartTimer,
-  clickEndPitch,
-  clickVoteForMovie,
   clickDrawCards,
   waitForPhase,
   uncheckFranchise,

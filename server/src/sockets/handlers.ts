@@ -355,6 +355,10 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.noteGiverId) return;
+      if (ctx.playerId === ctx.room.currentPitcherId) {
+        socket.emit("error", "Cannot play notes on your own pitch");
+        return;
+      }
       if (!ctx.room.timer.running && !ctx.room.timer.pausedForNote) return;
       try {
         const noteCard = ctx.room.noteGiverNotes.find((c) => c.id === noteCardId);

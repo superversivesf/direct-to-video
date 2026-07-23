@@ -1,10 +1,5 @@
 import { test, expect } from "@playwright/test";
-import {
-  createPlayer,
-  clickKickPlayerByName,
-  cleanup,
-  type PlayerSession,
-} from "../helpers.js";
+import { createPlayer, clickKickPlayerByName, cleanup, type PlayerSession } from "../helpers.js";
 
 test.describe("Host kick journey", () => {
   let sessions: PlayerSession[] = [];

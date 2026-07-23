@@ -113,4 +113,40 @@ describe("NoteGiverControls", () => {
     const notesSection = container.querySelector(".card-row");
     expect(controls!.compareDocumentPosition(notesSection!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
+
+  it("hides note cards when canPlayNotes is false but keeps timer controls", () => {
+    const { container } = render(
+      <NoteGiverControls
+        notes={notes}
+        timerRunning={true}
+        timerStarted={true}
+        canPlayNotes={false}
+        {...mockFns}
+      />,
+    );
+    expect(screen.getByText("Pause Timer")).toBeTruthy();
+    expect(screen.getByText("End Pitch")).toBeTruthy();
+    expect(container.querySelector(".card-row")).toBeNull();
+    expect(screen.queryByText("Add a musical number")).toBeNull();
+  });
+
+  it("shows note cards when canPlayNotes is true", () => {
+    render(
+      <NoteGiverControls
+        notes={notes}
+        timerRunning={true}
+        timerStarted={true}
+        canPlayNotes={true}
+        {...mockFns}
+      />,
+    );
+    expect(screen.getByText("Add a musical number")).toBeTruthy();
+  });
+
+  it("shows note cards when canPlayNotes is not provided (default)", () => {
+    render(
+      <NoteGiverControls notes={notes} timerRunning={true} timerStarted={true} {...mockFns} />,
+    );
+    expect(screen.getByText("Add a musical number")).toBeTruthy();
+  });
 });

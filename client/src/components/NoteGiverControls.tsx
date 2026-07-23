@@ -5,6 +5,7 @@ interface NoteGiverControlsProps {
   notes: CardType[];
   timerRunning: boolean;
   timerStarted: boolean;
+  canPlayNotes?: boolean;
   onStartTimer: () => void;
   onPauseTimer: () => void;
   onPlayNote: (noteCardId: string) => void;
@@ -15,6 +16,7 @@ export function NoteGiverControls({
   notes,
   timerRunning,
   timerStarted,
+  canPlayNotes = true,
   onStartTimer,
   onPauseTimer,
   onPlayNote,
@@ -28,20 +30,24 @@ export function NoteGiverControls({
         {timerStarted && !timerRunning && <button onClick={onStartTimer}>Resume Timer</button>}
         <button onClick={onEndPitch}>End Pitch</button>
       </div>
-      <h3>
-        {timerStarted
-          ? "Your NOTE Cards — click to play on the pitcher"
-          : "Start the timer to enable Note cards"}
-      </h3>
-      <div className="card-row">
-        {notes.map((note) => (
-          <Card
-            key={note.id}
-            card={note}
-            onClick={timerStarted ? () => onPlayNote(note.id) : undefined}
-          />
-        ))}
-      </div>
+      {canPlayNotes && (
+        <>
+          <h3>
+            {timerStarted
+              ? "Your NOTE Cards — click to play on the pitcher"
+              : "Start the timer to enable Note cards"}
+          </h3>
+          <div className="card-row">
+            {notes.map((note) => (
+              <Card
+                key={note.id}
+                card={note}
+                onClick={timerStarted ? () => onPlayNote(note.id) : undefined}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -400,6 +400,7 @@ export function Game() {
             notes={state.myNoteGiverNotes || []}
             timerRunning={state.timer.running}
             timerStarted={timerStarted}
+            canPlayNotes={!isMyPitch}
             onStartTimer={room.startTimer}
             onPauseTimer={room.pauseTimer}
             onPlayNote={room.playNote}

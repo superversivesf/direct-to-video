@@ -15,7 +15,7 @@ import {
 } from "../helpers.js";
 
 test.describe("Mid-game join as spectator journey", () => {
-  let sessions: PlayerSession[] = [];
+  const sessions: PlayerSession[] = [];
   let extraPages: any[] = [];
 
   test.afterEach(() => {
@@ -75,7 +75,6 @@ test.describe("Mid-game join as spectator journey", () => {
 
     // Complete the remaining pitches for round 1
     const totalPitches = writers.length + 1;
-    const currentPitcherId = await audiencePage.locator("body").textContent();
     // Just complete all remaining pitches
     for (let p = 0; p < totalPitches; p++) {
       const ngHasTimer = await noteGiver.page.locator("text=Start Timer").count();

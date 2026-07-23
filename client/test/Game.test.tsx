@@ -336,6 +336,55 @@ describe("Game", () => {
     expect(screen.getByText("End Pitch")).toBeTruthy();
   });
 
+  it("hides note cards when note giver is pitching their own movie", () => {
+    setState({
+      phase: "pitching",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "1",
+      myPlayerId: "1",
+      currentPitcherId: "1",
+      players: [
+        {
+          id: "1",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+        },
+        {
+          id: "2",
+          name: "Writer",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+        },
+      ],
+      timer: {
+        running: true,
+        secondsRemaining: 30,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
+      movies: [
+        {
+          playerId: "1",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+        },
+      ],
+      myNoteGiverNotes: [{ id: "n1", type: "note", text: "Note A" }],
+    });
+    renderGame();
+    expect(screen.getByText("YOUR TURN TO PITCH!")).toBeTruthy();
+    expect(screen.queryByText("Note A")).toBeNull();
+  });
+
   it("calls startTimer when start timer button clicked", () => {
     setState({
       phase: "pitching",

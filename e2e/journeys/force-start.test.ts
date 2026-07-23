@@ -45,10 +45,8 @@ test.describe("Force-start journey", () => {
     await clickStartGame(alice.page);
     await waitForPhase(alice.page, /Round 1|Choose your deck|You are/i, 10000);
 
-    // Wait for setup phase — players see deck choice buttons
     await waitForPhase(alice.page, /Draw PLOT cards|Draw CHARACTER cards/i, 10000);
 
-    // Have ONE writer (bob) prepare, but leave charlie and the note giver unprepared
     await clickDrawCards(bob.page, "plot");
     await bob.page.waitForSelector(".card-row .card-template", { timeout: 10000 });
     await new Promise((r) => setTimeout(r, 300));
@@ -56,11 +54,10 @@ test.describe("Force-start journey", () => {
     await new Promise((r) => setTimeout(r, 500));
     const bobHasReady = await bob.page.locator("text=Ready to Pitch").count();
     if (bobHasReady > 0) {
-      await bob.page.locator("button.btn-ready:not([disabled])").click({ timeout: 10000 });
+      await bob.page.locator("text=Ready to Pitch").click({ timeout: 10000 });
       await new Promise((r) => setTimeout(r, 500));
     }
 
-    // Find who is the note giver — it could be alice, bob, or charlie
     let noteGiverName: string | null = null;
     const deadline = Date.now() + 10000;
     while (Date.now() < deadline) {
@@ -76,22 +73,16 @@ test.describe("Force-start journey", () => {
     }
     expect(noteGiverName).toBeTruthy();
 
-    // The host (alice) should see a "Force Start" button because not all writers are ready
-    // (charlie and possibly the note giver haven't prepared)
     await expect(alice.page.locator("text=Force Start")).toBeVisible({ timeout: 5000 });
 
-    // Click Force Start — server auto-picks plot deck + first card for unprepared writers
     await alice.page.click("text=Force Start");
     await new Promise((r) => setTimeout(r, 2000));
 
-    // Game should advance to pitching — all players should see pitching-related text
     for (const s of sessions) {
       await waitForPhase(s.page, /Now Pitching|Your cards are ready|pitching/i, 15000);
     }
     await waitForPhase(audiencePage, /Now Pitching/i, 15000);
 
-    // Complete the round — pitch all players
-    // Find the note giver session (they control the timer)
     const noteGiverSession = sessions.find((s) => s.name === noteGiverName)!;
     const writers = sessions.filter((s) => s !== noteGiverSession);
     const totalPitches = writers.length + 1;
@@ -106,7 +97,6 @@ test.describe("Force-start journey", () => {
       }
     }
 
-    // Vote
     await waitForPhase(noteGiverSession.page, /Vote for the best movie/i, 15000);
 
     for (const player of sessions) {
@@ -119,7 +109,6 @@ test.describe("Force-start journey", () => {
     }
     await clickVoteForMovie(audiencePage, 0);
 
-    // Round should end and advance
     await expect
       .poll(
         async () => {

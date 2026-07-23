@@ -790,6 +790,105 @@ describe("sockets", () => {
     }, 30000);
   });
 
+  describe("play_note self-targeting guard", () => {
+    async function setupPitchingWithNoteGiverAsPitcher(): Promise<{
+      sockets: ClientSocket[];
+      states: Map<ClientSocket, PublicRoomState>;
+      roomCode: string;
+      noteGiverId: string;
+      noteGiverSocket: ClientSocket;
+    }> {
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
+      for (let i = 0; i < 3; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
+      }
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
+      }
+      let room = store.getRoom(roomCode)!;
+      startGame(store, room);
+      room = store.getRoom(roomCode)!;
+      const noteGiverId = room.noteGiverId!;
+
+      for (const socket of sockets) {
+        const playerId = states.get(socket)!.myPlayerId!;
+        if (playerId === noteGiverId) continue;
+        room = store.getRoom(roomCode)!;
+        selectDeckType(store, room, playerId, "plot");
+        room = store.getRoom(roomCode)!;
+        const writer = room.players.find((p) => p.id === playerId)!;
+        selectCard(store, store.getRoom(roomCode)!, playerId, writer.hand[0].id);
+      }
+
+      room = store.getRoom(roomCode)!;
+      const noteGiverPlayer = room.players.find((p) => p.id === noteGiverId)!;
+      if (noteGiverPlayer.hand.length === 0) {
+        selectDeckType(store, room, noteGiverId, "plot");
+        room = store.getRoom(roomCode)!;
+        const ngPlayer = room.players.find((p) => p.id === noteGiverId)!;
+        selectCard(store, room, noteGiverId, ngPlayer.hand[0].id);
+      }
+
+      room = store.getRoom(roomCode)!;
+      startPitching(store, room);
+      room = store.getRoom(roomCode)!;
+
+      // Advance through all non-note-giver pitchers so the note giver is the current pitcher
+      const nonNoteGiverPitchers = room.pitchOrder.filter((id) => id !== noteGiverId);
+      for (const pid of nonNoteGiverPitchers) {
+        revealMovie(store, store.getRoom(roomCode)!, pid);
+        endPitch(store, store.getRoom(roomCode)!, pid);
+      }
+
+      room = store.getRoom(roomCode)!;
+      expect(room.currentPitcherId).toBe(noteGiverId);
+      revealMovie(store, store.getRoom(roomCode)!, noteGiverId);
+
+      // Start the timer so play_note isn't rejected for timer-not-running
+      room = store.getRoom(roomCode)!;
+      const started = startTimer(room.timer);
+      store.saveRoom({ ...room, timer: started });
+
+      const noteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId === noteGiverId)!;
+      return { sockets, states, roomCode, noteGiverId, noteGiverSocket };
+    }
+
+    it("rejects play_note when the note giver is the current pitcher", async () => {
+      const { sockets, noteGiverSocket, roomCode } = await setupPitchingWithNoteGiverAsPitcher();
+      const room = store.getRoom(roomCode)!;
+      const noteCard = room.noteGiverNotes[0];
+      expect(noteCard).toBeTruthy();
+
+      const errorPromise = waitForEvent<string>(noteGiverSocket, "error");
+      noteGiverSocket.emit("play_note", noteCard.id);
+      const errMsg = await errorPromise;
+      expect(errMsg).toMatch(/cannot play notes on your own pitch/i);
+
+      // Stop the timer to prevent the 1s interval from leaking into subsequent tests
+      const finalRoom = store.getRoom(roomCode)!;
+      store.saveRoom({
+        ...finalRoom,
+        timer: {
+          ...finalRoom.timer,
+          running: false,
+          secondsRemaining: 0,
+          pausedAt: null,
+          pausedForNote: false,
+          noteResumeAt: null,
+        },
+      });
+
+      sockets.forEach((s) => s.disconnect());
+    });
+  });
+
   describe("kick_player handler", () => {
     it("host can kick a player and they get disconnected", async () => {
       const host = ioc(`http://localhost:${port}`, { forceNew: true, transports: ["websocket"] });
