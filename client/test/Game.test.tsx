@@ -61,6 +61,7 @@ const baseState: PublicRoomState = {
   audienceCount: 0,
   roundWinnerId: null,
   franchiseEnabled: false,
+  writerReadyIds: [],
 };
 
 let mockState: PublicRoomState = { ...baseState };
@@ -612,6 +613,100 @@ describe("Game", () => {
           isDisconnected: false,
         },
       ],
+    });
+    renderGame();
+    expect(screen.queryByText(/force start/i)).toBeNull();
+  });
+
+  it("renders writer-readiness progress bar for note giver during setup", () => {
+    setState({
+      phase: "setup",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "1",
+      myPlayerId: "1",
+      myHand: [
+        { id: "c1", type: "plot", text: "Plot A" },
+        { id: "c2", type: "plot", text: "Plot B" },
+        { id: "c3", type: "plot", text: "Plot C" },
+      ],
+      players: [
+        {
+          id: "1",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+        {
+          id: "2",
+          name: "Writer A",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+        {
+          id: "3",
+          name: "Writer B",
+          isNoteGiver: false,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+        {
+          id: "4",
+          name: "Writer C",
+          isNoteGiver: false,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+      ],
+      writerReadyIds: ["2"],
+    });
+    renderGame();
+    expect(screen.getByText(/1 of 3 writers ready/i)).toBeTruthy();
+  });
+
+  it("hides force-start button when all writers are ready (writerReadyIds)", () => {
+    setState({
+      phase: "setup",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "1",
+      myPlayerId: "1",
+      myHand: [
+        { id: "c1", type: "plot", text: "Plot A" },
+        { id: "c2", type: "plot", text: "Plot B" },
+        { id: "c3", type: "plot", text: "Plot C" },
+      ],
+      players: [
+        {
+          id: "1",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+        {
+          id: "2",
+          name: "Writer A",
+          isNoteGiver: false,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+      ],
+      writerReadyIds: ["2"],
     });
     renderGame();
     expect(screen.queryByText(/force start/i)).toBeNull();

@@ -10,6 +10,7 @@ import {
   clickLeaveGame,
   clickPlayAgain,
   waitForPhase,
+  uncheckFranchise,
   _findNoteGiverSession,
   cleanup,
   type PlayerSession,
@@ -61,6 +62,7 @@ test.describe("Host succession journey", () => {
 
     const players = [alice, bob];
 
+    await uncheckFranchise(alice.page);
     await clickStartGame(alice.page);
     await waitForPhase(alice.page, /Round 1|Choose your deck|You are/i, 10000);
 

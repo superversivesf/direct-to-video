@@ -135,15 +135,40 @@ export async function playWriterToReady(
 
   // Handle franchise-source picker (round 2+ with franchise card selected).
   // The picker disables "Ready to Pitch" until a source is picked.
-  const franchisePickerVisible = await page.locator(".franchise-picker").count();
-  if (franchisePickerVisible > 0) {
+  // Use waitForSelector with a short timeout instead of instant .count()
+  // to avoid a race where the picker hasn't rendered yet.
+  const franchisePickerVisible = await page
+    .locator(".franchise-picker")
+    .waitFor({ state: "visible", timeout: 3000 })
+    .then(() => true)
+    .catch(() => false);
+  if (franchisePickerVisible) {
     await page.click(".franchise-history-item >> nth=0");
     await new Promise((r) => setTimeout(r, 500));
   }
 
+  // Wait for the Ready to Pitch button to be enabled (not disabled by franchise picker)
+  // If the button is disabled, wait for it to become enabled (franchise source being selected)
+  const readyButton = page.locator("button.btn-ready");
   const hasReady = await page.locator("text=Ready to Pitch").count();
   if (hasReady > 0) {
-    await page.click("text=Ready to Pitch");
+    // Wait up to 10s for the button to become enabled
+    const deadline = Date.now() + 10000;
+    while (Date.now() < deadline) {
+      const isDisabled = await readyButton.isDisabled();
+      if (!isDisabled) break;
+      // If still disabled, franchise picker might not have been handled — try again
+      const pickerVisible = await page.locator(".franchise-picker").count();
+      if (pickerVisible > 0) {
+        const hasHistoryItems = await page.locator(".franchise-history-item").count();
+        if (hasHistoryItems > 0) {
+          await page.click(".franchise-history-item >> nth=0");
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    await page.locator("text=Ready to Pitch").click({ timeout: 10000 });
     await new Promise((r) => setTimeout(r, 500));
   }
 }
@@ -206,9 +231,14 @@ export async function setTotalRounds(page: Page, rounds: number): Promise<void> 
 }
 
 export async function uncheckFranchise(page: Page): Promise<void> {
-  const checkbox = page.locator('input[type="checkbox"]');
+  const checkbox = page.locator(".franchise-toggle input[type='checkbox']");
   if (await checkbox.isChecked()) {
-    await checkbox.uncheck();
+    await checkbox.click();
+    const deadline = Date.now() + 5000;
+    while (Date.now() < deadline) {
+      if (!(await checkbox.isChecked())) return;
+      await new Promise((r) => setTimeout(r, 200));
+    }
   }
 }
 

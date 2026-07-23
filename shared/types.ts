@@ -1,4 +1,4 @@
-export const VERSION = "2.1.1";
+export const VERSION = "2.1.5";
 
 export type Phase = "lobby" | "setup" | "card-selection" | "pitching" | "round-end" | "game-end";
 
@@ -117,6 +117,7 @@ export interface PublicRoomState {
   audienceCount: number;
   roundWinnerId: string | null;
   franchiseEnabled: boolean;
+  writerReadyIds: string[];
 }
 
 export interface AudienceRoomState {

@@ -8,7 +8,7 @@ import {
   clickEndPitch,
   clickVoteForMovie,
   waitForPhase,
-  _findNoteGiverSession,
+  uncheckFranchise,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
@@ -44,6 +44,7 @@ test.describe("Deck reshuffle journey", () => {
 
     const players = [alice, bob, charlie, dave];
 
+    await uncheckFranchise(alice.page);
     await clickStartGame(alice.page);
     await waitForPhase(alice.page, /Round 1|Choose your deck|You are/i, 10000);
 

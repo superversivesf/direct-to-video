@@ -87,4 +87,27 @@ describe("PlayerList", () => {
     expect(spectatorLi).toBeTruthy();
     expect(spectatorLi!.textContent).toContain("spectating");
   });
+
+  it("renders ready indicator from readyPlayerIds when no movies prop", () => {
+    const { container } = render(<PlayerList players={players} readyPlayerIds={["2"]} />);
+    const liElements = container.querySelectorAll("li");
+    expect(liElements[0]?.textContent).toContain("Jason");
+    expect(liElements[0]?.textContent).toContain("📝");
+    expect(liElements[1]?.textContent).toContain("Sarah");
+    expect(liElements[1]?.textContent).toContain("✓ ready");
+    expect(liElements[2]?.textContent).toContain("Mike");
+    expect(liElements[2]?.textContent).toContain("disconnected");
+    expect(liElements[2]?.textContent).not.toContain("choosing");
+    expect(liElements[2]?.textContent).not.toContain("ready");
+  });
+
+  it("readyPlayerIds takes precedence over movies-derived readiness", () => {
+    const movies = [{ playerId: "2" }, { playerId: "3" }] as never;
+    const { container } = render(
+      <PlayerList players={players} movies={movies} readyPlayerIds={["2"]} />,
+    );
+    const liElements = container.querySelectorAll("li");
+    expect(liElements[1]?.textContent).toContain("✓ ready");
+    expect(liElements[2]?.textContent).toContain("disconnected");
+  });
 });

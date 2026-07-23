@@ -60,6 +60,7 @@ export function toPublicRoomState(room: Room, playerId: string | null): PublicRo
     audienceCount: countAudience(room.code),
     roundWinnerId: room.roundWinnerId,
     franchiseEnabled: room.franchiseEnabled,
+    writerReadyIds: room.movies.map((m) => m.playerId),
   };
 }
 

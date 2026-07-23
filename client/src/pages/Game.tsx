@@ -136,9 +136,13 @@ export function Game() {
   const myPlayer = state.players.find((p) => p.id === state.myPlayerId);
   const isNoteGiver = state.myPlayerId === state.noteGiverId;
   const isHost = myPlayer?.isHost ?? false;
-  const hasUnpreparedWriters = state.players.some(
-    (p) => !p.isDisconnected && !state.movies.some((m) => m.playerId === p.id),
+  const eligibleWriters = state.players.filter(
+    (p) => !p.isDisconnected && !p.isSpectator && p.id !== state.noteGiverId,
   );
+  const readyWriterCount = eligibleWriters.filter((w) =>
+    state.writerReadyIds.includes(w.id),
+  ).length;
+  const hasUnpreparedWriters = readyWriterCount < eligibleWriters.length;
 
   const roundWinnerOverlay =
     showRoundWinner && state.roundWinnerId ? (
@@ -262,7 +266,7 @@ export function Game() {
           <button onClick={() => room.selectDeckType("character" as DeckType)}>
             Draw CHARACTER cards
           </button>
-          <PlayerList players={state.players} movies={state.movies} />
+          <PlayerList players={state.players} readyPlayerIds={state.writerReadyIds} />
           {isHost && hasUnpreparedWriters && (
             <button onClick={room.forceStart} className="btn-force-start">
               Force Start (skip unprepared writers)
@@ -282,8 +286,18 @@ export function Game() {
           <h2>
             Round {state.round.current} of {state.totalRounds}
           </h2>
+          <div className="setup-progress-bar">
+            <p>
+              {readyWriterCount} of {eligibleWriters.length} writers ready
+            </p>
+            <progress
+              value={readyWriterCount}
+              max={eligibleWriters.length || 1}
+              className="setup-progress"
+            />
+          </div>
           <p>You are the Note Giver. Waiting for writers to prepare their movies...</p>
-          <PlayerList players={state.players} movies={state.movies} />
+          <PlayerList players={state.players} readyPlayerIds={state.writerReadyIds} />
           <WriterControls
             hand={state.myHand}
             selectedCard={state.myChosenCard}

@@ -8,7 +8,7 @@ import {
   clickEndPitch,
   clickVoteForMovie,
   waitForPhase,
-  _findNoteGiverSession,
+  uncheckFranchise,
   cleanup,
   type PlayerSession,
 } from "../helpers.js";
@@ -44,6 +44,7 @@ test.describe("4-player round 2 soft-lock regression", () => {
 
     const players = [p1, p2, p3, p4];
 
+    await uncheckFranchise(p1.page);
     await clickStartGame(p1.page);
     await waitForPhase(p1.page, /Round 1|Choose your deck|You are/i, 10000);
     await waitForPhase(audiencePage, /Writers are choosing/i, 10000);

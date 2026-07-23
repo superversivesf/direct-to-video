@@ -1,6 +1,6 @@
 # AGENTS.md — Direct to Video
 
-> **Status snapshot:** 2026-07-19. v2.1.4. All 263 tests pass (173 server + 90 client), build and typecheck clean, E2E suite (13 tests) verified, lint clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). v2.1.2 adds ESLint+Prettier, force-start, spectator mode. v2.1.3 adds franchise card enhancement (UI for picking previously pitched movies). v2.1.4 adds mid-game join as spectator (new players joining mid-game spectate the current round, play from next round). Security-hardened for public internet exposure.
+> **Status snapshot:** 2026-07-22. v2.1.5. All 270 tests pass (176 server + 94 client), build and typecheck clean, E2E suite (13 tests) verified, lint clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). v2.1.2 adds ESLint+Prettier, force-start, spectator mode. v2.1.3 adds franchise card enhancement (UI for picking previously pitched movies). v2.1.4 adds mid-game join as spectator (new players joining mid-game spectate the current round, play from next round). v2.1.5 fixes note-giver setup UX: live writer-readiness indicators and progress bar now visible during setup (previously the screen appeared frozen until pitching started). Security-hardened for public internet exposure.
 
 ## Project Overview
 
@@ -30,7 +30,7 @@ movie-pitch/
 ├── docker-compose.yml        # Single service + persistent volume, resource limits
 ├── shared/
 │   ├── package.json          # @direct-to-video/shared
-│   ├── types.ts              # All shared types + VERSION constant (2.1.0)
+│   ├── types.ts              # All shared types + VERSION constant (2.1.5)
 │   └── timer-helpers.ts      # Timer state predicates: timerRunning, timerIdle, timerPaused, timerExpired
 ├── server/
 │   ├── package.json          # @direct-to-video/server (ESM, type: module)
@@ -56,6 +56,7 @@ movie-pitch/
 │       ├── timer-helpers.test.ts   # 5 tests
 │       ├── card-ops.test.ts        # deck ops tests
 │       ├── state-machine.test.ts   # phase transitions + tallyAndAdvance + auto-draw
+│       ├── state-mapper.test.ts    # toPublicRoomState writerReadyIds mapping (3 tests)
 │       └── sockets.test.ts         # handler setup, kick, stale-disconnect, voting flow
 ├── client/
 │   ├── package.json          # @direct-to-video/client (ESM, type: module)
@@ -81,7 +82,7 @@ movie-pitch/
 │   │   │   ├── CardTemplate.tsx      # Background graphic wrapper
 │   │   │   ├── Timer.tsx             # SVG ring countdown display
 │   │   │   ├── Scoreboard.tsx        # Ranked player scores with podium
-│   │   │   ├── PlayerList.tsx        # Player list with note-giver/host/disconnected icons + host kick ✕ button
+│   │   │   ├── PlayerList.tsx        # Player list with note-giver/host/disconnected icons + host kick ✕ button + ready indicators (readyPlayerIds or movies-derived)
 │   │   │   ├── MovieReveal.tsx       # 2-card movie display (chosen + blind) + franchise reference
 │   │   │   ├── WriterControls.tsx    # Deck choice, hand, card selection, franchise picker, ready button
 │   │   │   ├── NoteGiverControls.tsx # Timer controls + NOTE card hand (replaces former ExecutiveControls)
@@ -142,8 +143,8 @@ Build output: `client/dist/` (static files) + `server/dist/` (compiled JS).
 
 ```bash
 npm test                     # Runs both server + client test suites from root
-cd server && npx vitest run  # 173 server tests
-cd client && npx vitest run  # 90 client tests
+cd server && npx vitest run  # 176 server tests
+cd client && npx vitest run  # 94 client tests
 
 # E2E (requires build first + running server on :3100):
 npm run build
@@ -299,7 +300,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | Docker | CPU                    | 1 core limit                                   |
 | Docker | Restart                | unless-stopped                                 |
 
-## What Works (Verified 2026-07-17)
+## What Works (Verified 2026-07-22)
 
 ### Tests — All Passing
 
@@ -311,20 +312,21 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | server/test/timer-helpers.test.ts      | 5       | PASS         |
 | server/test/card-ops.test.ts           | —       | PASS         |
 | server/test/state-machine.test.ts      | —       | PASS         |
+| server/test/state-mapper.test.ts       | 3       | PASS         |
 | server/test/sockets.test.ts            | —       | PASS         |
-| **Server subtotal**                    | **173** | **ALL PASS** |
+| **Server subtotal**                    | **176** | **ALL PASS** |
 | client/test/Card.test.tsx              | 4       | PASS         |
-| client/test/WriterControls.test.tsx    | 6       | PASS         |
+| client/test/WriterControls.test.tsx    | 12      | PASS         |
 | client/test/Timer.test.tsx             | 5       | PASS         |
 | client/test/NoteGiverControls.test.tsx | 12      | PASS         |
 | client/test/Join.test.tsx              | 5       | PASS         |
 | client/test/Scoreboard.test.tsx        | 9       | PASS         |
-| client/test/PlayerList.test.tsx        | 7       | PASS         |
+| client/test/PlayerList.test.tsx        | 9       | PASS         |
 | client/test/PhaseIndicator.test.tsx    | 9       | PASS         |
-| client/test/MovieReveal.test.tsx       | 6       | PASS         |
-| client/test/Game.test.tsx              | 19      | PASS         |
-| **Client subtotal**                    | **90**  | **ALL PASS** |
-| **Total**                              | **263** | **ALL PASS** |
+| client/test/MovieReveal.test.tsx       | 8       | PASS         |
+| client/test/Game.test.tsx              | 21      | PASS         |
+| **Client subtotal**                    | **94**  | **ALL PASS** |
+| **Total**                              | **270** | **ALL PASS** |
 
 > Note: Server tests now pass cleanly with zero post-test errors. Earlier versions emitted 56 unhandled timer errors from stale-disconnect `setTimeout` callbacks and the 1-second timer `setInterval` firing against closed in-memory SQLite handles — fixed in v2.1.2 by exporting `clearStaleDisconnectTimers()` and `clearTimerInterval()` from `sockets/handlers.ts` and invoking them in `afterEach`.
 
@@ -454,4 +456,5 @@ Note: `ROOM_TTL_MS`, `CLEANUP_INTERVAL_MS`, and `STALE_DISCONNECT_MS` (60s) are 
 19. **Stale-disconnect is 60s** — `STALE_DISCONNECT_MS` in `sockets/handlers.ts`. After 60s disconnected, the player is fully removed (not just marked), note giver may be reassigned, host may be promoted. Rejoin creates a fresh player if the old one was purged.
 20. **Security limits are env-configurable** — `MAX_PLAYERS` and `MAX_ROOMS` can be set via environment variables. Socket/HTTP rate limits are hardcoded in `sockets/rate-limits.ts` and `index.ts`.
 21. **`trust proxy` is enabled** — Express trusts one proxy hop for correct client IP identification behind nginx.
-22. **VERSION is duplicated** — `shared/types.ts` has `VERSION` (2.1.0) for the client, `server/src/index.ts` has its own copy for the server (because the server can't import runtime values from the shared `.ts` file in production). Keep both in sync.
+22. **VERSION is duplicated** — `shared/types.ts` has `VERSION` (2.1.5) for the client, `server/src/index.ts` has its own copy for the server (because the server can't import runtime values from the shared `.ts` file in production). Keep both in sync.
+23. **`writerReadyIds` drives note-giver setup UX** — `PublicRoomState.writerReadyIds` (populated from `room.movies.map(m => m.playerId)`, revealed or not) is the source of truth for writer readiness during setup. `PlayerList` accepts a `readyPlayerIds` prop (takes precedence over the `movies` prop for indicator rendering); `Game.tsx` uses it for `hasUnpreparedWriters` and the "X of N writers ready" progress bar. Don't re-derive readiness from `state.movies` — that array is filtered to `revealed: true` only and is empty during setup.
