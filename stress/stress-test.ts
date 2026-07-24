@@ -267,7 +267,7 @@ async function runGame(
 
     // All players wait for setup phase
     await waitForPhaseAll(players, "setup").catch(() => null);
-    await sleep(500);
+    await sleep(1000);
 
     // Re-read state to get current note-giver
     const currentState = players[0].state!;
@@ -278,31 +278,34 @@ async function runGame(
     console.log(`  Note Giver: ${noteGiver?.name}`);
     console.log(`  Writers: ${writers.map((w) => w.name).join(", ")}`);
 
-    // Writers select deck type and cards
-    // First: all writers select their deck type (hands are cleared each round)
-    for (const writer of writers) {
-      const writerState = writer.state!;
-      if (!writerState.myHand || writerState.myHand.length === 0) {
+    // All players (including note giver) select deck type and cards
+    // Note giver is also a writer — they pitch last
+    // First: all players select their deck type (hands are cleared each round)
+    for (const player of players) {
+      const playerState = player.state!;
+      if (!playerState.myHand || playerState.myHand.length === 0) {
         const deckType: DeckType = Math.random() < 0.5 ? "plot" : "character";
-        console.log(`  ${writer.name} selecting deck: ${deckType}`);
-        const handPromise = waitForHand(writer.socket, () => writer.state);
-        writer.socket.emit("select_deck_type", deckType);
+        console.log(`  ${player.name} selecting deck: ${deckType}`);
+        const handPromise = waitForHand(player.socket, () => player.state);
+        player.socket.emit("select_deck_type", deckType);
         await handPromise;
       }
     }
 
-    // Then: all writers select a card from their hand
-    for (const writer of writers) {
-      const deckState = writer.state!;
+    // Then: all players select a card from their hand
+    for (const player of players) {
+      const deckState = player.state!;
       const cardId = deckState.myHand?.[0]?.id;
       if (cardId) {
-        console.log(`  ${writer.name} selecting card ${cardId}`);
-        const moviePromise = waitForMovieReady(writer.socket, () => writer.state).catch(() => null);
-        writer.socket.emit("select_card", cardId);
+        console.log(`  ${player.name} selecting card ${cardId}`);
+        const moviePromise = waitForMovieReady(player.socket, () => player.state).catch(
+          () => null,
+        );
+        player.socket.emit("select_card", cardId);
         await moviePromise;
       } else {
         console.log(
-          `  ${writer.name} has no cards in hand! (phase: ${deckState.phase}, hand: ${deckState.myHand?.length ?? 0})`,
+          `  ${player.name} has no cards in hand! (phase: ${deckState.phase}, hand: ${deckState.myHand?.length ?? 0})`,
         );
       }
     }
@@ -313,8 +316,10 @@ async function runGame(
     console.log("  Pitching phase reached");
 
     const pitchState = players[0].state!;
-    // All writers are pitchers (note-giver pitches last, included in pitchOrder)
-    const pitcherIds = pitchState.movies?.map((m) => m.playerId) || writers.map((w) => w.playerId);
+    // All non-spectator players are pitchers (note-giver pitches last)
+    const pitcherIds = pitchState.players
+      .filter((p) => !p.isSpectator && !p.isDisconnected)
+      .map((p) => p.id);
     console.log(
       `  Pitchers: ${pitcherIds.map((id) => players.find((p) => p.playerId === id)?.name).join(", ")}`,
     );
@@ -336,10 +341,11 @@ async function runGame(
       noteGiver?.socket.emit("start_timer");
       await sleep(500);
 
-      // Note Giver plays a note card 70% of the time
+      // Note Giver plays a note card 70% of the time (but not on their own pitch)
       const ngState = noteGiver!.state!;
       const notes = ngState.myNoteGiverNotes || [];
-      if (notes.length > 0 && Math.random() < 0.7) {
+      const isNoteGiverPitching = pitcherId === noteGiverId;
+      if (notes.length > 0 && !isNoteGiverPitching && Math.random() < 0.7) {
         const noteId = notes[0].id;
         console.log(`    Note Giver playing note card`);
         noteGiver?.socket.emit("play_note", noteId);
