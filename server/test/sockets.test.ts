@@ -153,9 +153,9 @@ async function playToRoundEnd(
   }
 
   room = store.getRoom(roomCode)!;
-  if (room.votingActive) {
+  if (room.votingReady && !room.votingActive) {
     const started = startTimer(room.timer);
-    store.saveRoom({ ...room, timer: started });
+    store.saveRoom({ ...room, timer: started, votingActive: true, votingReady: false });
   }
 
   await new Promise((r) => setTimeout(r, 500));
@@ -254,7 +254,7 @@ describe("sockets", () => {
       return { sockets, states, roomCode, audience, noteGiverSocket, movies };
     }
 
-    it("auto-starts 15s voting timer when last pitch ends via socket", async () => {
+    it("emits ready_to_vote then start_voting gives 45s voting timer via socket", async () => {
       const sockets: ClientSocket[] = [];
       const states = new Map<ClientSocket, PublicRoomState>();
       let roomCode = "";
@@ -307,10 +307,16 @@ describe("sockets", () => {
       const lastPitcherId = room.pitchOrder[room.pitchOrder.length - 1];
       const lastPitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId === lastPitcherId)!;
 
-      const votePromise = waitForEvent(lastPitcherSocket, "voting_started");
+      const readyPromise = waitForEvent(lastPitcherSocket, "ready_to_vote");
       lastPitcherSocket.emit("end_pitch");
+      await readyPromise;
+
+      const room2 = store.getRoom(roomCode)!;
+      const noteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId === room2.noteGiverId)!;
+      const votePromise = waitForEvent(lastPitcherSocket, "voting_started");
+      noteGiverSocket.emit("start_voting");
       const voteSeconds = await votePromise;
-      expect(voteSeconds).toBe(15);
+      expect(voteSeconds).toBe(45);
 
       sockets.forEach((s) => s.disconnect());
     }, 15000);
@@ -428,6 +434,117 @@ describe("sockets", () => {
 
       sockets.forEach((s) => s.disconnect());
       audience.socket.disconnect();
+    });
+  });
+
+  describe("start_voting handler", () => {
+    it("note giver can start voting after all pitches end", async () => {
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
+      for (let i = 0; i < 3; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
+      }
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
+      }
+      let room = store.getRoom(roomCode)!;
+      startGame(store, room);
+      room = store.getRoom(roomCode)!;
+      const noteGiverId = room.noteGiverId!;
+      for (const socket of sockets) {
+        const playerId = states.get(socket)!.myPlayerId!;
+        if (playerId === noteGiverId) continue;
+        room = store.getRoom(roomCode)!;
+        selectDeckType(store, room, playerId, "plot");
+        room = store.getRoom(roomCode)!;
+        const writer = room.players.find((p) => p.id === playerId)!;
+        selectCard(store, store.getRoom(roomCode)!, playerId, writer.hand[0].id);
+      }
+      room = store.getRoom(roomCode)!;
+      const ngPlayer = room.players.find((p) => p.id === noteGiverId)!;
+      if (ngPlayer.hand.length === 0) {
+        selectDeckType(store, room, noteGiverId, "plot");
+        room = store.getRoom(roomCode)!;
+        const ngP = room.players.find((p) => p.id === noteGiverId)!;
+        selectCard(store, room, noteGiverId, ngP.hand[0].id);
+      }
+      room = store.getRoom(roomCode)!;
+      startPitching(store, room);
+      room = store.getRoom(roomCode)!;
+      for (const pitcherId of room.pitchOrder) {
+        revealMovie(store, store.getRoom(roomCode)!, pitcherId);
+        endPitch(store, store.getRoom(roomCode)!, pitcherId);
+      }
+      room = store.getRoom(roomCode)!;
+      expect(room.votingReady).toBe(true);
+      expect(room.votingActive).toBe(false);
+
+      const noteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId === noteGiverId)!;
+      const votingPromise = waitForEvent(sockets[0], "voting_started");
+      noteGiverSocket.emit("start_voting");
+      const seconds = await votingPromise;
+      expect(seconds).toBe(45);
+      room = store.getRoom(roomCode)!;
+      expect(room.votingActive).toBe(true);
+
+      sockets.forEach((s) => s.disconnect());
+    });
+
+    it("non-note-giver cannot start voting", async () => {
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
+      for (let i = 0; i < 3; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
+      }
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
+      }
+      let room = store.getRoom(roomCode)!;
+      startGame(store, room);
+      room = store.getRoom(roomCode)!;
+      const noteGiverId = room.noteGiverId!;
+      for (const socket of sockets) {
+        const playerId = states.get(socket)!.myPlayerId!;
+        if (playerId === noteGiverId) continue;
+        room = store.getRoom(roomCode)!;
+        selectDeckType(store, room, playerId, "plot");
+        room = store.getRoom(roomCode)!;
+        const writer = room.players.find((p) => p.id === playerId)!;
+        selectCard(store, store.getRoom(roomCode)!, playerId, writer.hand[0].id);
+      }
+      room = store.getRoom(roomCode)!;
+      const ngPlayer = room.players.find((p) => p.id === noteGiverId)!;
+      if (ngPlayer.hand.length === 0) {
+        selectDeckType(store, room, noteGiverId, "plot");
+        room = store.getRoom(roomCode)!;
+        const ngP = room.players.find((p) => p.id === noteGiverId)!;
+        selectCard(store, room, noteGiverId, ngP.hand[0].id);
+      }
+      room = store.getRoom(roomCode)!;
+      startPitching(store, room);
+      room = store.getRoom(roomCode)!;
+      for (const pitcherId of room.pitchOrder) {
+        revealMovie(store, store.getRoom(roomCode)!, pitcherId);
+        endPitch(store, store.getRoom(roomCode)!, pitcherId);
+      }
+      const nonNoteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId !== noteGiverId)!;
+      const errorPromise = waitForEvent<string>(nonNoteGiverSocket, "error");
+      nonNoteGiverSocket.emit("start_voting");
+      const errMsg = await errorPromise;
+      expect(errMsg).toContain("note giver");
+      sockets.forEach((s) => s.disconnect());
     });
   });
 
@@ -632,7 +749,11 @@ describe("sockets", () => {
       }
 
       room = store.getRoom(roomCode)!;
-      tallyAndAdvance(store, room);
+      if (room.votingReady && !room.votingActive) {
+        const started = startTimer(room.timer);
+        store.saveRoom({ ...room, timer: started, votingActive: true, votingReady: false });
+      }
+      tallyAndAdvance(store, store.getRoom(roomCode)!);
       room = store.getRoom(roomCode)!;
       expect(room.round.current).toBe(2);
 
@@ -1070,7 +1191,7 @@ describe("sockets", () => {
       sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
     });
 
-    it("player rejoins during pitching before their slot is NOT spectator", async () => {
+    it("player rejoins during pitching before their slot is spectator (immediate spectator)", async () => {
       const { sockets, states, roomCode } = await setupPitchingWithThreePlayers();
       let room = store.getRoom(roomCode)!;
       const lastPitcherId = room.pitchOrder[room.pitchOrder.length - 1];
@@ -1080,6 +1201,8 @@ describe("sockets", () => {
       lastPitcherSocket.disconnect();
       await new Promise((r) => setTimeout(r, 200));
       room = store.getRoom(roomCode)!;
+      expect(room.players.find((p) => p.id === lastPitcherId)!.isSpectator).toBe(true);
+      expect(room.pitchOrder).not.toContain(lastPitcherId);
 
       const rejoined = ioc(`http://localhost:${port}`, {
         forceNew: true,
@@ -1089,7 +1212,8 @@ describe("sockets", () => {
       rejoined.on("connect", () => rejoined.emit("join_room", roomCode, lastPitcherName));
       const rejoinedState = await statePromise;
       const player = rejoinedState.players.find((p) => p.id === lastPitcherId)!;
-      expect(player.isSpectator).toBe(false);
+      expect(player.isSpectator).toBe(true);
+      expect(rejoinedState.movies.find((m) => m.playerId === lastPitcherId)).toBeUndefined();
 
       rejoined.disconnect();
       sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
@@ -1159,9 +1283,10 @@ describe("sockets", () => {
       }
       room = store.getRoom(roomCode)!;
       expect(room.phase).toBe("round-end");
-      expect(room.votingActive).toBe(true);
+      expect(room.votingReady).toBe(true);
+      expect(room.votingActive).toBe(false);
       const started = startTimer(room.timer);
-      store.saveRoom({ ...room, timer: started });
+      store.saveRoom({ ...room, timer: started, votingActive: true, votingReady: false });
 
       const voteTarget = room.movies.find((m) => m.playerId !== firstPitcherId)!.playerId;
       rejoined.emit("cast_vote", voteTarget);
@@ -1201,7 +1326,7 @@ describe("sockets", () => {
       }
       room = store.getRoom(roomCode)!;
       const started = startTimer(room.timer);
-      store.saveRoom({ ...room, timer: started });
+      store.saveRoom({ ...room, timer: started, votingActive: true, votingReady: false });
       await new Promise((r) => setTimeout(r, 50));
       tallyAndAdvance(store, store.getRoom(roomCode)!);
       room = store.getRoom(roomCode)!;
@@ -1211,6 +1336,115 @@ describe("sockets", () => {
       rejoined.disconnect();
       sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
     }, 30000);
+  });
+
+  describe("immediate spectator on disconnect", () => {
+    async function setupPitchingState(): Promise<{
+      sockets: ClientSocket[];
+      states: Map<ClientSocket, PublicRoomState>;
+      roomCode: string;
+      noteGiverId: string;
+    }> {
+      const sockets: ClientSocket[] = [];
+      const states = new Map<ClientSocket, PublicRoomState>();
+      let roomCode = "";
+      for (let i = 0; i < 3; i++) {
+        const result = await connectAndJoin(port, i === 0 ? "" : roomCode, `P${i + 1}`);
+        sockets.push(result.socket);
+        states.set(result.socket, result.state);
+        if (i === 0) roomCode = result.state.code;
+      }
+      for (const socket of sockets) {
+        socket.on("room_joined", (state: PublicRoomState) => {
+          states.set(socket, state);
+        });
+      }
+      let room = store.getRoom(roomCode)!;
+      startGame(store, room);
+      room = store.getRoom(roomCode)!;
+      const noteGiverId = room.noteGiverId!;
+      for (const socket of sockets) {
+        const playerId = states.get(socket)!.myPlayerId!;
+        if (playerId === noteGiverId) continue;
+        room = store.getRoom(roomCode)!;
+        selectDeckType(store, room, playerId, "plot");
+        room = store.getRoom(roomCode)!;
+        const writer = room.players.find((p) => p.id === playerId)!;
+        selectCard(store, store.getRoom(roomCode)!, playerId, writer.hand[0].id);
+      }
+      room = store.getRoom(roomCode)!;
+      const ngPlayer = room.players.find((p) => p.id === noteGiverId)!;
+      if (ngPlayer.hand.length === 0) {
+        selectDeckType(store, room, noteGiverId, "plot");
+        room = store.getRoom(roomCode)!;
+        const ngP = room.players.find((p) => p.id === noteGiverId)!;
+        selectCard(store, room, noteGiverId, ngP.hand[0].id);
+      }
+      room = store.getRoom(roomCode)!;
+      startPitching(store, room);
+      room = store.getRoom(roomCode)!;
+      return { sockets, states, roomCode, noteGiverId };
+    }
+
+    it("disconnected player immediately becomes spectator and is removed from pitchOrder", async () => {
+      const { sockets, states, roomCode, noteGiverId } = await setupPitchingState();
+      let room = store.getRoom(roomCode)!;
+
+      const disconnectSocket = sockets.find(
+        (s) => states.get(s)!.myPlayerId !== noteGiverId,
+      )!;
+      const disconnectId = states.get(disconnectSocket)!.myPlayerId!;
+      expect(room.pitchOrder.includes(disconnectId)).toBe(true);
+
+      disconnectSocket.disconnect();
+      await new Promise((r) => setTimeout(r, 500));
+
+      room = store.getRoom(roomCode)!;
+      const disconnectedPlayer = room.players.find((p) => p.id === disconnectId)!;
+      expect(disconnectedPlayer.isDisconnected).toBe(true);
+      expect(disconnectedPlayer.isSpectator).toBe(true);
+      expect(room.pitchOrder).not.toContain(disconnectId);
+      expect(room.movies.find((m) => m.playerId === disconnectId)).toBeUndefined();
+
+      sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
+    });
+
+    it("disconnected note giver is reassigned immediately", async () => {
+      const { sockets, states, roomCode, noteGiverId } = await setupPitchingState();
+      const noteGiverSocket = sockets.find(
+        (s) => states.get(s)!.myPlayerId === noteGiverId,
+      )!;
+
+      noteGiverSocket.disconnect();
+      await new Promise((r) => setTimeout(r, 500));
+
+      const room = store.getRoom(roomCode)!;
+      expect(room.noteGiverId).not.toBe(noteGiverId);
+      const newNoteGiver = room.players.find((p) => p.id === room.noteGiverId)!;
+      expect(newNoteGiver.isDisconnected).toBe(false);
+      expect(newNoteGiver.isNoteGiver).toBe(true);
+
+      sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
+    });
+
+    it("disconnected current pitcher advances to next pitcher", async () => {
+      const { sockets, states, roomCode } = await setupPitchingState();
+      let room = store.getRoom(roomCode)!;
+      const firstPitcherId = room.currentPitcherId!;
+      const firstPitcherSocket = sockets.find(
+        (s) => states.get(s)!.myPlayerId === firstPitcherId,
+      )!;
+      const expectedNextId = room.pitchOrder[room.currentPitchIndex + 1];
+
+      firstPitcherSocket.disconnect();
+      await new Promise((r) => setTimeout(r, 500));
+
+      room = store.getRoom(roomCode)!;
+      expect(room.currentPitcherId).toBe(expectedNextId);
+      expect(room.phase).toBe("pitching");
+
+      sockets.filter((s) => s.connected).forEach((s) => s.disconnect());
+    });
   });
 
   describe("select_franchise_source handler", () => {

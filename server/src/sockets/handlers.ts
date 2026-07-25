@@ -16,6 +16,7 @@ import {
   selectFranchiseSource,
 } from "../state-machine.js";
 import {
+  createTimer,
   startTimer,
   pauseTimer,
   pauseForNote,
@@ -100,12 +101,9 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
               io.to(`room:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
               io.to(`audience:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
             }
-            if (updated.phase === "round-end" && updated.votingActive) {
-              updated = store.getRoom(updated.code)!;
-              const started = startTimer(updated.timer);
-              store.saveRoom({ ...updated, timer: started });
-              io.to(`room:${updated.code}`).emit("voting_started", started.secondsRemaining);
-              io.to(`audience:${updated.code}`).emit("voting_started", started.secondsRemaining);
+            if (updated.phase === "round-end" && updated.votingReady) {
+              io.to(`room:${updated.code}`).emit("ready_to_vote");
+              io.to(`audience:${updated.code}`).emit("ready_to_vote");
             }
             broadcastAllStates(io, updated);
           }
@@ -397,14 +395,39 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
           io.to(`room:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
           io.to(`audience:${updated.code}`).emit("next_pitcher", updated.currentPitcherId);
         }
-        if (updated.phase === "round-end" && updated.votingActive) {
-          updated = store.getRoom(updated.code)!;
-          const started = startTimer(updated.timer);
-          store.saveRoom({ ...updated, timer: started });
-          io.to(`room:${updated.code}`).emit("voting_started", started.secondsRemaining);
-          io.to(`audience:${updated.code}`).emit("voting_started", started.secondsRemaining);
+        if (updated.phase === "round-end" && updated.votingReady) {
+          io.to(`room:${updated.code}`).emit("ready_to_vote");
+          io.to(`audience:${updated.code}`).emit("ready_to_vote");
         }
         broadcastAllStates(io, updated);
+      } catch (err) {
+        socket.emit("error", (err as Error).message);
+      }
+    });
+
+    socket.on("start_voting", () => {
+      if (!checkSocketEventRate(socket)) return;
+      const ctx = getPlayerContext(socket.id, store);
+      if (!ctx) return;
+      if (ctx.playerId !== ctx.room.noteGiverId) {
+        socket.emit("error", "Only the note giver can start voting");
+        return;
+      }
+      if (!ctx.room.votingReady) {
+        socket.emit("error", "Voting is not ready yet");
+        return;
+      }
+      if (ctx.room.votingActive) {
+        socket.emit("error", "Voting is already active");
+        return;
+      }
+      try {
+        const updated = store.getRoom(ctx.room.code)!;
+        const started = startTimer(updated.timer);
+        store.saveRoom({ ...updated, timer: started, votingActive: true, votingReady: false });
+        io.to(`room:${updated.code}`).emit("voting_started", started.secondsRemaining);
+        io.to(`audience:${updated.code}`).emit("voting_started", started.secondsRemaining);
+        broadcastAllStates(io, store.getRoom(updated.code)!);
       } catch (err) {
         socket.emit("error", (err as Error).message);
       }
@@ -555,14 +578,77 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
           if (room) {
             const leavingPlayer = room.players.find((p) => p.id === playerId);
             const wasHost = leavingPlayer?.isHost ?? false;
-            let updated = {
+            const wasNoteGiver = room.noteGiverId === playerId;
+            const wasInPitchOrder = room.pitchOrder.includes(playerId);
+            const wasCurrentPitcher = room.currentPitcherId === playerId;
+
+            let updated: Room = {
               ...room,
               players: room.players.map((p) =>
                 p.id === playerId
-                  ? { ...p, isDisconnected: true, socketId: null, isHost: false }
+                  ? {
+                      ...p,
+                      isDisconnected: true,
+                      socketId: null,
+                      isHost: false,
+                      isSpectator: wasInPitchOrder ? true : p.isSpectator,
+                    }
                   : p,
               ),
+              pitchOrder: room.pitchOrder.filter((id) => id !== playerId),
+              movies: wasInPitchOrder
+                ? room.movies.filter((m) => m.playerId !== playerId)
+                : room.movies,
             };
+
+            if (wasNoteGiver && updated.phase !== "round-end" && updated.phase !== "game-end") {
+              const nextGiver = updated.players.find((p) => !p.isDisconnected);
+              if (nextGiver) {
+                updated = {
+                  ...updated,
+                  noteGiverId: nextGiver.id,
+                  players: updated.players.map((p) =>
+                    p.id === nextGiver.id
+                      ? { ...p, isNoteGiver: true }
+                      : { ...p, isNoteGiver: false },
+                  ),
+                };
+              } else {
+                updated = { ...updated, noteGiverId: null };
+              }
+            }
+
+            if (wasCurrentPitcher && updated.phase === "pitching") {
+              const nextIndex = room.currentPitchIndex;
+              if (nextIndex < updated.pitchOrder.length) {
+                const nextPitcherId = updated.pitchOrder[nextIndex];
+                updated = {
+                  ...updated,
+                  currentPitchIndex: nextIndex,
+                  currentPitcherId: nextPitcherId,
+                  timer: createTimer(45),
+                  movies: updated.movies.map((m) =>
+                    m.playerId === nextPitcherId ? { ...m, revealed: true } : m,
+                  ),
+                };
+                io.to(`room:${updated.code}`).emit("next_pitcher", nextPitcherId);
+                io.to(`audience:${updated.code}`).emit("next_pitcher", nextPitcherId);
+              } else {
+                updated = {
+                  ...updated,
+                  phase: "round-end",
+                  currentPitcherId: null,
+                  timer: createTimer(45),
+                  movies: updated.movies.map((m) => ({ ...m, revealed: true })),
+                  votingActive: false,
+                  votingReady: true,
+                  votes: {},
+                };
+                io.to(`room:${updated.code}`).emit("ready_to_vote");
+                io.to(`audience:${updated.code}`).emit("ready_to_vote");
+              }
+            }
+
             if (wasHost) {
               const nextHost = updated.players.find((p) => !p.isDisconnected && p.id !== playerId);
               if (nextHost) {

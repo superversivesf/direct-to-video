@@ -70,6 +70,9 @@ describe("state machine", () => {
       endPitch(store, updated, pitcherId);
       updated = store.getRoom(room.code)!;
     }
+    updated = store.getRoom(room.code)!;
+    const started = startTimer(updated.timer);
+    store.saveRoom({ ...updated, timer: started, votingActive: true, votingReady: false });
     return { room: store.getRoom(room.code)!, playerIds };
   }
 
@@ -196,6 +199,17 @@ describe("state machine", () => {
       const updated = store.getRoom(room.code)!;
       expect(updated.players.every((p) => p.hand.length === 0)).toBe(true);
       expect(updated.players.every((p) => p.chosenCard === null)).toBe(true);
+    });
+
+    it("setupRound clears votingReady", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      updated = { ...updated, votingReady: true };
+      store.saveRoom(updated);
+      setupRound(store, updated);
+      const after = store.getRoom(room.code)!;
+      expect(after.votingReady).toBe(false);
     });
   });
 
@@ -536,8 +550,9 @@ describe("state machine", () => {
       }
       const after = store.getRoom(room.code)!;
       expect(after.phase).toBe("round-end");
-      expect(after.timer.secondsRemaining).toBe(15);
-      expect(after.votingActive).toBe(true);
+      expect(after.timer.secondsRemaining).toBe(45);
+      expect(after.votingActive).toBe(false);
+      expect(after.votingReady).toBe(true);
       expect(after.votes).toEqual({});
     });
 
@@ -571,6 +586,31 @@ describe("state machine", () => {
       const updated = store.getRoom(room.code)!;
       const writerId = playerIds.find((id) => id !== updated.noteGiverId)!;
       expect(() => revealMovie(store, updated, writerId)).toThrow("No movie found for player");
+    });
+
+    it("sets votingReady=true and 45s timer when last pitcher ends", () => {
+      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      startGame(store, room);
+      let updated = store.getRoom(room.code)!;
+      for (const writerId of playerIds) {
+        selectDeckType(store, updated, writerId, "plot");
+        updated = store.getRoom(room.code)!;
+        const writer = updated.players.find((p) => p.id === writerId)!;
+        selectCard(store, updated, writerId, writer.hand[0].id);
+        updated = store.getRoom(room.code)!;
+      }
+      startPitching(store, updated);
+      updated = store.getRoom(room.code)!;
+      for (const pitcherId of updated.pitchOrder) {
+        revealMovie(store, updated, pitcherId);
+        updated = store.getRoom(room.code)!;
+        endPitch(store, updated, pitcherId);
+        updated = store.getRoom(room.code)!;
+      }
+      expect(updated.phase).toBe("round-end");
+      expect(updated.votingActive).toBe(false);
+      expect(updated.votingReady).toBe(true);
+      expect(updated.timer.secondsRemaining).toBe(45);
     });
   });
 
@@ -736,6 +776,9 @@ describe("state machine", () => {
         endPitch(store, after, pitcherId);
         after = store.getRoom(room.code)!;
       }
+      after = store.getRoom(room.code)!;
+      const started2 = startTimer(after.timer);
+      store.saveRoom({ ...after, timer: started2, votingActive: true, votingReady: false });
       castVote(store, store.getRoom(room.code)!, "aud1", target);
       castVote(store, store.getRoom(room.code)!, "aud2", target);
       tallyAndAdvance(store, store.getRoom(room.code)!);
@@ -949,8 +992,9 @@ describe("state machine", () => {
 
       after = store.getRoom(room.code)!;
       expect(after.phase).toBe("round-end");
-      expect(after.votingActive).toBe(true);
-      expect(after.timer.secondsRemaining).toBe(15);
+      expect(after.votingActive).toBe(false);
+      expect(after.votingReady).toBe(true);
+      expect(after.timer.secondsRemaining).toBe(45);
       expect(after.timer.pausedForNote).toBe(false);
       expect(after.timer.running).toBe(false);
       expect(after.timer.noteResumeAt).toBeNull();
@@ -1213,8 +1257,10 @@ describe("state machine", () => {
       }
 
       updated = store.getRoom(room.code)!;
+      const startedSoftlock = startTimer(updated.timer);
+      store.saveRoom({ ...updated, timer: startedSoftlock, votingActive: true, votingReady: false });
       const voteTarget = playerIds.find((id) => id !== playerIds[0])!;
-      castVote(store, updated, "aud1", voteTarget);
+      castVote(store, store.getRoom(room.code)!, "aud1", voteTarget);
       tallyAndAdvance(store, store.getRoom(room.code)!);
       updated = store.getRoom(room.code)!;
       expect(updated.round.current).toBe(2);
@@ -1284,7 +1330,7 @@ describe("state machine", () => {
       }
       updated = store.getRoom(room.code)!;
       const started = startTimer(updated.timer);
-      store.saveRoom({ ...updated, timer: started });
+      store.saveRoom({ ...updated, timer: started, votingActive: true, votingReady: false });
       tallyAndAdvance(store, store.getRoom(room.code)!);
 
       updated = store.getRoom(room.code)!;

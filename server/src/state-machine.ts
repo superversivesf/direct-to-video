@@ -59,6 +59,7 @@ export function setupRound(store: RoomStore, room: Room): void {
     })),
     votes: {},
     votingActive: false,
+    votingReady: false,
   });
 }
 
@@ -292,9 +293,10 @@ export function endPitch(store: RoomStore, room: Room, _playerId: string): void 
       ...room,
       phase: "round-end",
       currentPitcherId: null,
-      timer: createTimer(15),
+      timer: createTimer(45),
       movies: allRevealed,
-      votingActive: true,
+      votingActive: false,
+      votingReady: true,
       votes: {},
     });
   } else {

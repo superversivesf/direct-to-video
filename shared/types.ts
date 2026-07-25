@@ -1,4 +1,4 @@
-export const VERSION = "2.1.5";
+export const VERSION = "2.1.6";
 
 export type Phase = "lobby" | "setup" | "card-selection" | "pitching" | "round-end" | "game-end";
 
@@ -79,6 +79,7 @@ export interface Room {
   currentPitchIndex: number;
   votes: Record<string, string>;
   votingActive: boolean;
+  votingReady: boolean;
   roundWinnerId: string | null;
   franchiseEnabled: boolean;
 }
@@ -112,6 +113,7 @@ export interface PublicRoomState {
   myBlindCard: Card | null;
   myNoteGiverNotes: Card[] | null;
   votingActive: boolean;
+  votingReady: boolean;
   voteCounts: { playerId: string; votes: number }[];
   myVote: string | null;
   audienceCount: number;
@@ -133,6 +135,7 @@ export interface AudienceRoomState {
   movieHistory: Movie[];
   scoreboard: { playerId: string; name: string; score: number }[];
   votingActive: boolean;
+  votingReady: boolean;
   voteCounts: { playerId: string; votes: number }[];
   hasVoted: boolean;
   roundWinnerId: string | null;
@@ -157,6 +160,7 @@ export interface ClientToServerEvents {
   play_again: () => void;
   join_audience: (code: string) => void;
   cast_vote: (playerId: string) => void;
+  start_voting: () => void;
 }
 
 export interface ServerToClientEvents {
@@ -178,5 +182,6 @@ export interface ServerToClientEvents {
   voting_started: (secondsRemaining: number) => void;
   vote_update: (voteCounts: { playerId: string; votes: number }[]) => void;
   voting_ended: (roundWinnerId: string | null) => void;
+  ready_to_vote: () => void;
   kicked: () => void;
 }
