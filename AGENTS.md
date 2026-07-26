@@ -1,6 +1,6 @@
 # AGENTS.md — Direct to Video
 
-> **Status snapshot:** 2026-07-22. v2.1.5. All 270 tests pass (176 server + 94 client), build and typecheck clean, E2E suite (13 tests) verified, lint clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). v2.1.2 adds ESLint+Prettier, force-start, spectator mode. v2.1.3 adds franchise card enhancement (UI for picking previously pitched movies). v2.1.4 adds mid-game join as spectator (new players joining mid-game spectate the current round, play from next round). v2.1.5 fixes note-giver setup UX: live writer-readiness indicators and progress bar now visible during setup (previously the screen appeared frozen until pitching started). Security-hardened for public internet exposure.
+> **Status snapshot:** 2026-07-26. v2.1.6. All 286 tests pass (184 server + 102 client), build and typecheck clean, E2E suite (20 tests, 19 pass + 1 pre-existing franchise flake) verified, lint clean. Redesigned in v2.0 (note giver replaces executive; automatic voting) and v2.1 (ready indicators, host kick, stale-disconnect cleanup). v2.1.2 adds ESLint+Prettier, force-start, spectator mode. v2.1.3 adds franchise card enhancement (UI for picking previously pitched movies). v2.1.4 adds mid-game join as spectator (new players joining mid-game spectate the current round, play from next round). v2.1.5 fixes note-giver setup UX: live writer-readiness indicators and progress bar now visible during setup (previously the screen appeared frozen until pitching started). v2.1.6 adds manual voting start (note giver controls when voting begins, 45s timer), immediate spectator on disconnect (disconnected players become spectators instantly instead of 60s grace period), and always-visible player status panel with current-pitcher highlight. Security-hardened for public internet exposure.
 
 ## Project Overview
 
@@ -30,7 +30,7 @@ movie-pitch/
 ├── docker-compose.yml        # Single service + persistent volume, resource limits
 ├── shared/
 │   ├── package.json          # @direct-to-video/shared
-│   ├── types.ts              # All shared types + VERSION constant (2.1.5)
+│   ├── types.ts              # All shared types + VERSION constant (2.1.6)
 │   └── timer-helpers.ts      # Timer state predicates: timerRunning, timerIdle, timerPaused, timerExpired
 ├── server/
 │   ├── package.json          # @direct-to-video/server (ESM, type: module)
@@ -57,7 +57,7 @@ movie-pitch/
 │       ├── card-ops.test.ts        # deck ops tests
 │       ├── state-machine.test.ts   # phase transitions + tallyAndAdvance + auto-draw
 │       ├── state-mapper.test.ts    # toPublicRoomState writerReadyIds mapping (3 tests)
-│       └── sockets.test.ts         # handler setup, kick, stale-disconnect, voting flow
+│       └── sockets.test.ts         # handler setup, kick, stale-disconnect, immediate spectator, manual voting flow
 ├── client/
 │   ├── package.json          # @direct-to-video/client (ESM, type: module)
 │   ├── tsconfig.json         # JSX: react-jsx, noEmit, DOM libs
@@ -98,10 +98,10 @@ movie-pitch/
 │       ├── NoteGiverControls.test.tsx    # 12 tests
 │       ├── Join.test.tsx                 # 5 tests
 │       ├── Scoreboard.test.tsx           # 9 tests
-│       ├── PlayerList.test.tsx           # 7 tests
+│       ├── PlayerList.test.tsx           # 10 tests
 │       ├── PhaseIndicator.test.tsx       # 9 tests
 │       ├── MovieReveal.test.tsx          # 8 tests
-│       └── Game.test.tsx                 # 19 tests
+│       └── Game.test.tsx                 # 25 tests
 ├── stress/
 │   ├── package.json          # @direct-to-video/stress
 │   ├── stress-test.ts        # Full single-room game simulation (configurable players/audience/rounds/target)
@@ -143,8 +143,8 @@ Build output: `client/dist/` (static files) + `server/dist/` (compiled JS).
 
 ```bash
 npm test                     # Runs both server + client test suites from root
-cd server && npx vitest run  # 176 server tests
-cd client && npx vitest run  # 94 client tests
+cd server && npx vitest run  # 184 server tests
+cd client && npx vitest run  # 102 client tests
 
 # E2E (requires build first + running server on :3100):
 npm run build
@@ -205,7 +205,7 @@ Client (React) ──socket.io──▶ Server (sockets/handlers.ts)
                                   ├──▶ RoomStore (in-memory cache + SQLite)
                                   ├──▶ Timer (server-authoritative, 1s tick loop)
                                   ├──▶ Rate Limiters (per-IP, per-socket, join throttle)
-                                  ├──▶ Stale-Disconnect Timers (60s post-disconnect removal)
+                                  ├──▶ Stale-Disconnect Timers (60s post-disconnect removal, immediate spectator)
                                   └──▶ Logger (file-based)
                                       │
                                       ▼
@@ -224,7 +224,7 @@ Client (React) ──socket.io──▶ Server (sockets/handlers.ts)
 ### Game State Machine
 
 ```
-lobby → setup → card-selection → pitching → round-end (auto-vote) → setup (next round) → ... → game-end
+lobby → setup → card-selection → pitching → round-end (manual vote) → setup (next round) → ... → game-end
                                                                                               │
                                                                                        playAgain → lobby
 ```
@@ -233,7 +233,7 @@ lobby → setup → card-selection → pitching → round-end (auto-vote) → se
 - **setup:** A **note giver** is assigned from `noteGiverOrder` (random permutation of player IDs, no repeats until everyone has been note giver once). 3 NOTE cards drawn for the note giver. Writers choose deck type (PLOT or CHARACTER) and draw 3 cards. The note giver sees ✓ ready / "choosing..." indicators next to each writer.
 - **card-selection:** Writers select 1 card from hand, blind card auto-drawn from opposite deck, click "Ready to Pitch". Phase auto-advances when all writers ready.
 - **pitching:** Writers pitch one at a time. Pitch order places the note giver last (they are also a writer); franchise card holders go last otherwise. 45s timer. Note giver can pause to play NOTE cards (5s read window, auto-resumes).
-- **round-end:** No manual winner selection. A 15-second voting timer starts automatically when all pitches are done. Every player + audience member votes (one vote each, 1x weight; players cannot vote for themselves). `tallyAndAdvance` computes the round winner from `Room.votes` and adds vote counts to each player's cumulative `score`.
+- **round-end:** No manual winner selection. After all pitches are done, `votingReady` is set to `true` and the note giver sees a "Start Voting" button. When the note giver clicks it, a 45-second voting timer starts. Every player + audience member votes (one vote each, 1x weight; players cannot vote for themselves). `tallyAndAdvance` computes the round winner from `Room.votes` and adds vote counts to each player's cumulative `score`.
 - **game-end:** After the host-selected `totalRounds` is reached. Highest cumulative vote total wins. Ties displayed as ties. "Play Again" resets to lobby (note giver order re-permuted).
 
 ### Note Giver Rotation
@@ -245,7 +245,7 @@ lobby → setup → card-selection → pitching → round-end (auto-vote) → se
 
 ### Voting
 
-- Triggered automatically by `tallyAndAdvance` path: when the last pitcher ends, the server starts a 15-second voting phase (`voting_started` event with secondsRemaining).
+- Manual start: when the last pitcher ends, `endPitch` sets `votingReady: true` and emits `ready_to_vote`. The note giver sees a "Start Voting" button; other players see "Waiting for the Note Giver to start voting...". When the note giver clicks it (via `start_voting` socket event), the server starts a 45-second voting timer (`voting_started` event with secondsRemaining) and sets `votingActive: true, votingReady: false`.
 - All players + audience members may vote once. Players cannot vote for themselves (enforced server-side).
 - All votes are 1x weight — no 2x executive vote (the executive role no longer exists).
 - `vote_update` events stream running tallies to clients during voting.
@@ -258,11 +258,11 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 
 ### Socket.IO Events
 
-**Client → Server:** `join_room`, `join_audience`, `start_game`, `set_franchise_enabled`, `set_total_rounds`, `kick_player`, `force_start`, `select_franchise_source`, `select_deck_type`, `select_card`, `reveal_movie`, `start_timer`, `pause_timer`, `play_note`, `end_pitch`, `cast_vote`, `play_again`
+**Client → Server:** `join_room`, `join_audience`, `start_game`, `set_franchise_enabled`, `set_total_rounds`, `kick_player`, `force_start`, `select_franchise_source`, `select_deck_type`, `select_card`, `reveal_movie`, `start_timer`, `pause_timer`, `play_note`, `end_pitch`, `start_voting`, `cast_vote`, `play_again`
 
-**Server → Client:** `room_joined` (full per-player state), `player_list_updated`, `movie_revealed`, `timer_started`, `timer_tick`, `timer_paused`, `timer_expired`, `note_played`, `pitch_ended`, `next_pitcher`, `round_started`, `game_ended`, `error`, `audience_joined`, `audience_update`, `voting_started`, `vote_update`, `voting_ended` (sends `roundWinnerId: string | null`), `kicked`
+**Server → Client:** `room_joined` (full per-player state), `player_list_updated`, `movie_revealed`, `timer_started`, `timer_tick`, `timer_paused`, `timer_expired`, `note_played`, `pitch_ended`, `next_pitcher`, `round_started`, `game_ended`, `error`, `audience_joined`, `audience_update`, `ready_to_vote`, `voting_started`, `vote_update`, `voting_ended` (sends `roundWinnerId: string | null`), `kicked`
 
-**Removed in v2.0:** `select_winner`, `start_voting`, `end_voting` (client→server) and `winner_selected` (server→client). Voting is now automatic.
+**Removed in v2.0:** `select_winner`, `end_voting` (client→server) and `winner_selected` (server→client). Voting is now manual (note giver starts it via `start_voting`). The old `start_voting` event was removed in v2.0 and re-added in v2.1.6 with different semantics (manual start by note giver instead of automatic).
 
 ### Visibility Rules
 
@@ -300,7 +300,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | Docker | CPU                    | 1 core limit                                   |
 | Docker | Restart                | unless-stopped                                 |
 
-## What Works (Verified 2026-07-22)
+## What Works (Verified 2026-07-26)
 
 ### Tests — All Passing
 
@@ -311,22 +311,22 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 | server/test/timer.test.ts              | 15      | PASS         |
 | server/test/timer-helpers.test.ts      | 5       | PASS         |
 | server/test/card-ops.test.ts           | —       | PASS         |
-| server/test/state-machine.test.ts      | —       | PASS         |
-| server/test/state-mapper.test.ts       | 3       | PASS         |
-| server/test/sockets.test.ts            | —       | PASS         |
-| **Server subtotal**                    | **176** | **ALL PASS** |
+| server/test/state-machine.test.ts      | 85      | PASS         |
+| server/test/state-mapper.test.ts      | 3       | PASS         |
+| server/test/sockets.test.ts            | 35      | PASS         |
+| **Server subtotal**                    | **184** | **ALL PASS** |
 | client/test/Card.test.tsx              | 4       | PASS         |
 | client/test/WriterControls.test.tsx    | 12      | PASS         |
 | client/test/Timer.test.tsx             | 5       | PASS         |
-| client/test/NoteGiverControls.test.tsx | 12      | PASS         |
+| client/test/NoteGiverControls.test.tsx  | 12      | PASS         |
 | client/test/Join.test.tsx              | 5       | PASS         |
 | client/test/Scoreboard.test.tsx        | 9       | PASS         |
-| client/test/PlayerList.test.tsx        | 9       | PASS         |
+| client/test/PlayerList.test.tsx        | 10      | PASS         |
 | client/test/PhaseIndicator.test.tsx    | 9       | PASS         |
 | client/test/MovieReveal.test.tsx       | 8       | PASS         |
-| client/test/Game.test.tsx              | 21      | PASS         |
-| **Client subtotal**                    | **94**  | **ALL PASS** |
-| **Total**                              | **270** | **ALL PASS** |
+| client/test/Game.test.tsx              | 25      | PASS         |
+| **Client subtotal**                    | **102** | **ALL PASS** |
+| **Total**                              | **286** | **ALL PASS** |
 
 > Note: Server tests now pass cleanly with zero post-test errors. Earlier versions emitted 56 unhandled timer errors from stale-disconnect `setTimeout` callbacks and the 1-second timer `setInterval` firing against closed in-memory SQLite handles — fixed in v2.1.2 by exporting `clearStaleDisconnectTimers()` and `clearTimerInterval()` from `sockets/handlers.ts` and invoking them in `afterEach`.
 
@@ -338,7 +338,7 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 
 ### Features Working
 
-- Full game flow: lobby → setup → card-selection → pitching → round-end (auto-voting) → game-end → play again
+- Full game flow: lobby → setup → card-selection → pitching → round-end (manual voting) → game-end → play again
 - 493 real cards transcribed from the physical game (166 plot, 161 character, 166 note)
 - Card deck reshuffling when decks run out (supports large player counts) via `card-ops.ts`
 - Room creation with 4-letter codes (no ambiguous chars: no O, 0, I, 1)
@@ -353,19 +353,21 @@ When any deck (plot, character, or note) runs out, it automatically refills and 
 - Note giver role: randomly selected each round from `noteGiverOrder` permutation, rotates with no repeats until everyone has been note giver; note giver also pitches (sorted last)
 - Ready indicators: during setup the note giver sees ✓ ready / "choosing..." next to each writer
 - Audience/spectator view for screen-sharing
-- Automatic voting: 15-second timer starts when all pitches done; all players + audience vote; players can't vote for themselves; all votes 1x weight
+- Manual voting: 45-second timer starts when the note giver clicks "Start Voting"; all players + audience vote; players can't vote for themselves; all votes 1x weight
 - Cumulative scoring: vote counts accumulate across rounds; highest total at game-end wins; ties shown as ties
 - Fixed round count: host selects 3/5/7/10 rounds in lobby (default 5)
-- Server-authoritative 45-second pitch timer + 15-second voting timer, both with SVG ring display
+- Server-authoritative 45-second pitch timer + 45-second voting timer, both with SVG ring display
 - Note giver NOTE card play with 5-second pause window and auto-resume
 - Auto-draw cards with `____` placeholder substitution (`card-ops.ts:substituteDraws`)
 - Franchise card display (filtered in 2-player games; host can disable via `set_franchise_enabled`; holders pitch last)
 - Franchise card enhancement: players holding a franchise card pick a previously pitched movie via UI during card-selection; referenced movie displayed alongside the franchise pitch on reveal; franchise source auto-picked on force-start
 - Blind card auto-draw from opposite deck on card selection
 - Pitch order: note giver sorted last; franchise holders last; otherwise circular from note giver's left
+- Immediate spectator on disconnect: disconnected players are immediately marked `isSpectator` and removed from `pitchOrder`/`movies` (no 60s grace period where they block the game); note giver reassigned immediately if needed; current pitcher advances if needed
 - Stale-disconnect handling: 60s after disconnect, player is fully removed; note giver reassigned if needed; host promoted if needed
 - Spectator mode: if a player reconnects during pitching after their slot passed, they're marked `isSpectator`, removed from pitchOrder/movies, but can still vote; flag clears at next round
 - Mid-game join as spectator: new players joining mid-game (phase !== lobby) are marked `isSpectator` for the current round; they can vote but don't pitch; flag clears at the start of the next round (`setupRound`), making them full players
+- Always-visible player status panel: PlayerList rendered in all phases (lobby, setup, card-selection, pitching, round-end, game-end) with current-pitcher highlight (red left border + subtle background)
 - Stale room cleanup (1-hour TTL after all disconnected or game-end)
 - SQLite persistence (survives restarts)
 - Docker deployment with non-root user, read-only fs, resource limits
@@ -386,7 +388,7 @@ Previously no ESLint, Prettier, or lint configuration existed. Added in v2.1.2: 
 
 ### 2. E2E test not verified (RESOLVED)
 
-Previously the Playwright E2E suite (`e2e/full-game.test.ts` + 12 journey specs) was not verified. Verified in v2.1.2: all 13 E2E tests pass in ~8 minutes (full-game + audience-voting × 2 + auto-draw + deck-reshuffle + four-player-softlock + franchise-cards + full-three-player + host-succession × 2 + note-card-timer + reconnection + timer-expiry). Run with `npm run build && npx playwright test --config e2e/playwright.config.ts`.
+Previously the Playwright E2E suite (`e2e/full-game.test.ts` + 12 journey specs) was not verified. Verified in v2.1.2: all 13 E2E tests pass in ~8 minutes (full-game + audience-voting × 2 + auto-draw + deck-reshuffle + four-player-softlock + franchise-cards + full-three-player + host-succession × 2 + note-card-timer + reconnection + timer-expiry). Run with `npm run build && npx playwright test --config e2e/playwright.config.ts`. Verified in v2.1.6: 20 E2E tests (19 pass + 1 pre-existing franchise flake in full-three-player).
 
 ### 3. Stale-disconnect post-test timer errors (RESOLVED)
 
@@ -423,7 +425,7 @@ Note: `ROOM_TTL_MS`, `CLEANUP_INTERVAL_MS`, and `STALE_DISCONNECT_MS` (60s) are 
 
 - **Server tests** use in-memory SQLite (`:memory:`) — no file cleanup needed
 - **Client tests** use jsdom + @testing-library/react + jest-dom matchers
-- **Socket tests** cover handler setup, kick, stale-disconnect, and the automatic voting flow
+- **Socket tests** cover handler setup, kick, stale-disconnect, immediate spectator on disconnect, and the manual voting flow
 - **E2E test** uses raw socket.io-client connections for player actions + a Playwright browser page for the audience UI. Port 3100. Requires `npm run build` + running server first.
 - **Stress test** simulates a full N-player game via socket connections. Configurable via `STRESS_TARGET`, `STRESS_PLAYERS`, `STRESS_AUDIENCE`, `STRESS_ROUNDS` env vars. Multi-room variant via `stress/multi-room-stress.ts`.
 - State-machine tests cover `startGame`, `setupRound`, `selectDeckType`, `selectCard`, `startPitching`, `revealMovie`, `endPitch`, `tallyAndAdvance`, `nextRound`, `playAgain`, and auto-draw mechanics.
@@ -440,7 +442,7 @@ Note: `ROOM_TTL_MS`, `CLEANUP_INTERVAL_MS`, and `STALE_DISCONNECT_MS` (60s) are 
 3. **`sockets.ts` is now `sockets/`** — the old single file was split into `sockets/rate-limits.ts`, `sockets/state-mapper.ts`, `sockets/handlers.ts`. Update imports accordingly.
 4. **`seed-cards.ts` is huge** — 493 cards, ~600 lines. Don't read the whole file unless necessary. Use grep/search for specific cards.
 5. **State machine is pure** — `state-machine.ts` functions take a `RoomStore` and `Room`, mutate via `store.saveRoom()`, and the caller re-fetches with `store.getRoom()`. Always re-fetch after calling a state-machine function.
-6. **`tallyAndAdvance` replaces `selectWinner`/`endVoting`/`tallyVotes`** — there is no manual winner selection. Voting starts automatically after the last pitch and `tallyAndAdvance` finalizes the round. Don't re-add `select_winner`.
+6. **`tallyAndAdvance` replaces `selectWinner`/`endVoting`/`tallyVotes`** — there is no manual winner selection. Voting is now manual (note giver starts it via `start_voting` after `votingReady` is set). `tallyAndAdvance` finalizes the round when the voting timer expires or all have voted. Don't re-add `select_winner` or auto-voting-start.
 7. **Socket handlers re-fetch room after state-machine calls** — `ctx.room` is a snapshot. After calling any state-machine function, use `store.getRoom(ctx.room.code)!` to get updated state.
 8. **Timer is server-authoritative** — never compute timer values on the client. The `useRoom` hook always uses server-pushed `timer_tick` / `voting_started` values.
 9. **Timer predicates are shared** — use `timerRunning` / `timerIdle` / `timerPaused` / `timerExpired` from `shared/timer-helpers.ts` on both server and client. Don't reimplement.
@@ -453,8 +455,10 @@ Note: `ROOM_TTL_MS`, `CLEANUP_INTERVAL_MS`, and `STALE_DISCONNECT_MS` (60s) are 
 16. **Note giver ≠ executive** — the v2.0 redesign removed the executive entirely. `Player.isNoteGiver`, `Room.noteGiverId`, `Room.noteGiverNotes` replace the old executive fields. Don't reintroduce `isExecutive` / `executiveId` / `executiveNotes`.
 17. **Note giver rotation uses `noteGiverOrder` + `noteGiverIndex`** — a random permutation generated at game start. Don't compute the next note giver by "next connected player"; read it from the order array.
 18. **Total rounds is host-selected** — `Room.totalRounds` (3/5/7/10, default 5) is set in the lobby via `set_total_rounds`. Game end is `round.current >= totalRounds`, not "everyone has been note giver once".
-19. **Stale-disconnect is 60s** — `STALE_DISCONNECT_MS` in `sockets/handlers.ts`. After 60s disconnected, the player is fully removed (not just marked), note giver may be reassigned, host may be promoted. Rejoin creates a fresh player if the old one was purged.
+19. **Stale-disconnect is 60s** — `STALE_DISCONNECT_MS` in `sockets/handlers.ts`. After 60s disconnected, the player is fully removed (not just marked), note giver may be reassigned, host may be promoted. Rejoin creates a fresh player if the old one was purged. However, the player is immediately marked `isSpectator` and removed from `pitchOrder`/`movies` on disconnect (no 60s grace period where they block the game).
 20. **Security limits are env-configurable** — `MAX_PLAYERS` and `MAX_ROOMS` can be set via environment variables. Socket/HTTP rate limits are hardcoded in `sockets/rate-limits.ts` and `index.ts`.
 21. **`trust proxy` is enabled** — Express trusts one proxy hop for correct client IP identification behind nginx.
-22. **VERSION is duplicated** — `shared/types.ts` has `VERSION` (2.1.5) for the client, `server/src/index.ts` has its own copy for the server (because the server can't import runtime values from the shared `.ts` file in production). Keep both in sync.
+22. **VERSION is duplicated** — `shared/types.ts` has `VERSION` (2.1.6) for the client, `server/src/index.ts` has its own copy for the server (because the server can't import runtime values from the shared `.ts` file in production). Keep both in sync.
 23. **`writerReadyIds` drives note-giver setup UX** — `PublicRoomState.writerReadyIds` (populated from `room.movies.map(m => m.playerId)`, revealed or not) is the source of truth for writer readiness during setup. `PlayerList` accepts a `readyPlayerIds` prop (takes precedence over the `movies` prop for indicator rendering); `Game.tsx` uses it for `hasUnpreparedWriters` and the "X of N writers ready" progress bar. Don't re-derive readiness from `state.movies` — that array is filtered to `revealed: true` only and is empty during setup.
+24. **Manual voting start** — voting is no longer automatic. `endPitch` sets `votingReady: true` (not `votingActive: true`). The note giver must click "Start Voting" (`start_voting` event). The server handler checks `votingReady && !votingActive` and rejects if not the note giver. Don't re-add auto-voting-start from `endPitch` or the timer interval.
+25. **Immediate spectator on disconnect** — the disconnect handler immediately sets `isSpectator: true` (only when player was in `pitchOrder`), removes from `pitchOrder`/`movies`, reassigns note giver, and advances current pitcher. The `currentPitchIndex` stays the same (not +1) because removing the disconnected pitcher shifts the next pitcher into that index. Setup-phase disconnects don't set `isSpectator`.

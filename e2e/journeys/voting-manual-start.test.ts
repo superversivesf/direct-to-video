@@ -65,9 +65,11 @@ test.describe("Voting manual start journey", () => {
 
     // Other players should see waiting message
     const otherPlayer = writers[0];
-    await expect(otherPlayer.page.locator("text=/waiting.*note giver.*start voting/i")).toBeVisible({
-      timeout: 5000,
-    });
+    await expect(otherPlayer.page.locator("text=/waiting.*note giver.*start voting/i")).toBeVisible(
+      {
+        timeout: 5000,
+      },
+    );
 
     // Audience should see waiting message
     await expect(audiencePage.locator("text=/waiting.*note giver/i")).toBeVisible({
