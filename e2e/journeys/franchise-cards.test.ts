@@ -6,6 +6,7 @@ import {
   playAllToReady,
   clickStartTimer,
   clickEndPitch,
+  clickStartVoting,
   clickVoteForMovie,
   waitForPhase,
   _findNoteGiverSession,
@@ -63,6 +64,7 @@ test.describe("Franchise cards journey", () => {
       }
     }
 
+    await clickStartVoting(noteGiver.page);
     await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
 
     await expect(noteGiver.page.locator("button.btn-vote")).toHaveCount(writers.length, {

@@ -6,6 +6,7 @@ import {
   playAllToReady,
   clickStartTimer,
   clickEndPitch,
+  clickStartVoting,
   clickVoteForMovie,
   clickLeaveGame,
   clickPlayAgain,
@@ -79,6 +80,7 @@ test.describe("Host succession journey", () => {
         await new Promise((r) => setTimeout(r, 700));
       }
 
+      await clickStartVoting(noteGiver.page);
       await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
 
       for (const player of players) {

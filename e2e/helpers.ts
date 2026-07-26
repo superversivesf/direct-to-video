@@ -78,6 +78,11 @@ export async function clickEndPitch(page: Page): Promise<void> {
   await page.click("text=End Pitch");
 }
 
+export async function clickStartVoting(page: Page): Promise<void> {
+  await page.waitForSelector("button.btn-start-voting", { timeout: 15000 });
+  await page.click("button.btn-start-voting");
+}
+
 export async function clickImDonePitching(page: Page): Promise<void> {
   await page.click("text=I'm Done Pitching");
 }

@@ -5,6 +5,7 @@ import {
   clickStartGame,
   playAllToReady,
   clickStartTimer,
+  clickStartVoting,
   clickVoteForMovie,
   waitForPhase,
   _findNoteGiverSession,
@@ -63,7 +64,7 @@ test.describe("Timer expiry journey", () => {
           const body = (await audiencePage.locator("body").textContent()) ?? "";
           return (
             (pitcherName !== firstPitcherName && /Now Pitching/.test(pitcherName)) ||
-            /Vote for the Best Movie/i.test(body)
+            /Vote for the Best Movie|Waiting for Note Giver/i.test(body)
           );
         },
         { timeout: 90000, intervals: [1000] },
@@ -76,25 +77,28 @@ test.describe("Timer expiry journey", () => {
         .textContent()
         .catch(() => "")) ?? "";
     const bodyAfter = (await audiencePage.locator("body").textContent()) ?? "";
-    const advancedToVoting = /Vote for the Best Movie/i.test(bodyAfter);
+    const advancedToVotingReady = /Waiting for Note Giver/i.test(bodyAfter);
     const advancedToSecondPitch =
       afterFirstExpiry !== firstPitcherName && /Now Pitching/.test(afterFirstExpiry);
 
-    expect(advancedToVoting || advancedToSecondPitch).toBe(true);
+    expect(advancedToVotingReady || advancedToSecondPitch).toBe(true);
 
-    if (advancedToSecondPitch && !advancedToVoting) {
+    if (advancedToSecondPitch && !advancedToVotingReady) {
       await clickStartTimer(noteGiver.page);
 
       await expect
         .poll(
           async () => {
             const r = (await audiencePage.locator("body").textContent()) ?? "";
-            return /Vote for the Best Movie/i.test(r);
+            return /Waiting for Note Giver/i.test(r);
           },
           { timeout: 90000, intervals: [1000] },
         )
         .toBeTruthy();
     }
+
+    await clickStartVoting(noteGiver.page);
+    await waitForPhase(audiencePage, /Vote for the Best Movie/i, 15000);
 
     await expect(audiencePage.locator("button.btn-vote")).toHaveCount(2, { timeout: 10000 });
 

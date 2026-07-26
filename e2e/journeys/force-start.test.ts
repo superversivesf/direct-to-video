@@ -5,6 +5,7 @@ import {
   clickStartGame,
   clickStartTimer,
   clickEndPitch,
+  clickStartVoting,
   clickVoteForMovie,
   clickDrawCards,
   waitForPhase,
@@ -97,6 +98,7 @@ test.describe("Force-start journey", () => {
       }
     }
 
+    await clickStartVoting(noteGiverSession.page);
     await waitForPhase(noteGiverSession.page, /Vote for the best movie/i, 15000);
 
     for (const player of sessions) {

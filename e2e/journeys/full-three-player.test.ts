@@ -6,6 +6,7 @@ import {
   playAllToReady,
   clickStartTimer,
   clickEndPitch,
+  clickStartVoting,
   clickVoteForMovie,
   setTotalRounds,
   waitForPhase,
@@ -68,8 +69,9 @@ test.describe("Full 3-player game journey", () => {
         }
       }
 
-      await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
-      await waitForPhase(audiencePage, /Vote for the Best Movie/i, 15000);
+  await clickStartVoting(noteGiver.page);
+  await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
+  await waitForPhase(audiencePage, /Vote for the Best Movie/i, 15000);
 
       await expect(noteGiver.page.locator("button.btn-vote")).toHaveCount(writers.length, {
         timeout: 10000,

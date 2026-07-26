@@ -6,6 +6,7 @@ import {
   playAllToReady,
   clickStartTimer,
   clickEndPitch,
+  clickStartVoting,
   clickVoteForMovie,
   setTotalRounds,
   waitForPhase,
@@ -83,6 +84,7 @@ test.describe("Full 2-player game (UI-driven)", () => {
         }
       }
 
+      await clickStartVoting(noteGiver.page);
       await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
       await waitForPhase(audiencePage, /Vote for the Best Movie/i, 15000);
 

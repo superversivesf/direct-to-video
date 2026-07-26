@@ -6,6 +6,7 @@ import {
   playAllToReady,
   clickStartTimer,
   clickEndPitch,
+  clickStartVoting,
   clickVoteForMovie,
   waitForPhase,
   _findNoteGiverSession,
@@ -68,6 +69,7 @@ test.describe("Auto-draw cards journey", () => {
       }
     }
 
+    await clickStartVoting(noteGiver.page);
     await waitForPhase(noteGiver.page, /Vote for the best movie/i, 10000);
 
     const audienceMovieText = await audiencePage

@@ -6,6 +6,7 @@ import {
   playAllToReady,
   clickStartTimer,
   clickEndPitch,
+  clickStartVoting,
   clickVoteForMovie,
   waitForPhase,
   uncheckFranchise,
@@ -68,6 +69,7 @@ test.describe("Deck reshuffle journey", () => {
         }
       }
 
+      await clickStartVoting(noteGiver.page);
       await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
 
       await expect(noteGiver.page.locator("button.btn-vote")).toHaveCount(writers.length, {

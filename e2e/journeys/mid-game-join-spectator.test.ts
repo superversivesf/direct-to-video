@@ -6,6 +6,7 @@ import {
   playAllToReady,
   clickStartTimer,
   clickEndPitch,
+  clickStartVoting,
   clickVoteForMovie,
   clickDrawCards,
   waitForPhase,
@@ -94,6 +95,7 @@ test.describe("Mid-game join as spectator journey", () => {
     }
 
     // Voting phase — Dave should be able to vote as a spectator
+    await clickStartVoting(noteGiver.page);
     await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
 
     // Dave should see vote buttons (spectators can vote)

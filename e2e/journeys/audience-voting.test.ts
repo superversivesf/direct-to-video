@@ -6,6 +6,7 @@ import {
   playAllToReady,
   clickStartTimer,
   clickEndPitch,
+  clickStartVoting,
   clickVoteForMovie,
   waitForPhase,
   _findNoteGiverSession,
@@ -65,6 +66,7 @@ test.describe("Audience voting journey", () => {
     const { noteGiver, writers } = await playAllToReady(sessions, "plot");
     await playThroughPitches(noteGiver, writers, audiencePage);
 
+    await clickStartVoting(noteGiver.page);
     await waitForPhase(audiencePage, /Vote for the Best Movie/i, 15000);
     await waitForPhase(noteGiver.page, /Vote for the best movie/i, 15000);
 
@@ -120,6 +122,7 @@ test.describe("Audience voting journey", () => {
     const { noteGiver, writers } = await playAllToReady(sessions, "plot");
     await playThroughPitches(noteGiver, writers, audiencePage);
 
+    await clickStartVoting(noteGiver.page);
     await waitForPhase(audiencePage, /Vote for the Best Movie/i, 15000);
 
     await clickVoteForMovie(audiencePage, 0);
