@@ -133,7 +133,20 @@ export function Audience() {
 
       {state.phase === "round-end" && (
         <div className="audience-round-end">
-          {state.votingActive ? (
+          {state.votingReady && !state.votingActive ? (
+            <>
+              <h2>Waiting for Note Giver to start voting...</h2>
+              {state.movies.map((movie) => {
+                const player = state.players.find((p) => p.id === movie.playerId);
+                return (
+                  <div key={movie.playerId} className="audience-movie-card">
+                    <h3>{player?.name}'s Movie</h3>
+                    <MovieReveal movie={movie} movieHistory={state.movieHistory} />
+                  </div>
+                );
+              })}
+            </>
+          ) : state.votingActive ? (
             <>
               <h2>Vote for the Best Movie!</h2>
               <Timer

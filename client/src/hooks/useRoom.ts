@@ -129,6 +129,7 @@ export function useRoom() {
           ? {
               ...prev,
               votingActive: true,
+              votingReady: false,
               timer: {
                 running: true,
                 secondsRemaining,
@@ -139,6 +140,10 @@ export function useRoom() {
             }
           : prev,
       );
+    });
+
+    socket.on("ready_to_vote", () => {
+      setRoomState((prev) => (prev ? { ...prev, votingReady: true } : prev));
     });
 
     socket.on("vote_update", (voteCounts: { playerId: string; votes: number }[]) => {
@@ -179,6 +184,7 @@ export function useRoom() {
       socket.off("pitch_ended");
       socket.off("next_pitcher");
       socket.off("voting_started");
+      socket.off("ready_to_vote");
       socket.off("vote_update");
       socket.off("voting_ended");
       socket.off("round_started");
@@ -241,6 +247,9 @@ export function useRoom() {
   const selectFranchiseSource = useCallback((sourceMovieId: string) => {
     socket.emit("select_franchise_source", sourceMovieId);
   }, []);
+  const startVoting = useCallback(() => {
+    socket.emit("start_voting");
+  }, []);
 
   const leaveGame = useCallback(() => {
     socket.disconnect();
@@ -268,6 +277,7 @@ export function useRoom() {
     kickPlayer,
     forceStart,
     selectFranchiseSource,
+    startVoting,
     leaveGame,
   };
 }
@@ -390,6 +400,7 @@ export function useAudience() {
           ? {
               ...prev,
               votingActive: true,
+              votingReady: false,
               timer: {
                 running: true,
                 secondsRemaining,
@@ -400,6 +411,10 @@ export function useAudience() {
             }
           : prev,
       );
+    });
+
+    socket.on("ready_to_vote", () => {
+      setAudienceState((prev) => (prev ? { ...prev, votingReady: true } : prev));
     });
 
     socket.on("vote_update", (voteCounts: { playerId: string; votes: number }[]) => {
@@ -425,6 +440,7 @@ export function useAudience() {
       socket.off("timer_expired");
       socket.off("note_played");
       socket.off("voting_started");
+      socket.off("ready_to_vote");
       socket.off("vote_update");
       socket.off("voting_ended");
       socket.off("game_ended");

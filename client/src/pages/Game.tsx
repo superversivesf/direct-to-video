@@ -427,7 +427,29 @@ export function Game() {
         <h2>
           Round {state.round.current} of {state.totalRounds}
         </h2>
-        {state.votingActive ? (
+        {state.votingReady && !state.votingActive ? (
+          <>
+            {isNoteGiver ? (
+              <>
+                <p>All pitches are done. Start voting when you're ready!</p>
+                <button onClick={room.startVoting} className="btn-start-voting">
+                  Start Voting
+                </button>
+              </>
+            ) : (
+              <p>Waiting for the Note Giver to start voting...</p>
+            )}
+            {state.movies.map((movie) => {
+              const player = state.players.find((p) => p.id === movie.playerId);
+              return (
+                <div key={movie.playerId} className="round-summary-movie">
+                  <h3>{player?.name}'s Movie</h3>
+                  <MovieReveal movie={movie} movieHistory={state.movieHistory} />
+                </div>
+              );
+            })}
+          </>
+        ) : state.votingActive ? (
           <>
             <Timer
               seconds={state.timer.secondsRemaining}

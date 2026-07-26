@@ -26,6 +26,7 @@ const mockFns = {
   kickPlayer: vi.fn(),
   forceStart: vi.fn(),
   selectFranchiseSource: vi.fn(),
+  startVoting: vi.fn(),
   leaveGame: vi.fn(),
 };
 
@@ -56,6 +57,7 @@ const baseState: PublicRoomState = {
   myBlindCard: null,
   myNoteGiverNotes: null,
   votingActive: false,
+  votingReady: false,
   voteCounts: [],
   myVote: null,
   audienceCount: 0,
@@ -547,6 +549,109 @@ describe("Game", () => {
     renderGame();
     fireEvent.click(screen.getByText("Vote"));
     expect(mockFns.castVote).toHaveBeenCalledWith("2");
+  });
+
+  it("renders Start Voting button for note giver when votingReady is true", () => {
+    setState({
+      phase: "round-end",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "1",
+      myPlayerId: "1",
+      votingActive: false,
+      votingReady: true,
+      timer: {
+        running: false,
+        secondsRemaining: 45,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
+      players: [
+        {
+          id: "1",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+        {
+          id: "2",
+          name: "Writer",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+      ],
+      movies: [
+        {
+          playerId: "2",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+          franchiseSourceMovieId: null,
+        },
+      ],
+    });
+    renderGame();
+    expect(screen.getByText("Start Voting")).toBeTruthy();
+  });
+
+  it("renders waiting message for non-note-giver when votingReady is true", () => {
+    setState({
+      phase: "round-end",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "2",
+      myPlayerId: "1",
+      votingActive: false,
+      votingReady: true,
+      timer: {
+        running: false,
+        secondsRemaining: 45,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
+      players: [
+        {
+          id: "1",
+          name: "Writer",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+        {
+          id: "2",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+      ],
+      movies: [
+        {
+          playerId: "2",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+          franchiseSourceMovieId: null,
+        },
+      ],
+    });
+    renderGame();
+    expect(screen.getByText(/waiting for.*note giver.*start voting/i)).toBeTruthy();
+    expect(screen.queryByText("Start Voting")).toBeNull();
   });
 
   it("renders game-end with scoreboard and play again for host", () => {
