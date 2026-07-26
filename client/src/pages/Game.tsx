@@ -408,6 +408,10 @@ export function Game() {
           />
         )}
         {isMyPitch && timerStarted && <button onClick={room.endPitch}>I'm Done Pitching</button>}
+        <PlayerList
+          players={state.players}
+          currentPitcherId={state.currentPitcherId || undefined}
+        />
         <button onClick={handleLeave} className="btn-leave">
           Leave Game
         </button>
@@ -487,6 +491,7 @@ export function Game() {
         ) : (
           <p>Voting has ended. Next round starting...</p>
         )}
+        <PlayerList players={state.players} />
         <button onClick={handleLeave} className="btn-leave">
           Leave Game
         </button>
@@ -511,6 +516,7 @@ export function Game() {
           )}
         </div>
         <Scoreboard players={state.players} large={true} podium={true} />
+        <PlayerList players={state.players} />
         {isHost && <button onClick={room.playAgain}>Play Again</button>}
         <button onClick={handleLeave} className="btn-leave">
           Leave Game

@@ -1390,9 +1390,7 @@ describe("sockets", () => {
       const { sockets, states, roomCode, noteGiverId } = await setupPitchingState();
       let room = store.getRoom(roomCode)!;
 
-      const disconnectSocket = sockets.find(
-        (s) => states.get(s)!.myPlayerId !== noteGiverId,
-      )!;
+      const disconnectSocket = sockets.find((s) => states.get(s)!.myPlayerId !== noteGiverId)!;
       const disconnectId = states.get(disconnectSocket)!.myPlayerId!;
       expect(room.pitchOrder.includes(disconnectId)).toBe(true);
 
@@ -1411,9 +1409,7 @@ describe("sockets", () => {
 
     it("disconnected note giver is reassigned immediately", async () => {
       const { sockets, states, roomCode, noteGiverId } = await setupPitchingState();
-      const noteGiverSocket = sockets.find(
-        (s) => states.get(s)!.myPlayerId === noteGiverId,
-      )!;
+      const noteGiverSocket = sockets.find((s) => states.get(s)!.myPlayerId === noteGiverId)!;
 
       noteGiverSocket.disconnect();
       await new Promise((r) => setTimeout(r, 500));
@@ -1431,9 +1427,7 @@ describe("sockets", () => {
       const { sockets, states, roomCode } = await setupPitchingState();
       let room = store.getRoom(roomCode)!;
       const firstPitcherId = room.currentPitcherId!;
-      const firstPitcherSocket = sockets.find(
-        (s) => states.get(s)!.myPlayerId === firstPitcherId,
-      )!;
+      const firstPitcherSocket = sockets.find((s) => states.get(s)!.myPlayerId === firstPitcherId)!;
       const expectedNextId = room.pitchOrder[room.currentPitchIndex + 1];
 
       firstPitcherSocket.disconnect();

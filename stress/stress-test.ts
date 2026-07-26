@@ -298,9 +298,7 @@ async function runGame(
       const cardId = deckState.myHand?.[0]?.id;
       if (cardId) {
         console.log(`  ${player.name} selecting card ${cardId}`);
-        const moviePromise = waitForMovieReady(player.socket, () => player.state).catch(
-          () => null,
-        );
+        const moviePromise = waitForMovieReady(player.socket, () => player.state).catch(() => null);
         player.socket.emit("select_card", cardId);
         await moviePromise;
       } else {

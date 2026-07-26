@@ -436,6 +436,67 @@ describe("Game", () => {
     expect(mockFns.startTimer).toHaveBeenCalled();
   });
 
+  it("renders player list during pitching phase", () => {
+    setState({
+      phase: "pitching",
+      round: { current: 1 },
+      totalRounds: 3,
+      noteGiverId: "9",
+      myPlayerId: "1",
+      currentPitcherId: "2",
+      timer: {
+        running: true,
+        secondsRemaining: 30,
+        pausedAt: null,
+        pausedForNote: false,
+        noteResumeAt: null,
+      },
+      players: [
+        {
+          id: "1",
+          name: "Jason",
+          isNoteGiver: false,
+          isHost: true,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+        {
+          id: "2",
+          name: "Bob",
+          isNoteGiver: false,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+        {
+          id: "9",
+          name: "NoteGiver",
+          isNoteGiver: true,
+          isHost: false,
+          score: 0,
+          isDisconnected: false,
+          isSpectator: false,
+        },
+      ],
+      movies: [
+        {
+          playerId: "2",
+          chosenCard: { id: "c1", type: "plot", text: "Plot A" },
+          randomCard: { id: "r1", type: "character", text: "Char A" },
+          notesPlayed: [],
+          revealed: true,
+          franchiseSourceMovieId: null,
+        },
+      ],
+    });
+    renderGame();
+    expect(screen.getByText("Players")).toBeTruthy();
+    const playerList = screen.getByText("Players").closest(".player-list");
+    expect(playerList?.textContent).toContain("Bob");
+  });
+
   it("renders round-end with vote buttons", () => {
     setState({
       phase: "round-end",

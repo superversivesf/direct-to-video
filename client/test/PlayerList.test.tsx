@@ -110,4 +110,11 @@ describe("PlayerList", () => {
     expect(liElements[1]?.textContent).toContain("✓ ready");
     expect(liElements[2]?.textContent).toContain("disconnected");
   });
+
+  it("highlights current pitcher when currentPitcherId is provided", () => {
+    const { container } = render(<PlayerList players={players} currentPitcherId="2" />);
+    const liElements = container.querySelectorAll("li");
+    expect(liElements[1]?.classList.contains("current-pitcher")).toBe(true);
+    expect(liElements[0]?.classList.contains("current-pitcher")).toBe(false);
+  });
 });

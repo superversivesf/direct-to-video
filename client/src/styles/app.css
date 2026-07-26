@@ -337,6 +337,13 @@ button:disabled {
   color: #ff9800;
 }
 
+.current-pitcher {
+  background: rgba(233, 69, 96, 0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+  border-left: 3px solid #e94560;
+}
+
 .setup-progress-bar {
   margin: 16px 0;
   padding: 12px 16px;

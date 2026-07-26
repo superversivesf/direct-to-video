@@ -202,7 +202,7 @@ describe("state machine", () => {
     });
 
     it("setupRound clears votingReady", () => {
-      const { room, playerIds } = createGameWithPlayers(["Jason", "Sarah"]);
+      const { room } = createGameWithPlayers(["Jason", "Sarah"]);
       startGame(store, room);
       let updated = store.getRoom(room.code)!;
       updated = { ...updated, votingReady: true };
@@ -1258,7 +1258,12 @@ describe("state machine", () => {
 
       updated = store.getRoom(room.code)!;
       const startedSoftlock = startTimer(updated.timer);
-      store.saveRoom({ ...updated, timer: startedSoftlock, votingActive: true, votingReady: false });
+      store.saveRoom({
+        ...updated,
+        timer: startedSoftlock,
+        votingActive: true,
+        votingReady: false,
+      });
       const voteTarget = playerIds.find((id) => id !== playerIds[0])!;
       castVote(store, store.getRoom(room.code)!, "aud1", voteTarget);
       tallyAndAdvance(store, store.getRoom(room.code)!);

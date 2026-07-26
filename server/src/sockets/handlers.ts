@@ -94,7 +94,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
             broadcastAllStates(io, postVote);
           } else if (room.currentPitcherId) {
             endPitch(store, store.getRoom(room.code)!, room.currentPitcherId);
-            let updated = store.getRoom(room.code)!;
+            const updated = store.getRoom(room.code)!;
             io.to(`room:${updated.code}`).emit("pitch_ended", room.currentPitcherId);
             io.to(`audience:${updated.code}`).emit("pitch_ended", room.currentPitcherId);
             if (updated.currentPitcherId) {
@@ -388,7 +388,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       if (!isNoteGiver && !isCurrentPitcher) return;
       try {
         endPitch(store, ctx.room, ctx.room.currentPitcherId!);
-        let updated = store.getRoom(ctx.room.code)!;
+        const updated = store.getRoom(ctx.room.code)!;
         io.to(`room:${updated.code}`).emit("pitch_ended", ctx.room.currentPitcherId!);
         io.to(`audience:${updated.code}`).emit("pitch_ended", ctx.room.currentPitcherId!);
         if (updated.currentPitcherId) {

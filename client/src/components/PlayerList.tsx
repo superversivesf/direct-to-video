@@ -4,11 +4,19 @@ interface PlayerListProps {
   players: PublicPlayer[];
   movies?: Movie[];
   readyPlayerIds?: string[];
+  currentPitcherId?: string;
   canKick?: boolean;
   onKick?: (playerId: string) => void;
 }
 
-export function PlayerList({ players, movies, readyPlayerIds, canKick, onKick }: PlayerListProps) {
+export function PlayerList({
+  players,
+  movies,
+  readyPlayerIds,
+  currentPitcherId,
+  canKick,
+  onKick,
+}: PlayerListProps) {
   return (
     <div className="player-list">
       <h3>Players</h3>
@@ -18,13 +26,16 @@ export function PlayerList({ players, movies, readyPlayerIds, canKick, onKick }:
             ? readyPlayerIds.includes(p.id)
             : movies?.some((m) => m.playerId === p.id);
           const canKickThis = canKick && onKick && !p.isHost && !p.isDisconnected;
+          const isCurrentPitcher = currentPitcherId === p.id;
+          const liClassName = [
+            p.isDisconnected ? "player-disconnected" : "",
+            p.isSpectator ? "player-spectator" : "",
+            isCurrentPitcher ? "current-pitcher" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
           return (
-            <li
-              key={p.id}
-              className={
-                p.isDisconnected ? "player-disconnected" : p.isSpectator ? "player-spectator" : ""
-              }
-            >
+            <li key={p.id} className={liClassName}>
               {p.isNoteGiver && "📝 "}
               {p.isHost && "👑 "}
               {p.name}
