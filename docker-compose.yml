@@ -11,6 +11,10 @@ services:
       - MAX_PLAYERS=20
       - MAX_ROOMS=20
     read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     tmpfs:
       - /tmp
     deploy:

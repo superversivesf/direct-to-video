@@ -543,7 +543,7 @@ describe("sockets", () => {
       const errorPromise = waitForEvent<string>(nonNoteGiverSocket, "error");
       nonNoteGiverSocket.emit("start_voting");
       const errMsg = await errorPromise;
-      expect(errMsg).toContain("note giver");
+      expect(errMsg).toBe("Not authorized");
       sockets.forEach((s) => s.disconnect());
     });
   });
@@ -1071,7 +1071,7 @@ describe("sockets", () => {
 
       guest.emit("force_start");
       const err = await waitForEvent<string>(guest, "error");
-      expect(err).toBe("Only the host can force-start");
+      expect(err).toBe("Not authorized");
 
       host.disconnect();
       guest.disconnect();

@@ -410,15 +410,15 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       const ctx = getPlayerContext(socket.id, store);
       if (!ctx) return;
       if (ctx.playerId !== ctx.room.noteGiverId) {
-        socket.emit("error", "Only the note giver can start voting");
+        socket.emit("error", "Not authorized");
         return;
       }
       if (!ctx.room.votingReady) {
-        socket.emit("error", "Voting is not ready yet");
+        socket.emit("error", "Not ready");
         return;
       }
       if (ctx.room.votingActive) {
-        socket.emit("error", "Voting is already active");
+        socket.emit("error", "Already active");
         return;
       }
       try {
@@ -530,7 +530,7 @@ export function setupSocketHandlers(io: Server, store: RoomStore): void {
       try {
         const player = ctx.room.players.find((p) => p.id === ctx.playerId);
         if (!player?.isHost) {
-          socket.emit("error", "Only the host can force-start");
+          socket.emit("error", "Not authorized");
           return;
         }
         forceStart(store, ctx.room);

@@ -39,9 +39,11 @@ app.use(
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         imgSrc: ["'self'", "data:"],
         connectSrc: ["'self'", "ws:", "wss:"],
+        frameAncestors: ["'none'"],
         upgradeInsecureRequests: null,
       },
     },
+    referrerPolicy: { policy: "same-origin" },
   }),
 );
 

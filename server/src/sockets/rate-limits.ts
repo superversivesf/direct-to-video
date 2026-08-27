@@ -1,7 +1,7 @@
 import type { Socket } from "socket.io";
 
-const MAX_CONNECTIONS_PER_IP = 1000;
-const MAX_JOIN_ATTEMPTS_PER_IP = 200;
+const MAX_CONNECTIONS_PER_IP = 25;
+const MAX_JOIN_ATTEMPTS_PER_IP = 20;
 const JOIN_WINDOW_MS = 60 * 1000;
 const SOCKET_EVENT_WINDOW_MS = 10 * 1000;
 const MAX_SOCKET_EVENTS = 50;
